@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ezequiel Lamas</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface-2: #161616;
+    --border: #1e1e1e;
+    --border-hover: #2a2a2a;
+    --text: #e8e4de;
+    --text-muted: #8a8580;
+    --text-dim: #5a5550;
+    --accent: #c8ff00;
+    --accent-dim: #c8ff0015;
+    --accent-mid: #c8ff0040;
+    --warm: #ff6b35;
+    --warm-dim: #ff6b3512;
+    --blue: #4a9eff;
+    --blue-dim: #4a9eff12;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(10,10,10,0.8);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.9rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.15rem;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .nav-name span { color: var(--accent); }
+
+  nav ul { list-style: none; display: flex; gap: 1.8rem; }
+
+  nav ul a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: color 0.3s;
+  }
+
+  nav ul a:hover { color: var(--accent); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8rem 6vw 5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -25%;
+    width: 70vw;
+    height: 70vw;
+    background: radial-gradient(circle, var(--accent-dim) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -20%;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(circle, var(--warm-dim) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.15s;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(3.5rem, 9vw, 8rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.3s;
+  }
+
+  .hero h1 em { font-style: italic; color: var(--accent); }
+
+  .hero-tagline {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    color: var(--text-muted);
+    margin-top: 1.5rem;
+    max-width: 620px;
+    line-height: 1.4;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.45s;
+  }
+
+  .hero-tagline strong { color: var(--text); font-weight: 400; }
+
+  .hero-meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 2.5rem;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.6s;
+  }
+
+  .hero-meta-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .hero-meta-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .hero-meta-item .dot.warm { background: var(--warm); }
+
+  /* ── SHARED SECTION ── */
+  section {
+    padding: 7rem 6vw;
+    border-top: 1px solid var(--border);
+    position: relative;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  section h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+    letter-spacing: -0.025em;
+    margin-bottom: 1rem;
+    line-height: 1.1;
+  }
+
+  section h2 em { font-style: italic; color: var(--warm); }
+
+  .section-intro {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 640px;
+    margin-bottom: 3rem;
+    line-height: 1.7;
+  }
+
+  /* ── FILOSOFÍA ── */
+  .philosophy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .phil-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2.2rem 1.8rem;
+    transition: border-color 0.4s, transform 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .phil-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .phil-card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+  .phil-card:hover::before { opacity: 1; }
+
+  .phil-card .phil-num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.5rem;
+    color: var(--accent);
+    opacity: 0.2;
+    line-height: 1;
+    margin-bottom: 1rem;
+  }
+
+  .phil-card h3 {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .phil-card p {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  /* ── MI HISTORIA ── */
+  .story-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .story-text p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.75;
+    margin-bottom: 1.2rem;
+  }
+
+  .story-text p strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .story-highlight {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2.5rem;
+    position: sticky;
+    top: 6rem;
+  }
+
+  .story-highlight .sh-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--warm);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 1.2rem;
+  }
+
+  .sh-list {
+    list-style: none;
+  }
+
+  .sh-list li {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .sh-list li:last-child { border-bottom: none; }
+
+  .sh-list li .sh-icon {
+    font-size: 0.7rem;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── RECORRIDO PROFESIONAL ── */
+  .career-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .career-item {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 3rem;
+    padding: 2.5rem 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+    position: relative;
+  }
+
+  .career-item:last-child { border-bottom: none; }
+
+  .career-item:hover { background: var(--surface); }
+  .career-item:hover .career-period { color: var(--accent); }
+
+  .career-period {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-top: 0.3rem;
+    transition: color 0.3s;
+  }
+
+  .career-body {}
+
+  .career-company {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.6rem;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.15rem;
+  }
+
+  .career-role {
+    font-size: 0.82rem;
+    color: var(--warm);
+    font-weight: 500;
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .career-desc {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    max-width: 600px;
+  }
+
+  .career-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .career-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.7rem;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── LOGROS ── */
+  .achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+    margin-bottom: 3rem;
+  }
+
+  .ach-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.8rem 1.4rem;
+    text-align: center;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+
+  .ach-stat:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .ach-number {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.6rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .ach-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+  }
+
+  .ach-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .ach-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2rem;
+    transition: border-color 0.3s;
+  }
+
+  .ach-card:hover { border-color: var(--border-hover); }
+
+  .ach-card h3 {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .ach-card h3 .ach-icon { font-size: 1.2rem; }
+
+  .ach-card p {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  /* ── VISIÓN ── */
+  .vision-block {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+  }
+
+  .vision-main {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .vision-main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--warm));
+  }
+
+  .vision-main h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.8rem;
+    margin-bottom: 1.2rem;
+    letter-spacing: -0.02em;
+  }
+
+  .vision-main h3 em { font-style: italic; color: var(--accent); }
+
+  .vision-main p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.75;
+    margin-bottom: 1rem;
+  }
+
+  .vision-pillars {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .vision-pillar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.6rem;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+
+  .vision-pillar:hover { border-color: var(--accent); transform: translateX(4px); }
+
+  .vision-pillar .vp-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.4rem;
+  }
+
+  .vision-pillar h4 {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .vision-pillar p {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  /* ── QUOTE ── */
+  .quote-block {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 2rem 2.5rem;
+    border-radius: 0 14px 14px 0;
+    margin: 3rem 0;
+    max-width: 680px;
+  }
+
+  .quote-block p {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.25rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 3.5rem 6vw;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-left {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+
+  .footer-left span { color: var(--accent); }
+
+  .footer-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  .footer-links a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: color 0.3s;
+  }
+
+  .footer-links a:hover { color: var(--accent); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes nameScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .name-marquee {
+    overflow: hidden;
+    padding: 2.2rem 0;
+    background: transparent;
+  }
+
+  .name-marquee-track {
+    display: flex;
+    white-space: nowrap;
+    animation: nameScroll 18s linear infinite;
+    width: max-content;
+  }
+
+  .name-marquee-track span {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    padding: 0 2.5rem;
+    letter-spacing: -0.02em;
+    font-weight: 400;
+  }
+
+  .name-marquee-track span:nth-child(odd) { color: rgba(255,255,255,0.18); }
+  .name-marquee-track span:nth-child(even) { color: rgba(255,255,255,0.08); }
+
+  .fade-in {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1024px) {
+    .philosophy-grid { grid-template-columns: 1fr 1fr; }
+    .achievements-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 0.8rem 1.5rem; }
+    nav ul { gap: 1rem; }
+    nav ul a { font-size: 0.65rem; }
+    section { padding: 4.5rem 5vw; }
+    .hero { padding: 7rem 5vw 3rem; }
+    .philosophy-grid { grid-template-columns: 1fr; }
+    .story-layout { grid-template-columns: 1fr; }
+    .story-highlight { position: static; }
+    .career-item { grid-template-columns: 1fr; gap: 0.5rem; }
+    .achievements-grid { grid-template-columns: 1fr 1fr; }
+    .ach-cards { grid-template-columns: 1fr; }
+    .vision-block { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav>
+  <div class="nav-name">Ezequiel <span>Lamas</span></div>
+  <ul>
+    <li><a href="#filosofia">Filosofía</a></li>
+    <li><a href="#historia">Historia</a></li>
+    <li><a href="#recorrido">Recorrido</a></li>
+    <li><a href="#logros">Logros</a></li>
+    <li><a href="#vision">Visión</a></li>
+  </ul>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <div class="hero-eyebrow">Emprendedor · Builder · Argentina</div>
+  <h1>Ezequiel<br><em>Lamas</em></h1>
+  <p class="hero-tagline">Construyo negocios, automatizo procesos y ayudo a emprendedores a <strong>escalar lo que crearon.</strong></p>
+  <div class="hero-meta">
+    <div class="hero-meta-item"><span class="dot"></span> Co-Founder @ UGC Studio</div>
+    <div class="hero-meta-item"><span class="dot warm"></span> Founder @ AdvantX</div>
+    <div class="hero-meta-item"><span class="dot"></span> Buenos Aires, Argentina</div>
+  </div>
+</div>
+
+<!-- ═══ FILOSOFÍA PERSONAL ═══ -->
+<section id="filosofia">
+  <div class="section-label fade-in">01 — Filosofía</div>
+  <h2 class="fade-in">En qué <em>creo</em></h2>
+  <p class="section-intro fade-in">Principios que guían cada decisión que tomo, cada negocio que construyo y cada persona con la que trabajo.</p>
+
+  <div class="philosophy-grid">
+    <div class="phil-card fade-in">
+      <div class="phil-num">01</div>
+      <h3>Crear > Consumir</h3>
+      <p>Lo que más energía me da es construir algo de cero. Un producto, un negocio, un sistema, una landing. El acto de crear es lo que me mueve — no el resultado.</p>
+    </div>
+    <div class="phil-card fade-in">
+      <div class="phil-num">02</div>
+      <h3>Pensar como ingeniero</h3>
+      <p>Todo es input → proceso → output. Uso First Principles para descomponer problemas complejos, eliminar ruido y encontrar la solución más simple y escalable.</p>
+    </div>
+    <div class="phil-card fade-in">
+      <div class="phil-num">03</div>
+      <h3>IA con criterio, no por moda</h3>
+      <p>La inteligencia artificial se usa cuando resuelve un problema real, no porque está de moda. Hay que saber sus alcances y limitaciones antes de implementarla.</p>
+    </div>
+    <div class="phil-card fade-in">
+      <div class="phil-num">04</div>
+      <h3>Aportar antes de vender</h3>
+      <p>La autoridad se construye dando valor primero, por mucho tiempo, sin pedir nada a cambio. Cuando finalmente vendés, la gente ya confía en vos.</p>
+    </div>
+    <div class="phil-card fade-in">
+      <div class="phil-num">05</div>
+      <h3>Rodearte bien lo cambia todo</h3>
+      <p>Mis amigos emprendedores cambiaron mi vida. Hacemos lo mismo, buscamos lo mismo, nos empujamos. El entorno define la velocidad de tu crecimiento.</p>
+    </div>
+    <div class="phil-card fade-in">
+      <div class="phil-num">06</div>
+      <h3>Simple y austero</h3>
+      <p>No me importa el Lamborghini. Me importa la libertad de tiempo, de ubicación, de elegir en qué trabajo y cuándo. La riqueza real es tener opciones.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ MI HISTORIA ═══ -->
+<section id="historia" style="background: var(--surface);">
+  <div class="section-label fade-in">02 — Mi historia</div>
+  <h2 class="fade-in">No sabía hacer nada. Ahora tengo <em>+150 clientes</em></h2>
+
+  <div class="story-layout">
+    <div class="story-text fade-in">
+      <p>Todo empezó a los 16, cuando arranqué el gimnasio. Eso me obligó a dormir bien, comer bien, y de repente tenía la disciplina para leer. <strong>Empecé con cómics, terminé leyendo teoría de inversiones de los años 50.</strong></p>
+
+      <p>Me leí más de 40 libros. Pasé de juegos super dopamínicos a que mi único juego sea el ajedrez. Limité redes sociales. Empecé a construir buenos hábitos. El gimnasio me ordenó la vida.</p>
+
+      <p>Después vino la formación técnica: <strong>diseño gráfico en la UTN, programación web, apps y robots (Arduino), tres años de ingeniería en el ITBA.</strong> La ingeniería me enseñó a pensar distinto — estructurar la lógica de una forma que hoy aplico a todo lo que hago.</p>
+
+      <p>A los 17 ya quería emprender. Probé de todo: hacía páginas web, identidades de marca, diseño. Hasta que pagué mi primera mentoría de ventas por $250 USD y todo cambió. <strong>Aprendí a vender, y cuando aprendés a vender, podés construir cualquier cosa.</strong></p>
+
+      <p>Pasé por agencias, equipos de ventas en EEUU, España y Latam. Gané mis primeros dólares y euros. Me mudé solo. Y seguí construyendo, emprendimiento tras emprendimiento, cada uno mejor que el anterior.</p>
+
+      <p>Hoy tengo 3 emprendimientos en mi historial, casi 100 clientes en mi agencia actual, un equipo de 15 personas, y la convicción de que recién estoy empezando.</p>
+    </div>
+
+    <div class="story-highlight fade-in">
+      <div class="sh-label">El camino en resumen</div>
+      <ul class="sh-list">
+        <li><span class="sh-icon">→</span> Empecé el gimnasio a los 16 — me ordenó la vida</li>
+        <li><span class="sh-icon">→</span> +40 libros leídos en 3 años</li>
+        <li><span class="sh-icon">→</span> Diseño gráfico (UTN) + Programación web, apps y robots (Arduino)</li>
+        <li><span class="sh-icon">→</span> 3 años de ingeniería en el ITBA</li>
+        <li><span class="sh-icon">→</span> Primera mentoría de ventas — $250 USD</li>
+        <li><span class="sh-icon">→</span> Vendedor para negocios de USA, España y Latam</li>
+        <li><span class="sh-icon">→</span> Asesor financiero — 3 años en bolsa</li>
+        <li><span class="sh-icon">→</span> XLaunch — primera agencia de marketing</li>
+        <li><span class="sh-icon">→</span> AdvantX — agencia de IA y automatizaciones</li>
+        <li><span class="sh-icon">→</span> UGC Studio — $1K → $8K → $18K → $30K/mes</li>
+        <li><span class="sh-icon">→</span> Me mudé solo a los 20</li>
+        <li><span class="sh-icon">→</span> Bilingüe inglés-español nativo</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RECORRIDO PROFESIONAL ═══ -->
+<section id="recorrido">
+  <div class="section-label fade-in">03 — Recorrido profesional</div>
+  <h2 class="fade-in">Dónde <em>trabajé</em></h2>
+
+  <div class="career-timeline fade-in">
+
+    <div class="career-item">
+      <div class="career-period">Oct 2025 — Presente</div>
+      <div class="career-body">
+        <div class="career-company">UGC Studio</div>
+        <div class="career-role">Co-Founder · Producto, IT & Automatizaciones</div>
+        <div class="career-desc">Agencia de UGC con inteligencia artificial para e-commerces, agencias y negocios digitales. Lidero el área de producto: toda la infraestructura tecnológica, bases de datos, automatizaciones y sistemas de fulfillment. Co-fundada con Jero. Equipo de ~15 personas. Crecimiento de $1K a $30K/mes en 3 meses.</div>
+        <div class="career-tags">
+          <span class="career-tag">Producto</span>
+          <span class="career-tag">n8n</span>
+          <span class="career-tag">IA Generativa</span>
+          <span class="career-tag">UGC</span>
+          <span class="career-tag">Scaling</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="career-item">
+      <div class="career-period">Abr 2025 — Presente</div>
+      <div class="career-body">
+        <div class="career-company">AdvantX</div>
+        <div class="career-role">Founder & CEO</div>
+        <div class="career-desc">Agencia de inteligencia artificial y automatizaciones. Ayudo a infoproductores a automatizar procesos, reducir costos y potenciar su escalabilidad. Adquisición de clientes, conversión de ventas y mejora de servicio a través de IA y workflows automatizados. 8 clientes, proyecto de $6,000 cerrado.</div>
+        <div class="career-tags">
+          <span class="career-tag">Automatizaciones</span>
+          <span class="career-tag">IA</span>
+          <span class="career-tag">Consultoría</span>
+          <span class="career-tag">Decision-Making</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="career-item">
+      <div class="career-period">Dic 2023 — Feb 2025</div>
+      <div class="career-body">
+        <div class="career-company">GrowthX</div>
+        <div class="career-role">Sales Representative · Full-time</div>
+        <div class="career-desc">La primera institución educativa para startups en Latinoamérica. Vendí programas de Growth Marketing, Product Management y creación de startups. Trabajé con el equipo en Miami, FL. Identifiqué problemas de distribución en startups y diseñé campañas full-service para canales de crecimiento.</div>
+        <div class="career-tags">
+          <span class="career-tag">Ventas</span>
+          <span class="career-tag">Startups</span>
+          <span class="career-tag">Growth</span>
+          <span class="career-tag">Miami, FL</span>
+          <span class="career-tag">Comunicación</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="career-item">
+      <div class="career-period">Ene 2024 — Abr 2024</div>
+      <div class="career-body">
+        <div class="career-company">XLaunch</div>
+        <div class="career-role">Co-Founder</div>
+        <div class="career-desc">Agencia de marketing digital dedicada a lanzamientos de productos para influencers y profesionales con audiencia. Creamos embudos de venta, sistemas de adquisición, organizamos eventos en vivo, gestionamos campañas de anuncios y planificamos todo el contenido durante el lanzamiento. Metodología basada en storytelling y calentamiento progresivo de leads.</div>
+        <div class="career-tags">
+          <span class="career-tag">Marketing Digital</span>
+          <span class="career-tag">Lanzamientos</span>
+          <span class="career-tag">Funnels</span>
+          <span class="career-tag">Content Strategy</span>
+          <span class="career-tag">Ads</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ LOGROS ═══ -->
+<section id="logros" style="background: var(--surface);">
+  <div class="section-label fade-in">04 — Logros</div>
+  <h2 class="fade-in">Los <em>números</em></h2>
+
+  <div class="achievements-grid fade-in">
+    <div class="ach-stat">
+      <div class="ach-number">$300K+</div>
+      <div class="ach-label">Vendido total en mi carrera</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">~100</div>
+      <div class="ach-label">Clientes en UGC Studio</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">$30K</div>
+      <div class="ach-label">Facturación UGC Studio Febrero 2026</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">3</div>
+      <div class="ach-label">Emprendimientos creados</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">100+</div>
+      <div class="ach-label">Workflows en n8n</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">3</div>
+      <div class="ach-label">Apps desarrolladas</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">4K</div>
+      <div class="ach-label">Seguidores Twitter en 6 meses</div>
+    </div>
+    <div class="ach-stat">
+      <div class="ach-number">4M+</div>
+      <div class="ach-label">Impresiones en Twitter Finanzas</div>
+    </div>
+  </div>
+
+  <div class="ach-cards fade-in">
+    <div class="ach-card">
+      <h3><span class="ach-icon">🎤</span> Oratoria reconocida</h3>
+      <p>Premios al mejor orador en múltiples eventos de emprendedurismo. Masterclasses, pitcheos en eventos, y capacitaciones a empresas a $500/hora.</p>
+    </div>
+    <div class="ach-card">
+      <h3><span class="ach-icon">🧠</span> Ingeniería aplicada</h3>
+      <p>3 años de ingeniería en el ITBA convertidos en pensamiento lógico que hoy usa para construir infraestructura compleja de negocios — sin necesitar el título.</p>
+    </div>
+    <div class="ach-card">
+      <h3><span class="ach-icon">💰</span> Finanzas & Inversiones</h3>
+      <p>+3 años en mercados financieros. Cuenta de Twitter de inversiones con 4K seguidores y 4M+ de views. Acciones argentinas, EEUU, China y Brasil.</p>
+    </div>
+    <div class="ach-card">
+      <h3><span class="ach-icon">🌎</span> Bilingüe nativo</h3>
+      <p>Inglés nativo — consumo contenido sin distinguir el idioma. Trabajé con equipos en EEUU, España y Latinoamérica indistintamente.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ VISIÓN ═══ -->
+<section id="vision">
+  <div class="section-label fade-in">05 — Visión a largo plazo</div>
+  <h2 class="fade-in">Hacia dónde <em>voy</em></h2>
+
+  <div class="vision-block fade-in">
+    <div class="vision-main">
+      <h3>Ser el Hormozi de <em>Argentina</em></h3>
+      <p>Mi objetivo a largo plazo es convertirme en el referente de emprendimiento en Latinoamérica. No por el ego — sino porque sé que puedo ayudar a miles de emprendedores a construir mejores negocios.</p>
+      <p>Quiero que alguien me cuente su negocio en un minuto y yo pueda decirle exactamente qué cambiar para facturar un 50% más el mes siguiente. Esa claridad solo viene de la experiencia, y la estoy construyendo todos los días.</p>
+      <p>No me importa la plata en sí. Me importa el impacto. Me importa la libertad. Me importa poder ayudar a emprendedores porque son las personas con las que más sinergia tengo. Son mis amigos, mis pares, mi tribu.</p>
+    </div>
+
+    <div class="vision-pillars">
+      <div class="vision-pillar">
+        <div class="vp-label">Marca Personal</div>
+        <h4>YouTube & contenido educativo</h4>
+        <p>Cursos largos sobre emprendimiento e IA. Análisis de modelos de negocio. Importar los mejores conceptos del mundo anglosajón a Latam.</p>
+      </div>
+      <div class="vision-pillar">
+        <div class="vp-label">Comunidad</div>
+        <h4>Comunidad de Emprendedores</h4>
+        <p>Todo lo que un emprendedor necesita para crecer estructurado y sin quemarse la cabeza.</p>
+      </div>
+      <div class="vision-pillar">
+        <div class="vp-label">Eventos</div>
+        <h4>Presenciales con pizarrón</h4>
+        <p>Sesiones donde emprendedores presentan su negocio y me llevo 5 minutos para resolverles un cuello de botella.</p>
+      </div>
+      <div class="vision-pillar">
+        <div class="vp-label">Consultoría</div>
+        <h4>High-ticket 1 a 1</h4>
+        <p>Consultoría a dueños de negocio: reestructurar ofertas, mejorar producto, optimizar adquisición, armar money models.</p>
+      </div>
+      <div class="vision-pillar">
+        <div class="vp-label">Libertad</div>
+        <h4>Negocio que no dependa de mí</h4>
+        <p>Un equipo que ejecute. Ingresos pasivos. Viajar con tranquilidad. Tiempo con mis seres queridos. Seguir siendo humilde.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote-block fade-in" style="margin-top: 3.5rem; border-left-color: var(--warm);">
+    <p>"No busco generar más dinero. Busco construir algo que genere impacto, me llene y me dé libertad. La plata va a llegar — porque encima que no la voy a buscar, va a llegar todavía más."</p>
+  </div>
+</section>
+
+<!-- ═══ MARQUEE ═══ -->
+<div class="name-marquee">
+  <div class="name-marquee-track">
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+    <span>EzequielLamas</span>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="footer-left"><span>Ezequiel Lamas</span> — Buenos Aires, Argentina</div>
+  <div class="footer-links">
+    <a href="https://tryugcstudio.com" target="_blank">UGC Studio</a>
+    <a href="https://advantx.co" target="_blank">AdvantX</a>
+    <a href="https://www.linkedin.com/in/ezequiel-lamas-ab5568256/" target="_blank">LinkedIn</a>
+    <a href="https://x.com/chessinvesting" target="_blank">Twitter / X</a>
+    <a href="https://www.instagram.com/ezequiellamas.ia/" target="_blank">Instagram</a>
+    <a href="https://www.youtube.com/@ezequiellamass" target="_blank">YouTube</a>
+  </div>
+  <div style="width:100%;margin-top:1rem;display:flex;gap:2rem;flex-wrap:wrap;">
+    <a href="https://wa.me/5491157388695" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">&#x1F4F1; +54 9 11 5738-8695</a>
+    <a href="https://mail.google.com/mail/?view=cm&to=ezequiellamas@tryugcstudio.com" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">&#x2709; ezequiellamas&#64;tryugcstudio.com</a>
+  </div>
+</footer>
+
+<script>
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+  document.querySelectorAll('.fade-in').forEach(function(el) { obs.observe(el); });
+</script>
+</body>
+</html>
