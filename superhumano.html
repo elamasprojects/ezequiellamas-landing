@@ -61,6 +61,8 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 .fc .ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;position:relative}
 .fc .ic::after{content:'';position:absolute;inset:-3px;border-radius:14px;opacity:0;transition:opacity .3s}
 .fc:hover .ic::after{opacity:1}
+.fc .ic .chrome-mark{width:24px;height:24px;border-radius:50%;position:relative;display:block;background:conic-gradient(#db4437 0 120deg,#0f9d58 120deg 240deg,#f4b400 240deg 360deg);box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.fc .ic .chrome-mark::before{content:'';position:absolute;inset:6px;border-radius:50%;background:#4285f4;box-shadow:0 0 0 2px rgba(255,255,255,.92)}
 .icc{background:rgba(0,229,255,.1)}.icc::after{box-shadow:0 0 20px rgba(0,229,255,.25)}
 .icp{background:rgba(168,85,247,.1)}.icp::after{box-shadow:0 0 20px rgba(168,85,247,.25)}
 .icg{background:rgba(52,211,153,.1)}.icg::after{box-shadow:0 0 20px rgba(52,211,153,.25)}
@@ -114,7 +116,7 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 @keyframes ap{0%,100%{opacity:.25;transform:translateX(0)}50%{opacity:.7;transform:translateX(5px)}}
 
 /* CTA */
-.cta{position:absolute;bottom:32px;left:68px;right:68px;z-index:3;background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(168,85,247,.05));border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:12px 20px;text-align:center;font-size:.85rem;color:var(--cyan);font-weight:500;backdrop-filter:blur(10px)}
+.cta{position:relative;z-index:3;margin-top:18px;background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(168,85,247,.05));border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:12px 20px;text-align:center;font-size:.85rem;color:var(--cyan);font-weight:500;backdrop-filter:blur(10px)}
 
 /* TYPEWRITER */
 .tw{overflow:hidden;white-space:nowrap;border-right:2px solid var(--cyan);width:0;animation:twi 2.5s steps(44) .8s forwards,bk .7s step-end infinite .8s}
@@ -237,7 +239,7 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
     <div class="gl fc gt gp f3 tilt"><div class="ic icp">🖱️</div><h3 style="color:var(--purple)">Computer Use</h3><p>Controla tu mouse, teclado y browser. Abre apps, navega, llena forms.</p><div class="sh"></div></div>
     <div class="gl fc gt gc f3 tilt"><div class="ic icc">🔗</div><h3 style="color:var(--cyan)">38+ Conectores</h3><p>Gmail, Drive, Notion, Slack, Stripe y más. Integrados nativamente.</p><div class="sh"></div></div>
     <div class="gl fc gt gg f4 tilt"><div class="ic icg">⏰</div><h3 style="color:var(--green)">Scheduled Tasks</h3><p>Tareas tipo cron. "Todos los lunes a las 9am, hacé X". Y lo hace.</p><div class="sh"></div></div>
-    <div class="gl fc gt gp f5 tilt"><div class="ic icp">🧠</div><h3 style="color:var(--purple)">Claude in Chrome (Extension)</h3><p>Recuerda contexto entre conversaciones. Sabe quién sos y en qué trabajás.</p><div class="sh"></div></div>
+    <div class="gl fc gt gp f5 tilt"><div class="ic icp"><span class="chrome-mark" aria-hidden="true"></span></div><h3 style="color:var(--purple)">Claude in Chrome (Extension)</h3><p>Ve tu navegador, hace clic, completa formularios y ejecuta tareas web por vos.</p><div class="sh"></div></div>
   </div>
 </div>
 </div>
