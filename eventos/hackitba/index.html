@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Convertite en Superhumano — HackITBA 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#04040c;--cyan:#00e5ff;--purple:#a855f7;--green:#34d399;--pink:#f472b6;--white:#eef0f4;--muted:#5a6377;--dim:rgba(255,255,255,.55)}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--white)}
+canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* NOISE */
+body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.deck{width:100%;height:100%;position:relative}
+.sl{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:50px 68px;opacity:0;pointer-events:none;z-index:1;transition:opacity .45s ease}
+.sl.on{opacity:1;pointer-events:all}
+.sl>*{position:relative;z-index:2}
+
+/* BLOBS */
+.bw{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none}
+.bl{position:absolute;border-radius:50%;filter:blur(110px);opacity:.22;animation:blm 14s ease-in-out infinite alternate}
+@keyframes blm{0%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-50px) scale(1.12)}66%{transform:translate(-30px,30px) scale(.92)}100%{transform:translate(15px,-15px) scale(1.05)}}
+
+/* GRID */
+.gbg::after{content:'';position:absolute;inset:0;z-index:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%)}
+
+/* TYPOGRAPHY */
+.syne{font-family:'Syne',sans-serif}
+.mono{font-family:'JetBrains Mono',monospace}
+.mega{font-family:'Syne',sans-serif;font-size:clamp(3.2rem,6.5vw,6rem);font-weight:800;line-height:.92;letter-spacing:-3px}
+.mega span{background:linear-gradient(135deg,var(--cyan),var(--purple),var(--green));background-size:300% 300%;animation:gs 5s ease infinite;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+@keyframes gs{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.title{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-1px;line-height:1.1}
+.sub{font-size:.9rem;color:var(--muted);margin-top:4px;margin-bottom:28px}
+
+/* TAGS */
+.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 13px;border-radius:100px;font-size:.62rem;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px;backdrop-filter:blur(8px)}
+.tag i{width:5px;height:5px;border-radius:50%;display:inline-block;animation:tp 2s ease infinite}
+@keyframes tp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
+.tc{background:rgba(0,229,255,.07);color:var(--cyan);border:1px solid rgba(0,229,255,.13)}.tc i{background:var(--cyan)}
+.tp{background:rgba(168,85,247,.07);color:var(--purple);border:1px solid rgba(168,85,247,.13)}.tp i{background:var(--purple)}
+.tg{background:rgba(52,211,153,.07);color:var(--green);border:1px solid rgba(52,211,153,.13)}.tg i{background:var(--green)}
+
+/* GLASS */
+.gl{background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.008));border:1px solid rgba(255,255,255,.06);border-radius:18px;backdrop-filter:blur(20px);position:relative;overflow:hidden;transition:transform .4s cubic-bezier(.22,1,.36,1),border-color .3s,box-shadow .3s}
+.gl:hover{transform:translateY(-3px);border-color:rgba(0,229,255,.18);box-shadow:0 12px 48px rgba(0,229,255,.06)}
+.gl .sh{position:absolute;top:0;left:-120%;width:120%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);transition:left .7s ease;pointer-events:none}
+.gl:hover .sh{left:120%}
+
+/* GLOW TOP */
+.gt::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;z-index:3}
+.gt.gc::before{background:linear-gradient(90deg,transparent 10%,var(--cyan) 50%,transparent 90%)}
+.gt.gp::before{background:linear-gradient(90deg,transparent 10%,var(--purple) 50%,transparent 90%)}
+.gt.gg::before{background:linear-gradient(90deg,transparent 10%,var(--green) 50%,transparent 90%)}
+
+/* FEATURE CARD */
+.fc{padding:22px;display:flex;flex-direction:column;gap:8px}
+.fc .ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;position:relative}
+.fc .ic::after{content:'';position:absolute;inset:-3px;border-radius:14px;opacity:0;transition:opacity .3s}
+.fc:hover .ic::after{opacity:1}
+.icc{background:rgba(0,229,255,.1)}.icc::after{box-shadow:0 0 20px rgba(0,229,255,.25)}
+.icp{background:rgba(168,85,247,.1)}.icp::after{box-shadow:0 0 20px rgba(168,85,247,.25)}
+.icg{background:rgba(52,211,153,.1)}.icg::after{box-shadow:0 0 20px rgba(52,211,153,.25)}
+.fc h3{font-size:1rem;font-weight:700}
+.fc p{font-size:.77rem;color:var(--muted);line-height:1.5}
+
+/* TOOL CARD */
+.tl{padding:26px;position:relative}
+.tl .bdg{position:absolute;top:12px;right:12px;padding:3px 10px;border-radius:100px;font-size:.58rem;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.tool-logo{width:78px;height:78px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;position:relative;background:linear-gradient(160deg,rgba(255,255,255,.18),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 36px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.18);transform:perspective(800px) rotateX(10deg) rotateY(-10deg)}
+.tool-logo::before{content:'';position:absolute;inset:8px;border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08)}
+.tool-logo img{max-width:70%;max-height:70%;width:auto;height:auto;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 10px 18px rgba(0,0,0,.28))}
+.tool-logo.mk{box-shadow:0 18px 36px rgba(0,0,0,.35),0 0 24px rgba(168,85,247,.18),inset 0 1px 0 rgba(255,255,255,.18)}
+.tool-logo.zp{box-shadow:0 18px 36px rgba(0,0,0,.35),0 0 24px rgba(52,211,153,.18),inset 0 1px 0 rgba(255,255,255,.18)}
+.tool-logo.n8{box-shadow:0 18px 36px rgba(0,0,0,.35),0 0 24px rgba(0,229,255,.2),inset 0 1px 0 rgba(255,255,255,.18)}
+.brand-chip{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(16px);box-shadow:0 14px 32px rgba(0,0,0,.28);margin-bottom:14px}
+.brand-chip img{height:28px;width:auto;display:block;filter:drop-shadow(0 8px 14px rgba(0,0,0,.2))}
+.tl h3{font-family:'Syne';font-size:1.15rem;font-weight:700;margin-bottom:12px}
+.tl ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+.tl li{font-size:.82rem;color:var(--dim);display:flex;align-items:center;gap:8px}
+.tl li::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+/* STAT */
+.st{padding:22px;text-align:center}
+.st .nm{font-family:'Syne';font-size:2.6rem;font-weight:800;line-height:1}
+.st .lb{font-size:.65rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:5px}
+.st .br{width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,.05);margin-top:10px;overflow:hidden}
+.st .br span{display:block;height:100%;border-radius:2px;width:0;transition:width 1.8s cubic-bezier(.22,1,.36,1)}
+
+/* STEP */
+.sp{display:flex;align-items:center;gap:14px;padding:16px 20px;width:100%}
+.sp .dt{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono';font-size:.72rem;font-weight:700;flex-shrink:0}
+.sp h4{font-size:.92rem;font-weight:700}
+.sp p{font-size:.76rem;color:var(--muted);margin-top:1px}
+
+/* TERMINAL */
+.trm{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.05);border-radius:14px;overflow:hidden;font-family:'JetBrains Mono'}
+.trm .hd{display:flex;align-items:center;gap:6px;padding:9px 14px;background:rgba(255,255,255,.025);border-bottom:1px solid rgba(255,255,255,.05)}
+.trm .hd span{width:9px;height:9px;border-radius:50%}
+.trm .hd .dr{background:#ff5f57}.trm .hd .dy{background:#febc2e}.trm .hd .dg{background:#28c840}
+.trm .cd{padding:16px 18px;font-size:.78rem;line-height:1.8;color:var(--dim)}
+.kw{color:var(--purple)}.fn{color:var(--cyan)}.str{color:var(--green)}.cm{color:var(--muted);font-style:italic}
+
+/* CHECK */
+.cl{display:flex;flex-direction:column;gap:9px}
+.ci{display:flex;align-items:flex-start;gap:10px;font-size:.84rem;color:var(--dim)}
+.ci .ck{width:18px;height:18px;border-radius:5px;background:rgba(52,211,153,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green);font-size:.65rem;font-weight:700;margin-top:2px}
+
+/* ARROW */
+.aw{display:flex;align-items:center;justify-content:center;color:var(--cyan);font-size:1.3rem;opacity:.4;flex-shrink:0;animation:ap 2s ease infinite}
+@keyframes ap{0%,100%{opacity:.25;transform:translateX(0)}50%{opacity:.7;transform:translateX(5px)}}
+
+/* CTA */
+.cta{position:absolute;bottom:32px;left:68px;right:68px;z-index:3;background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(168,85,247,.05));border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:12px 20px;text-align:center;font-size:.85rem;color:var(--cyan);font-weight:500;backdrop-filter:blur(10px)}
+
+/* TYPEWRITER */
+.tw{overflow:hidden;white-space:nowrap;border-right:2px solid var(--cyan);width:0;animation:twi 2.5s steps(44) .8s forwards,bk .7s step-end infinite .8s}
+@keyframes twi{to{width:100%}}
+@keyframes bk{50%{border-color:transparent}}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;width:100%}
+.g23{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;width:100%}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%}
+
+/* ANIMATIONS */
+@keyframes ri{from{opacity:0;transform:translateY(36px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fi{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.sl.on .r1{animation:ri .55s cubic-bezier(.22,1,.36,1) .05s both}
+.sl.on .r2{animation:ri .55s cubic-bezier(.22,1,.36,1) .1s both}
+.sl.on .r3{animation:ri .55s cubic-bezier(.22,1,.36,1) .18s both}
+.sl.on .r4{animation:ri .55s cubic-bezier(.22,1,.36,1) .25s both}
+.sl.on .r5{animation:ri .55s cubic-bezier(.22,1,.36,1) .32s both}
+.sl.on .r6{animation:ri .55s cubic-bezier(.22,1,.36,1) .4s both}
+.sl.on .r7{animation:ri .55s cubic-bezier(.22,1,.36,1) .48s both}
+.sl.on .r8{animation:ri .55s cubic-bezier(.22,1,.36,1) .56s both}
+.sl.on .r9{animation:ri .55s cubic-bezier(.22,1,.36,1) .64s both}
+.sl.on .f1{animation:fi .6s cubic-bezier(.22,1,.36,1) .12s both}
+.sl.on .f2{animation:fi .6s cubic-bezier(.22,1,.36,1) .2s both}
+.sl.on .f3{animation:fi .6s cubic-bezier(.22,1,.36,1) .28s both}
+.sl.on .f4{animation:fi .6s cubic-bezier(.22,1,.36,1) .36s both}
+.sl.on .f5{animation:fi .6s cubic-bezier(.22,1,.36,1) .44s both}
+.sl.on .f6{animation:fi .6s cubic-bezier(.22,1,.36,1) .52s both}
+
+.progress{position:fixed;top:0;left:0;height:2px;z-index:100;transition:width .35s ease;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--green));background-size:200% 100%;animation:gs 3s ease infinite}
+.nav{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:5px 7px;backdrop-filter:blur(14px)}
+.nav button{width:34px;height:34px;border-radius:9px;border:none;background:transparent;color:var(--white);font-size:.85rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.nav button:hover{background:rgba(0,229,255,.1)}
+.dots{display:flex;gap:3px;padding:0 6px}
+.dots span{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.12);transition:all .3s;cursor:pointer}
+.dots span.ac{background:var(--cyan);box-shadow:0 0 8px rgba(0,229,255,.4);width:18px;border-radius:3px}
+
+.tc-c{text-align:center}.w-f{width:100%}.fx{display:flex}.fxc{flex-direction:column}.aic{align-items:center}.jcc{justify-content:center}
+</style>
+</head>
+<body>
+<canvas id="ptc"></canvas>
+<div class="progress" id="prg"></div>
+<div class="deck">
+
+<!-- S0: TITLE -->
+<div class="sl on gbg" data-i="0">
+<div class="bw"><div class="bl" style="width:500px;height:500px;top:-15%;right:-8%;background:var(--cyan)"></div><div class="bl" style="width:400px;height:400px;bottom:-10%;left:-3%;background:var(--purple);animation-delay:2s"></div><div class="bl" style="width:280px;height:280px;top:40%;left:42%;background:var(--green);animation-delay:4s;opacity:.12"></div></div>
+<div class="fx fxc aic tc-c" style="gap:12px">
+  <div class="tag tc r1"><i></i>HACKITBA 2026 · 28 DE MARZO</div>
+  <div class="r2" style="font-size:1rem;font-weight:300;color:var(--muted);letter-spacing:8px;text-transform:uppercase">CONVERTITE EN</div>
+  <div class="mega r3"><span>SUPERHUMANO</span></div>
+  <div class="r4" style="display:inline-block;max-width:max-content"><div class="tw mono" style="font-size:.88rem;color:var(--dim)">Automatización e Inteligencia Artificial_</div></div>
+  <div style="margin-top:44px;display:flex;align-items:center;gap:12px" class="r5">
+    <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;font-family:'Syne'">EL</div>
+    <div style="text-align:left"><div style="font-size:.88rem;font-weight:600">Ezequiel Lamas</div><div style="font-size:.68rem;color:var(--muted)">UGC Studio · AI Automation Agency</div></div>
+  </div>
+</div>
+</div>
+
+<!-- S1: AGENDA -->
+<div class="sl" data-i="1">
+<div class="bw"><div class="bl" style="width:350px;height:350px;top:8%;right:5%;background:var(--purple);animation-delay:1s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tc r1"><i></i>AGENDA</div>
+  <h2 class="title r2">¿Qué vamos a ver?</h2>
+  <p class="sub r3">20 minutos para cambiar cómo pensás la tecnología</p>
+  <div class="fx fxc" style="gap:10px">
+    <div class="gl sp r4 tilt"><div class="dt icc" style="color:var(--cyan)">01</div><div><h4>El panorama de la automatización</h4><p>Make · Zapier · n8n — cuándo usar cada uno</p></div><div class="sh"></div></div>
+    <div class="gl sp r5 tilt"><div class="dt icp" style="color:var(--purple)">02</div><div><h4>Claude: mucho más que un chatbot</h4><p>Features que cambian las reglas del juego</p></div><div class="sh"></div></div>
+    <div class="gl sp r6 tilt"><div class="dt icg" style="color:var(--green)">03</div><div><h4>Claude Code + Supabase + n8n</h4><p>Mi stack real en producción</p></div><div class="sh"></div></div>
+    <div class="gl sp r7 tilt"><div class="dt icc" style="color:var(--cyan)">04</div><div><h4>Caso real: UGC Studio</h4><p>120+ clientes/mes operando con IA</p></div><div class="sh"></div></div>
+    <div class="gl sp r8 tilt"><div class="dt icp" style="color:var(--purple)">05</div><div><h4>Aplicá esto en la hackathon</h4><p>Tips concretos para estos 3 días</p></div><div class="sh"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- S2: TOOLS -->
+<div class="sl" data-i="2">
+<div class="bw"><div class="bl" style="width:380px;height:380px;bottom:-5%;left:15%;background:var(--green)"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tg r1"><i></i>HERRAMIENTAS</div>
+  <h2 class="title r2">El panorama de la automatización</h2>
+  <p class="sub r3">Tres caminos, un objetivo: eliminar lo repetitivo</p>
+  <div class="g3">
+    <div class="gl tl f1 tilt"><div class="tool-logo mk"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWqCuV03iao2jPkADDg4-UEtvLa_bdNbntiw&s" alt="Make logo"></div><h3 style="color:var(--purple)">Make</h3><ul><li><span style="background:var(--purple)"></span>Visual, drag & drop</li><li><span style="background:var(--purple)"></span>Ideal para no-code</li><li><span style="background:var(--purple)"></span>+1500 integraciones</li><li><span style="background:var(--purple)"></span>Curva baja</li></ul><div class="sh"></div></div>
+    <div class="gl tl f2 tilt"><div class="tool-logo zp"><img src="data:image/png;base64,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" alt="Zapier logo"></div><h3 style="color:var(--green)">Zapier</h3><ul><li><span style="background:var(--green)"></span>El más popular</li><li><span style="background:var(--green)"></span>Simple de configurar</li><li><span style="background:var(--green)"></span>Workflows lineales</li><li><span style="background:var(--green)"></span>Gran ecosistema</li></ul><div class="sh"></div></div>
+    <div class="gl tl f3 tilt" style="border-color:rgba(0,229,255,.22);box-shadow:0 0 30px rgba(0,229,255,.07)"><div class="bdg" style="background:rgba(0,229,255,.12);color:var(--cyan)">★ RECOMENDADO</div><div class="tool-logo n8"><img src="https://cdn.prod.website-files.com/6883119fb08482e1a28b331b/68b1a9179786316fea8895f4_688b62cb3ea5503c846ae4cc_n8n-logo.svg" alt="n8n logo"></div><h3 style="color:var(--cyan)">n8n</h3><ul><li><span style="background:var(--cyan)"></span>Open source & self-hosted</li><li><span style="background:var(--cyan)"></span>Sin límite de ejecuciones</li><li><span style="background:var(--cyan)"></span>Nodos JS/Python</li><li><span style="background:var(--cyan)"></span>Control total</li></ul><div class="sh"></div></div>
+  </div>
+  <div class="cta r5">💡 Para esta hackathon: <strong>n8n + Claude</strong> = potencia sin límites ni costos</div>
+</div>
+</div>
+
+<!-- S3: n8n -->
+<div class="sl" data-i="3">
+<div class="bw"><div class="bl" style="width:320px;height:320px;top:5%;left:55%;background:var(--cyan);animation-delay:1s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tg r1"><i></i>DEEP DIVE</div>
+  <h2 class="title r2">n8n: tu arma secreta</h2>
+  <p class="sub r3">Self-hosted, sin límites, con código — para builders de verdad</p>
+  <div class="g2" style="gap:18px">
+    <div class="gl r4 tilt" style="padding:24px"><h3 style="font-size:1rem;font-weight:700;color:var(--green);margin-bottom:14px">¿Por qué n8n?</h3><div class="cl"><div class="ci"><span class="ck">✓</span>Self-hosted = tus datos, tu control</div><div class="ci"><span class="ck">✓</span>Sin límite de ejecuciones</div><div class="ci"><span class="ck">✓</span>Nodos de código JS y Python</div><div class="ci"><span class="ck">✓</span>Webhooks nativos</div><div class="ci"><span class="ck">✓</span>Comunidad open source activa</div><div class="ci"><span class="ck">✓</span>Integración directa con cualquier API</div></div><div class="sh"></div></div>
+    <div class="r5"><div class="trm" style="height:100%"><div class="hd"><span class="dr"></span><span class="dy"></span><span class="dg"></span><span style="margin-left:8px;font-size:.66rem;color:var(--muted)">workflow.n8n</span></div><div class="cd"><span class="cm">// MVP en horas, no semanas</span><br><br><span class="kw">1. Trigger</span><br>&nbsp;&nbsp;<span class="fn">→ Webhook</span> <span class="str">recibe datos del form</span><br><br><span class="kw">2. Procesar</span><br>&nbsp;&nbsp;<span class="fn">→ Claude API</span> <span class="str">analiza y genera</span><br><br><span class="kw">3. Almacenar</span><br>&nbsp;&nbsp;<span class="fn">→ Supabase</span> <span class="str">guarda resultados</span><br><br><span class="kw">4. Notificar</span><br>&nbsp;&nbsp;<span class="fn">→ Slack/Email</span> <span class="str">avisa al equipo</span><br><br><span class="cm">// Sin escribir backend ✨</span></div></div></div>
+  </div>
+</div>
+</div>
+
+<!-- S4: CLAUDE FEATURES -->
+<div class="sl" data-i="4">
+<div class="bw"><div class="bl" style="width:280px;height:280px;top:3%;right:8%;background:var(--cyan)"></div><div class="bl" style="width:220px;height:220px;bottom:8%;left:4%;background:var(--purple);animation-delay:3s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tc r1"><i></i>FEATURES MARZO 2026</div>
+  <h2 class="title r2">Claude: más que un chatbot</h2>
+  <p class="sub r3">Lo que salió en las últimas semanas</p>
+  <div class="g23">
+    <div class="gl fc gt gc f1 tilt"><div class="ic icc">🖥</div><h3 style="color:var(--cyan)">Cowork</h3><p>Agente que trabaja con tus archivos locales mientras vos hacés otra cosa.</p><div class="sh"></div></div>
+    <div class="gl fc gt gg f2 tilt"><div class="ic icg">📱</div><h3 style="color:var(--green)">Dispatch</h3><p>Mandás tareas desde el celu, volvés a la compu y está hecho. Hace 9 días salió.</p><div class="sh"></div></div>
+    <div class="gl fc gt gp f3 tilt"><div class="ic icp">🖱️</div><h3 style="color:var(--purple)">Computer Use</h3><p>Controla tu mouse, teclado y browser. Abre apps, navega, llena forms.</p><div class="sh"></div></div>
+    <div class="gl fc gt gc f3 tilt"><div class="ic icc">🔗</div><h3 style="color:var(--cyan)">38+ Conectores</h3><p>Gmail, Drive, Notion, Slack, Stripe y más. Integrados nativamente.</p><div class="sh"></div></div>
+    <div class="gl fc gt gg f4 tilt"><div class="ic icg">⏰</div><h3 style="color:var(--green)">Scheduled Tasks</h3><p>Tareas tipo cron. "Todos los lunes a las 9am, hacé X". Y lo hace.</p><div class="sh"></div></div>
+    <div class="gl fc gt gp f5 tilt"><div class="ic icp">🧠</div><h3 style="color:var(--purple)">Claude in Chrome (Extension)</h3><p>Recuerda contexto entre conversaciones. Sabe quién sos y en qué trabajás.</p><div class="sh"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- S5: CLAUDE CODE -->
+<div class="sl" data-i="5">
+<div class="bw"><div class="bl" style="width:380px;height:380px;top:-5%;left:25%;background:var(--green);animation-delay:2s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tg r1"><i></i>PARA DEVELOPERS</div>
+  <h2 class="title r2">Claude Code</h2>
+  <p class="sub r3">Terminal agéntico — un dev senior 24/7 que no duerme</p>
+  <div class="g23">
+    <div class="gl fc gt gg f1 tilt"><div class="ic icg mono" style="font-size:.65rem;font-weight:700">/lp</div><h3 style="color:var(--green)">/loop</h3><p>Tareas programadas en el terminal. PR reviews automáticos, deploy monitoring.</p><div class="sh"></div></div>
+    <div class="gl fc gt gc f2 tilt"><div class="ic icc">⚡</div><h3 style="color:var(--cyan)">Subagents</h3><p>Agentes en paralelo. Cada uno en su propio Git worktree independiente.</p><div class="sh"></div></div>
+    <div class="gl fc gt gp f3 tilt"><div class="ic icp">🔧</div><h3 style="color:var(--purple)">Hooks & MCP</h3><p>Conectá Supabase, Notion, Stripe — directo desde la terminal.</p><div class="sh"></div></div>
+    <div class="gl fc gt gg f3 tilt"><div class="ic icg">📱</div><h3 style="color:var(--green)">Remote Control</h3><p>Controlá sesiones desde el celu. Tu código nunca sale de tu máquina.</p><div class="sh"></div></div>
+    <div class="gl fc gt gc f4 tilt"><div class="ic icc">🤖</div><h3 style="color:var(--cyan)">Auto Mode</h3><p>Claude decide qué es seguro y ejecuta. Vos supervisás resultados.</p><div class="sh"></div></div>
+    <div class="gl fc gt gp f5 tilt"><div class="ic icp">👥</div><h3 style="color:var(--purple)">Session Sharing</h3><p>Compartí sesiones. Pair programming con IA en real-time.</p><div class="sh"></div></div>
+  </div>
+  <div style="text-align:center;margin-top:14px;font-size:.78rem;color:var(--muted)" class="r7">Usado por ingenieros de <strong style="color:var(--white)">las empresas más grandes del mundo</strong></div>
+</div>
+</div>
+
+<!-- S6: STACK -->
+<div class="sl" data-i="6">
+<div class="bw"><div class="bl" style="width:320px;height:320px;top:25%;left:-3%;background:var(--purple);animation-delay:1s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tp r1"><i></i>EN PRODUCCIÓN</div>
+  <h2 class="title r2">Mi stack real</h2>
+  <p class="sub r3">Lo que uso todos los días para correr UGC Studio</p>
+  <div style="display:flex;align-items:stretch;gap:8px;justify-content:center;margin-bottom:24px" class="r4">
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">⌨️</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--green)">Claude Code</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Desarrollo agéntico<br>Arquitectura<br>Deploy automático</p><div class="sh"></div></div>
+    <div class="aw">→</div>
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">🗄️</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--cyan)">Supabase</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">PostgreSQL + Auth<br>Row Level Security<br>Edge Functions</p><div class="sh"></div></div>
+    <div class="aw">→</div>
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">⚡</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--purple)">n8n</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Automatizaciones<br>Webhooks<br>Orquestación</p><div class="sh"></div></div>
+  </div>
+  <div class="gl r5" style="padding:16px 22px;text-align:center;border-color:rgba(0,229,255,.18);box-shadow:0 0 28px rgba(0,229,255,.05)"><span style="font-size:.9rem;font-weight:600;color:var(--cyan)">Resultado →</span> <span style="font-size:.9rem;color:var(--green);font-weight:600">120+ clientes/mes · 40+ personas · operación 100% escalable</span><div class="sh"></div></div>
+</div>
+</div>
+
+<!-- S7: CASO REAL -->
+<div class="sl" data-i="7">
+<div class="bw"><div class="bl" style="width:330px;height:330px;bottom:3%;right:4%;background:var(--cyan)"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tc r1"><i></i>CASO REAL</div>
+  <div class="brand-chip r2"><img src="https://tryugcstudio.com/logo.png" alt="UGC Studio logo"></div>
+  <h2 class="title r2">UGC Studio</h2>
+  <p class="sub r3">Agencia de producción de video con IA — Buenos Aires</p>
+  <div class="g4 r4" id="sg" style="margin-bottom:24px">
+    <div class="gl st tilt"><div class="nm" data-t="120" style="color:var(--cyan)">0+</div><div class="lb">Clientes/mes</div><div class="br"><span style="background:var(--cyan)"></span></div><div class="sh"></div></div>
+    <div class="gl st tilt"><div class="nm" data-t="40" style="color:var(--green)">0+</div><div class="lb">Team members</div><div class="br"><span style="background:var(--green)"></span></div><div class="sh"></div></div>
+    <div class="gl st tilt"><div class="nm" data-t="50" style="color:var(--purple)">0</div><div class="lb">Tablas Supabase</div><div class="br"><span style="background:var(--purple)"></span></div><div class="sh"></div></div>
+    <div class="gl st tilt"><div class="nm" style="color:var(--pink)">24/7</div><div class="lb">Automatizado</div><div class="br"><span style="background:var(--pink);width:100%!important"></span></div><div class="sh"></div></div>
+  </div>
+  <h3 style="font-size:.95rem;font-weight:700;color:var(--green);margin-bottom:12px" class="r5">¿Qué automatizamos?</h3>
+  <div class="cl r6">
+    <div class="ci"><span class="ck">✓</span>Onboarding clientes → Google Sheets → n8n → Supabase (batch processing)</div>
+    <div class="ci"><span class="ck">✓</span>Generación de scripts de video con Claude (prompt engineering por vertical)</div>
+    <div class="ci"><span class="ck">✓</span>Tracking de gastos y facturación automática con Stripe</div>
+    <div class="ci"><span class="ck">✓</span>Gestión de órdenes y producción end-to-end en plataforma propia</div>
+  </div>
+</div>
+</div>
+
+<!-- S8: TIPS -->
+<div class="sl" data-i="8">
+<div class="bw"><div class="bl" style="width:320px;height:320px;top:8%;left:8%;background:var(--green);animation-delay:2s"></div></div>
+<div class="w-f" style="text-align:left">
+  <div class="tag tg r1"><i></i>PARA USTEDES</div>
+  <h2 class="title r2">Aplicá esto en la hackathon</h2>
+  <p class="sub r3">Tips concretos para ganar estos 3 días</p>
+  <div class="fx fxc" style="gap:10px">
+    <div class="gl sp r4 tilt" style="border-left:3px solid var(--cyan);padding:18px 22px"><div style="font-size:1.4rem">🧠</div><div><h4 style="color:var(--cyan)">Usá Claude como co-founder</h4><p>Propuesta de valor, modelo de negocio, pitch, código — todo en una conversación.</p></div><div class="sh"></div></div>
+    <div class="gl sp r5 tilt" style="border-left:3px solid var(--green);padding:18px 22px"><div style="font-size:1.4rem">⚡</div><div><h4 style="color:var(--green)">Webhook + Claude + Supabase = MVP</h4><p>Un workflow en n8n conecta todo. Backend funcional en horas.</p></div><div class="sh"></div></div>
+    <div class="gl sp r6 tilt" style="border-left:3px solid var(--purple);padding:18px 22px"><div style="font-size:1.4rem">⌨️</div><div><h4 style="color:var(--purple)">Claude Code para el MVP</h4><p>Frontend y backend completo desde la terminal. Dev senior gratis.</p></div><div class="sh"></div></div>
+    <div class="gl sp r7 tilt" style="border-left:3px solid var(--pink);padding:18px 22px"><div style="font-size:1.4rem">🚀</div><div><h4 style="color:var(--pink)">Automatizá lo repetitivo</h4><p>Si se repite, se automatiza. Usen el tiempo en la idea y el pitch.</p></div><div class="sh"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- S9: CIERRE -->
+<div class="sl gbg" data-i="9">
+<div class="bw"><div class="bl" style="width:500px;height:500px;top:-8%;left:8%;background:var(--cyan)"></div><div class="bl" style="width:400px;height:400px;bottom:-8%;right:12%;background:var(--purple);animation-delay:2s"></div><div class="bl" style="width:250px;height:250px;top:45%;right:38%;background:var(--green);animation-delay:4s;opacity:.1"></div></div>
+<div class="fx fxc aic tc-c" style="gap:10px">
+  <div class="r1" style="font-size:1.4rem;color:var(--dim);font-weight:300">La IA no te reemplaza.</div>
+  <div class="mega r2" style="font-size:clamp(2.8rem,5.5vw,5rem)"><span>Te amplifica.</span></div>
+  <div style="margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:5px" class="r3">
+    <div style="font-size:1rem;font-weight:700">Ezequiel Lamas</div>
+    <div style="font-size:.78rem;color:var(--muted)">@ezequiellamas · UGC Studio · AI Automation</div>
+  </div>
+  <div class="r4 tag tg" style="margin-top:22px;font-size:.75rem;letter-spacing:1px;padding:7px 18px;animation:none"><i></i>¿PREGUNTAS?</div>
+</div>
+</div>
+
+</div>
+
+<div class="nav" id="nav"><button onclick="go(cur-1)">‹</button><div class="dots" id="dots"></div><button onclick="go(cur+1)">›</button></div>
+
+<script>
+// PARTICLES
+const cv=document.getElementById('ptc'),c=cv.getContext('2d');let W,H;
+function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener('resize',rs);
+const P=Array.from({length:55},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.2+.4}));
+(function draw(){c.clearRect(0,0,W,H);P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;c.beginPath();c.arc(p.x,p.y,p.r,0,Math.PI*2);c.fillStyle='rgba(0,229,255,.12)';c.fill()});P.forEach((a,i)=>{for(let j=i+1;j<P.length;j++){const b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<110){c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.strokeStyle=`rgba(0,229,255,${.05*(1-d/110)})`;c.stroke()}}});requestAnimationFrame(draw)})();
+
+// SLIDES
+const S=document.querySelectorAll('.sl'),T=S.length;let cur=0;
+const D=document.getElementById('dots');for(let i=0;i<T;i++){const s=document.createElement('span');s.onclick=()=>go(i);D.appendChild(s)}
+function go(n){if(n<0||n>=T)return;S.forEach(s=>s.classList.remove('on'));cur=n;S[cur].classList.add('on');document.getElementById('prg').style.width=((cur+1)/T*100)+'%';D.querySelectorAll('span').forEach((d,i)=>d.classList.toggle('ac',i===cur));if(cur===7)ac()}
+go(0);
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1)}if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1)}});
+let tx=0;document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);document.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>50)d>0?go(cur+1):go(cur-1)});
+
+// COUNTERS
+let ca=false;function ac(){if(ca)return;ca=true;document.querySelectorAll('#sg .nm[data-t]').forEach(el=>{const t=+el.dataset.t;let v=0;const s=Math.ceil(t/35),sf=el.textContent.includes('+')?'+':'';const iv=setInterval(()=>{v+=s;if(v>=t){v=t;clearInterval(iv)}el.textContent=v+sf},28)});document.querySelectorAll('#sg .br span').forEach((b,i)=>{const w=[85,68,55,100];setTimeout(()=>b.style.width=w[i]+'%',150+i*120)})}
+
+// TILT
+document.querySelectorAll('.tilt').forEach(el=>{el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;el.style.transform=`perspective(700px) rotateY(${x*7}deg) rotateX(${-y*7}deg) translateY(-3px)`});el.addEventListener('mouseleave',()=>{el.style.transform=''})});
+</script>
+</body>
+</html>
