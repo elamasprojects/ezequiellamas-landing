@@ -80,8 +80,15 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 .tool-logo.n8{box-shadow:0 18px 36px rgba(0,0,0,.35),0 0 24px rgba(0,229,255,.2),inset 0 1px 0 rgba(255,255,255,.18)}
 .brand-chip{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(16px);box-shadow:0 14px 32px rgba(0,0,0,.28);margin-bottom:14px}
 .brand-chip img{height:28px;width:auto;display:block;filter:drop-shadow(0 8px 14px rgba(0,0,0,.2))}
+.case-logo{display:flex;justify-content:center;margin-bottom:18px}
+.case-logo .brand-chip{padding:18px 30px;border-radius:24px;margin-bottom:0}
+.case-logo .brand-chip img{height:63px}
 .slide-logo{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:18px;background:rgba(255,255,255,.96);border:1px solid rgba(255,255,255,.1);box-shadow:0 14px 28px rgba(0,0,0,.28);margin-bottom:14px}
 .slide-logo img{height:30px;width:auto;max-width:180px;display:block;object-fit:contain}
+.slide-logo.claude-logo{display:flex;width:108px;margin:0 auto 22px;padding:0;background:transparent;border:none;box-shadow:none;overflow:visible}
+.slide-logo.claude-logo img{width:100%;height:auto;max-width:none;object-fit:contain}
+.slide-logo.code-logo{display:flex;width:250px;margin:4px auto 22px;padding:0;background:transparent;border:none;box-shadow:none;overflow:visible}
+.slide-logo.code-logo img{width:100%;height:auto;max-width:none;object-fit:contain;border-radius:24px;transform:none;filter:drop-shadow(0 14px 28px rgba(0,0,0,.28))}
 .tl h3{font-family:'Syne';font-size:1.15rem;font-weight:700;margin-bottom:12px}
 .tl ul{list-style:none;display:flex;flex-direction:column;gap:7px}
 .tl li{font-size:.82rem;color:var(--dim);display:flex;align-items:center;gap:8px}
@@ -233,7 +240,7 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 <div class="bw"><div class="bl" style="width:280px;height:280px;top:3%;right:8%;background:var(--cyan)"></div><div class="bl" style="width:220px;height:220px;bottom:8%;left:4%;background:var(--purple);animation-delay:3s"></div></div>
 <div class="w-f" style="text-align:left">
   <div class="tag tc r1"><i></i>FEATURES MARZO 2026</div>
-  <div class="slide-logo r2"><img src="https://gimgs2.nohat.cc/thumb/f/640/png-claude-ai-logo-design-with-modern-aesthetic--4d3c03a932.jpg" alt="Claude logo"></div>
+  <div class="slide-logo claude-logo r2"><img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/claude-color.png" alt="Claude logo"></div>
   <h2 class="title r3">Claude: más que un chatbot</h2>
   <p class="sub r4">Lo que salió en las últimas semanas</p>
   <div class="g23">
@@ -252,7 +259,7 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 <div class="bw"><div class="bl" style="width:380px;height:380px;top:-5%;left:25%;background:var(--green);animation-delay:2s"></div></div>
 <div class="w-f" style="text-align:left">
   <div class="tag tg r1"><i></i>PARA DEVELOPERS</div>
-  <div class="slide-logo r2"><img src="https://miro.medium.com/1*CtHP_cjkKw3vjlgENyeF3A.png" alt="Claude Code logo"></div>
+  <div class="slide-logo code-logo r2"><img src="https://miro.medium.com/1*CtHP_cjkKw3vjlgENyeF3A.png" alt="Claude Code logo"></div>
   <h2 class="title r3">Claude Code</h2>
   <p class="sub r4">Terminal agéntico — un dev senior 24/7 que no duerme</p>
   <div class="g23">
@@ -275,11 +282,11 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
   <h2 class="title r2">Mi stack real</h2>
   <p class="sub r3">Lo que uso todos los días para correr UGC Studio</p>
   <div style="display:flex;align-items:stretch;gap:8px;justify-content:center;margin-bottom:24px" class="r4">
-    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">⌨️</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--green)">Claude Code</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Desarrollo agéntico<br>Arquitectura<br>Deploy automático</p><div class="sh"></div></div>
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Claude_AI_logo.svg" alt="Claude logo" style="width:112px;height:auto;margin-bottom:10px" /><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--green)">Claude Code</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Desarrollo agéntico<br>Arquitectura<br>Deploy automático</p><div class="sh"></div></div>
     <div class="aw">→</div>
-    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">🗄️</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--cyan)">Supabase</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">PostgreSQL + Auth<br>Row Level Security<br>Edge Functions</p><div class="sh"></div></div>
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><img src="https://www.vectorlogo.zone/logos/supabase/supabase-icon.svg" alt="Supabase logo" style="height:44px;width:auto;margin-bottom:8px" /><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--cyan)">Supabase</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">PostgreSQL + Auth<br>Row Level Security<br>Edge Functions</p><div class="sh"></div></div>
     <div class="aw">→</div>
-    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">⚡</div><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--purple)">n8n</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Automatizaciones<br>Webhooks<br>Orquestación</p><div class="sh"></div></div>
+    <div class="gl tilt" style="flex:1;padding:26px;text-align:center"><img src="https://cdn.prod.website-files.com/6883119fb08482e1a28b331b/68b1a9179786316fea8895f4_688b62cb3ea5503c846ae4cc_n8n-logo.svg" alt="n8n logo" style="height:44px;width:auto;margin-bottom:8px" /><h3 class="syne" style="font-size:1.05rem;font-weight:700;color:var(--purple)">n8n</h3><p style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">Automatizaciones<br>Webhooks<br>Orquestación</p><div class="sh"></div></div>
   </div>
   <div class="gl r5" style="padding:16px 22px;text-align:center;border-color:rgba(0,229,255,.18);box-shadow:0 0 28px rgba(0,229,255,.05)"><span style="font-size:.9rem;font-weight:600;color:var(--cyan)">Resultado →</span> <span style="font-size:.9rem;color:var(--green);font-weight:600">120+ clientes/mes · 40+ personas · operación 100% escalable</span><div class="sh"></div></div>
 </div>
@@ -290,13 +297,13 @@ body::after{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;o
 <div class="bw"><div class="bl" style="width:330px;height:330px;bottom:3%;right:4%;background:var(--cyan)"></div></div>
 <div class="w-f" style="text-align:left">
   <div class="tag tc r1"><i></i>CASO REAL</div>
-  <div class="brand-chip r2"><img src="https://tryugcstudio.com/logo.png" alt="UGC Studio logo"></div>
-  <h2 class="title r2">UGC Studio</h2>
-  <p class="sub r3">Agencia de producción de video con IA — Buenos Aires</p>
+  <div class="case-logo r2"><div class="brand-chip"><img src="https://tryugcstudio.com/logo.png" alt="UGC Studio logo"></div></div>
+  <h2 class="title r3">UGC Studio</h2>
+  <p class="sub r4">Agencia de producción de video con IA — Buenos Aires</p>
   <div class="g4 r4" id="sg" style="margin-bottom:24px">
     <div class="gl st tilt"><div class="nm" data-t="120" style="color:var(--cyan)">0+</div><div class="lb">Clientes/mes</div><div class="br"><span style="background:var(--cyan)"></span></div><div class="sh"></div></div>
     <div class="gl st tilt"><div class="nm" data-t="40" style="color:var(--green)">0+</div><div class="lb">Team members</div><div class="br"><span style="background:var(--green)"></span></div><div class="sh"></div></div>
-    <div class="gl st tilt"><div class="nm" data-t="50" style="color:var(--purple)">0</div><div class="lb">Tablas Supabase</div><div class="br"><span style="background:var(--purple)"></span></div><div class="sh"></div></div>
+    <div class="gl st tilt"><div class="nm" data-t="600" data-prefix="$" data-suffix="k" style="color:var(--purple)">$0k</div><div class="lb">ARR USD</div><div class="br"><span style="background:var(--purple)"></span></div><div class="sh"></div></div>
     <div class="gl st tilt"><div class="nm" style="color:var(--pink)">24/7</div><div class="lb">Automatizado</div><div class="br"><span style="background:var(--pink);width:100%!important"></span></div><div class="sh"></div></div>
   </div>
   <h3 style="font-size:.95rem;font-weight:700;color:var(--green);margin-bottom:12px" class="r5">¿Qué automatizamos?</h3>
@@ -359,7 +366,7 @@ document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.
 let tx=0;document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);document.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>50)d>0?go(cur+1):go(cur-1)});
 
 // COUNTERS
-let ca=false;function ac(){if(ca)return;ca=true;document.querySelectorAll('#sg .nm[data-t]').forEach(el=>{const t=+el.dataset.t;let v=0;const s=Math.ceil(t/35),sf=el.textContent.includes('+')?'+':'';const iv=setInterval(()=>{v+=s;if(v>=t){v=t;clearInterval(iv)}el.textContent=v+sf},28)});document.querySelectorAll('#sg .br span').forEach((b,i)=>{const w=[85,68,55,100];setTimeout(()=>b.style.width=w[i]+'%',150+i*120)})}
+let ca=false;function ac(){if(ca)return;ca=true;document.querySelectorAll('#sg .nm[data-t]').forEach(el=>{const t=+el.dataset.t;let v=0;const s=Math.ceil(t/35),prefix=el.dataset.prefix||'',suffix=el.dataset.suffix||(el.textContent.includes('+')?'+':'');const iv=setInterval(()=>{v+=s;if(v>=t){v=t;clearInterval(iv)}el.textContent=prefix+v+suffix},28)});document.querySelectorAll('#sg .br span').forEach((b,i)=>{const w=[85,68,55,100];setTimeout(()=>b.style.width=w[i]+'%',150+i*120)})}
 
 // TILT
 document.querySelectorAll('.tilt').forEach(el=>{el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;el.style.transform=`perspective(700px) rotateY(${x*7}deg) rotateX(${-y*7}deg) translateY(-3px)`});el.addEventListener('mouseleave',()=>{el.style.transform=''})});
