@@ -1,0 +1,55 @@
+import { Routes, Route } from "react-router-dom";
+import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import AuthCallback from "@/pages/AuthCallback";
+import NotFound from "@/pages/NotFound";
+import AppLayout from "@/pages/app/AppLayout";
+import RoleRedirect from "@/components/app/RoleRedirect";
+import RequireRole from "@/components/app/RequireRole";
+import AdminLayout from "@/pages/app/admin/AdminLayout";
+import AdminDashboard from "@/pages/app/admin/AdminDashboard";
+import Team from "@/pages/app/admin/team/Team";
+import EditorLayout from "@/pages/app/editor/EditorLayout";
+import EditorDashboard from "@/pages/app/editor/EditorDashboard";
+import AdvisorLayout from "@/pages/app/advisor/AdvisorLayout";
+import AdvisorDashboard from "@/pages/app/advisor/AdvisorDashboard";
+import RecursosList from "@/pages/recursos/RecursosList";
+import RecursoDetail from "@/pages/recursos/RecursoDetail";
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+
+      <Route path="/recursos" element={<RecursosList />} />
+      <Route path="/recursos/:slug" element={<RecursoDetail />} />
+
+      <Route path="/app" element={<AppLayout />}>
+        <Route index element={<RoleRedirect />} />
+
+        <Route path="admin" element={<RequireRole role="admin" />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="team" element={<Team />} />
+          </Route>
+        </Route>
+
+        <Route path="editor" element={<RequireRole role="editor" />}>
+          <Route element={<EditorLayout />}>
+            <Route index element={<EditorDashboard />} />
+          </Route>
+        </Route>
+
+        <Route path="advisor" element={<RequireRole role="advisor" />}>
+          <Route element={<AdvisorLayout />}>
+            <Route index element={<AdvisorDashboard />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}

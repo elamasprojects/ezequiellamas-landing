@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!eventos|assets).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
