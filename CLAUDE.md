@@ -101,16 +101,48 @@ on conflict do nothing;
 
 Run via `mcp__e44037be-...__execute_sql({ project_id: "zsbligbfsmdwbxcvoysu", query: ... })`. After that, all subsequent invitations go through `/app/admin/team` (which calls the `invite-user` Edge Function — verifies the caller is admin, calls `auth.admin.inviteUserByEmail`, assigns the role).
 
+## Database — schema overview
+
+Migrations applied (in order):
+
+| Version | Name | Adds |
+|---|---|---|
+| `m1_roles_auth_foundation` | M1 | `app_role` enum, `profiles`, `user_roles`, `has_role()`, `set_updated_at()`, `handle_new_user()` trigger |
+| `m3_formats` | M3 | `formats` (CRUD by admin) |
+| `m2_ideas_scripts_audio` | M2 | `audio_uploads`, `scripts`, `broll_suggestions`, `create_script_with_brolls()` RPC, `audio-ideas` storage bucket + RLS |
+
+Buckets:
+
+| Bucket | Visibility | Path | Used by |
+|---|---|---|---|
+| `audio-ideas` | private | `{user_id}/{uuid}.{ext}` | M2 — admin-of-own-folder only |
+
+RPCs (security definer):
+
+| Name | Purpose |
+|---|---|
+| `has_role(_user_id, _role)` | RLS helper |
+| `create_script_with_brolls(...)` | Atomically inserts a script + its broll_suggestions for the calling admin (`auth.uid()`) |
+
 ## Edge Functions (in this project)
 
-Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmdwbxcvoysu", ... })`. Auto-injected env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Custom env (set via Supabase dashboard → Project Settings → Edge Functions secrets, or via `supabase secrets set` CLI):
+Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmdwbxcvoysu", ... })`. Auto-injected env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Custom env (set via Supabase dashboard → Project Settings → Edge Functions secrets):
+
+| Function | Verify JWT | Hace |
+|---|---|---|
+| `invite-user` | yes | Admin invita por mail. Llama `auth.admin.inviteUserByEmail` + inserta en `user_roles`. |
+| `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
+| `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
+
+Custom secrets needed:
 
 | Var | Used by | Required from |
 |---|---|---|
-| `APP_URL` | `invite-user` (magic-link redirectTo) | M1 — defaults to `https://ezequiellamas.com`, set to `http://localhost:8080` for local testing |
+| `APP_URL` | `invite-user` (magic-link redirectTo) | M1 — `http://localhost:8080` para dev, `https://ezequiellamas.com` (o URL Vercel) para prod |
 | `RESEND_API_KEY` | `send-notification` (M6) | M6 |
-| `GROQ_API_KEY` | `transcribe-audio` (M2) | M2 |
-| `ANTHROPIC_API_KEY` | `generate-script`, `analyze-script` (M2+) | M2 |
+| `OPENAI_API_KEY` | `transcribe-audio`, `generate-script` (Whisper) | M2 ✓ — **swap from Groq**: el plan original mencionaba Groq Whisper, pero solo está configurado OPENAI_API_KEY. Se usa OpenAI Whisper-1. |
+| `ANTHROPIC_API_KEY` | `generate-script` (Claude Sonnet 4.6) | M2 ✓ |
+| `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
 
 ## Style conventions
 

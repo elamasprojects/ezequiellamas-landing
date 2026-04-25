@@ -9,6 +9,10 @@ import RequireRole from "@/components/app/RequireRole";
 import AdminLayout from "@/pages/app/admin/AdminLayout";
 import AdminDashboard from "@/pages/app/admin/AdminDashboard";
 import Team from "@/pages/app/admin/team/Team";
+import FormatsList from "@/pages/app/admin/formats/FormatsList";
+import IdeasInbox from "@/pages/app/admin/ideas/IdeasInbox";
+import NewIdea from "@/pages/app/admin/ideas/NewIdea";
+import ScriptEditor from "@/pages/app/admin/ideas/ScriptEditor";
 import EditorLayout from "@/pages/app/editor/EditorLayout";
 import EditorDashboard from "@/pages/app/editor/EditorDashboard";
 import AdvisorLayout from "@/pages/app/advisor/AdvisorLayout";
@@ -32,6 +36,10 @@ export default function App() {
         <Route path="admin" element={<RequireRole role="admin" />}>
           <Route element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
+            <Route path="ideas" element={<IdeasInbox />} />
+            <Route path="ideas/new" element={<NewIdea />} />
+            <Route path="ideas/:id" element={<ScriptEditor />} />
+            <Route path="formats" element={<FormatsList />} />
             <Route path="team" element={<Team />} />
           </Route>
         </Route>

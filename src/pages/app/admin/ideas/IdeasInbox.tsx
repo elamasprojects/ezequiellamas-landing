@@ -1,0 +1,157 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Calendar, Plus, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useScripts } from "@/hooks/useScripts";
+import type { ScriptStatus, Script } from "@/lib/api/scripts";
+
+const TABS: { value: ScriptStatus; label: string }[] = [
+  { value: "draft", label: "Drafts" },
+  { value: "scheduled", label: "Agendados" },
+  { value: "recorded", label: "Grabados" },
+  { value: "posted", label: "Posteados" },
+  { value: "archived", label: "Archivados" },
+];
+
+export default function IdeasInbox() {
+  const [tab, setTab] = useState<ScriptStatus>("draft");
+  const { data: scripts, isLoading } = useScripts({ status: tab });
+
+  return (
+    <div className="space-y-8">
+      <header className="flex items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div
+            className="text-[10px] uppercase tracking-[0.25em]"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+          >
+            Ideas → Guion
+          </div>
+          <h1
+            className="text-3xl"
+            style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
+          >
+            Tus <em style={{ color: "var(--ll-warm)" }}>guiones</em>
+          </h1>
+          <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            Cargás una idea (audio o texto), la IA te genera un guion en tu tono. Lo editás, lo agendás, lo grabás.
+          </p>
+        </div>
+        <Button asChild variant="brand">
+          <Link to="/app/admin/ideas/new">
+            <Plus className="h-4 w-4" /> Nueva idea
+          </Link>
+        </Button>
+      </header>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as ScriptStatus)}>
+        <TabsList className="bg-[var(--ll-surface)] border border-[var(--ll-border)]">
+          {TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-[var(--ll-surface-2)]">
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {TABS.map((t) => (
+          <TabsContent key={t.value} value={t.value} className="mt-6">
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+              </div>
+            ) : !scripts || scripts.length === 0 ? (
+              <EmptyState status={t.value} />
+            ) : (
+              <ul className="space-y-2">
+                {scripts.map((s) => (
+                  <ScriptRow key={s.id} script={s} />
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+function ScriptRow({ script }: { script: Script }) {
+  return (
+    <li>
+      <Link
+        to={`/app/admin/ideas/${script.id}`}
+        className="block rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4 transition-colors hover:border-[var(--ll-border-hover)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium truncate" style={{ color: "var(--ll-text)" }}>
+              {script.title || "Sin título"}
+            </h3>
+            {script.hook && (
+              <p
+                className="mt-1 line-clamp-2 text-sm"
+                style={{ color: "var(--ll-text-muted)" }}
+              >
+                {script.hook}
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            {script.scheduled_at && (
+              <div
+                className="flex items-center gap-1 text-xs"
+                style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
+              >
+                <Calendar className="h-3 w-3" />
+                {new Date(script.scheduled_at).toLocaleDateString("es-AR", {
+                  day: "2-digit",
+                  month: "short",
+                })}
+              </div>
+            )}
+            <div
+              className="mt-1 text-[10px] uppercase tracking-[0.15em]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
+            >
+              {new Date(script.created_at).toLocaleDateString("es-AR")}
+            </div>
+          </div>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function EmptyState({ status }: { status: ScriptStatus }) {
+  const messages: Record<ScriptStatus, string> = {
+    draft: "Todavía no escribiste ninguna idea. Tirale.",
+    scheduled: "No hay guiones agendados.",
+    recorded: "No hay guiones grabados pendientes de postear.",
+    posted: "Cuando postees un video, va a aparecer acá.",
+    archived: "El archivo está vacío.",
+  };
+  return (
+    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
+      <div
+        className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+        style={{ background: "var(--ll-accent-dim)" }}
+      >
+        <Sparkles className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
+      </div>
+      <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
+        {messages[status]}
+      </p>
+      {status === "draft" && (
+        <Button asChild variant="brand" className="mt-4">
+          <Link to="/app/admin/ideas/new">
+            <Plus className="h-4 w-4" /> Nueva idea
+          </Link>
+        </Button>
+      )}
+    </div>
+  );
+}
