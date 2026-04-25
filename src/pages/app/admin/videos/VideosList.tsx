@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Plus, Sparkles, Video as VideoIcon } from "lucide-react";
+import { Plus, Sparkles, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,6 +25,7 @@ import {
   PLATFORM_LABEL,
   TIER_LABEL,
   type PerformanceTier,
+  type Video,
   type VideoFilters,
   type VideoPlatform,
 } from "@/lib/api/videos";
@@ -60,7 +61,7 @@ export default function VideosList() {
 
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <div
             className="text-[10px] uppercase tracking-[0.25em]"
@@ -69,7 +70,7 @@ export default function VideosList() {
             Videos
           </div>
           <h1
-            className="text-3xl"
+            className="text-2xl md:text-3xl"
             style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
           >
             Tus <em style={{ color: "var(--ll-warm)" }}>videos</em> posteados
@@ -79,14 +80,14 @@ export default function VideosList() {
             promedio de los últimos 90 días.
           </p>
         </div>
-        <Button asChild variant="brand">
+        <Button asChild variant="brand" className="self-start sm:self-auto">
           <Link to="/app/admin/videos/new">
             <Plus className="h-4 w-4" /> Nuevo video
           </Link>
         </Button>
       </header>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="-mx-1 flex flex-wrap gap-3 px-1">
         <FilterSelect
           label="Plataforma"
           value={platform}
@@ -134,103 +135,173 @@ export default function VideosList() {
 
       {isLoading ? (
         <div className="space-y-2">
-          <Skeleton className="h-16 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-16 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-16 w-full bg-[var(--ll-surface)]" />
+          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
         </div>
       ) : !videos || videos.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)]">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-[var(--ll-border)] hover:bg-transparent">
-                <TableHead className="w-16" style={{ color: "var(--ll-text-muted)" }}></TableHead>
-                <TableHead style={{ color: "var(--ll-text-muted)" }}>Título</TableHead>
-                <TableHead style={{ color: "var(--ll-text-muted)" }}>Plataforma</TableHead>
-                <TableHead style={{ color: "var(--ll-text-muted)" }}>Formato</TableHead>
-                <TableHead style={{ color: "var(--ll-text-muted)" }}>Fecha</TableHead>
-                <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
-                  Views
-                </TableHead>
-                <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
-                  Multiplier
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {videos.map((v) => (
-                <TableRow
-                  key={v.id}
-                  className="cursor-pointer border-[var(--ll-border)]"
-                  onClick={() => (window.location.href = `/app/admin/videos/${v.id}`)}
-                >
-                  <TableCell>
-                    {v.thumbnail_url ? (
-                      <img
-                        src={v.thumbnail_url}
-                        alt=""
-                        className="h-10 w-10 rounded object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded"
-                        style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
-                      >
-                        <VideoIcon className="h-4 w-4" />
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium" style={{ color: "var(--ll-text)" }}>
-                    {v.title || (
-                      <span style={{ color: "var(--ll-text-dim)" }} className="italic">
-                        sin título
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell style={{ color: "var(--ll-text-muted)" }}>
-                    {v.source_platform ? PLATFORM_LABEL[v.source_platform as VideoPlatform] : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {v.format_id && formatsById.get(v.format_id) ? (
-                      <Badge variant="outline" className="border-[var(--ll-border)] text-[var(--ll-text-muted)]">
-                        {formatsById.get(v.format_id)}
-                      </Badge>
-                    ) : (
-                      <span style={{ color: "var(--ll-text-dim)" }}>—</span>
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className="text-xs"
-                    style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    {v.posted_at ? new Date(v.posted_at).toLocaleDateString("es-AR") : "—"}
-                  </TableCell>
-                  <TableCell className="text-right" style={{ color: "var(--ll-text)" }}>
-                    {v.views_total !== null ? formatNum(v.views_total) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {v.multiplier !== null && v.performance_tier ? (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "ml-auto inline-flex border",
-                          TIER_CLASS[v.performance_tier as PerformanceTier],
-                        )}
-                      >
-                        {Number(v.multiplier).toFixed(1)}× {TIER_LABEL[v.performance_tier as PerformanceTier]}
-                      </Badge>
-                    ) : (
-                      <span style={{ color: "var(--ll-text-dim)" }}>—</span>
-                    )}
-                  </TableCell>
+        <>
+          {/* Mobile: stacked cards */}
+          <ul className="space-y-3 md:hidden">
+            {videos.map((v) => (
+              <li key={v.id}>
+                <VideoCard video={v} formatName={v.format_id ? formatsById.get(v.format_id) : undefined} />
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-[var(--ll-border)] hover:bg-transparent">
+                  <TableHead className="w-16" style={{ color: "var(--ll-text-muted)" }}></TableHead>
+                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Título</TableHead>
+                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Plataforma</TableHead>
+                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Formato</TableHead>
+                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Fecha</TableHead>
+                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
+                    Views
+                  </TableHead>
+                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
+                    Multiplier
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {videos.map((v) => (
+                  <TableRow
+                    key={v.id}
+                    className="cursor-pointer border-[var(--ll-border)]"
+                    onClick={() => (window.location.href = `/app/admin/videos/${v.id}`)}
+                  >
+                    <TableCell>
+                      {v.thumbnail_url ? (
+                        <img src={v.thumbnail_url} alt="" className="h-10 w-10 rounded object-cover" />
+                      ) : (
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded"
+                          style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
+                        >
+                          <VideoIcon className="h-4 w-4" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium" style={{ color: "var(--ll-text)" }}>
+                      {v.title || (
+                        <span style={{ color: "var(--ll-text-dim)" }} className="italic">
+                          sin título
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell style={{ color: "var(--ll-text-muted)" }}>
+                      {v.source_platform ? PLATFORM_LABEL[v.source_platform as VideoPlatform] : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {v.format_id && formatsById.get(v.format_id) ? (
+                        <Badge variant="outline" className="border-[var(--ll-border)] text-[var(--ll-text-muted)]">
+                          {formatsById.get(v.format_id)}
+                        </Badge>
+                      ) : (
+                        <span style={{ color: "var(--ll-text-dim)" }}>—</span>
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className="text-xs"
+                      style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {v.posted_at ? new Date(v.posted_at).toLocaleDateString("es-AR") : "—"}
+                    </TableCell>
+                    <TableCell className="text-right" style={{ color: "var(--ll-text)" }}>
+                      {v.views_total !== null ? formatNum(v.views_total) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {v.multiplier !== null && v.performance_tier ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "ml-auto inline-flex border",
+                            TIER_CLASS[v.performance_tier as PerformanceTier],
+                          )}
+                        >
+                          {Number(v.multiplier).toFixed(1)}× {TIER_LABEL[v.performance_tier as PerformanceTier]}
+                        </Badge>
+                      ) : (
+                        <span style={{ color: "var(--ll-text-dim)" }}>—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function VideoCard({ video, formatName }: { video: Video; formatName?: string }) {
+  const tier = video.performance_tier as PerformanceTier | null;
+  return (
+    <Link
+      to={`/app/admin/videos/${video.id}`}
+      className="flex gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3 transition-colors active:bg-[var(--ll-surface-2)]"
+    >
+      {video.thumbnail_url ? (
+        <img src={video.thumbnail_url} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+      ) : (
+        <div
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded"
+          style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
+        >
+          <VideoIcon className="h-5 w-5" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="truncate font-medium" style={{ color: "var(--ll-text)" }}>
+            {video.title || (
+              <span className="italic" style={{ color: "var(--ll-text-dim)" }}>
+                sin título
+              </span>
+            )}
+          </h3>
+          {tier && video.multiplier !== null && (
+            <Badge variant="outline" className={cn("shrink-0 border", TIER_CLASS[tier])}>
+              {Number(video.multiplier).toFixed(1)}×
+            </Badge>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--ll-text-muted)" }}>
+          {video.source_platform && <span>{PLATFORM_LABEL[video.source_platform as VideoPlatform]}</span>}
+          {formatName && (
+            <>
+              <span style={{ color: "var(--ll-text-dim)" }}>·</span>
+              <span>{formatName}</span>
+            </>
+          )}
+          {video.posted_at && (
+            <>
+              <span style={{ color: "var(--ll-text-dim)" }}>·</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {new Date(video.posted_at).toLocaleDateString("es-AR")}
+              </span>
+            </>
+          )}
+        </div>
+        {video.views_total !== null && (
+          <div
+            className="text-xs"
+            style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {formatNum(video.views_total)} views
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }
 
@@ -254,7 +325,7 @@ function FilterSelect({
         {label}
       </span>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-44 border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+        <SelectTrigger className="w-36 border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)] sm:w-44">
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
@@ -271,7 +342,7 @@ function FilterSelect({
 
 function EmptyState() {
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
+    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center md:p-12">
       <div
         className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
         style={{ background: "var(--ll-accent-dim)" }}
@@ -299,6 +370,3 @@ function formatNum(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
-
-// Suppress unused import warning; ExternalLink may be used in a follow-up
-void ExternalLink;

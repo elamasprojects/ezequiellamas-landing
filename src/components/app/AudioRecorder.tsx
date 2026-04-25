@@ -96,8 +96,8 @@ export default function AudioRecorder({ onRecording, onClear, disabled }: Props)
   }
 
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface-2)] p-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface-2)] p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {state === "recording" ? (
             <span
@@ -149,7 +149,7 @@ export default function AudioRecorder({ onRecording, onClear, disabled }: Props)
               <audio
                 src={URL.createObjectURL(blob)}
                 controls
-                className={cn("h-10")}
+                className={cn("h-10 max-w-full")}
               />
               <Button onClick={clear} variant="ghost" size="icon" aria-label="Borrar">
                 <Trash2 className="h-4 w-4" />

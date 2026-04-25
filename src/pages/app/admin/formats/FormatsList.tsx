@@ -219,11 +219,11 @@ function FormatItem({
         type="button"
         {...attributes}
         {...listeners}
-        className="mt-1 cursor-grab touch-none rounded p-1 opacity-40 hover:opacity-100 active:cursor-grabbing"
+        className="-ml-1 cursor-grab touch-none rounded p-2 opacity-50 hover:opacity-100 active:cursor-grabbing"
         style={{ color: "var(--ll-text-muted)" }}
         aria-label="Reordenar"
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-5 w-5" />
       </button>
 
       <div className="flex-1 min-w-0">
@@ -251,7 +251,7 @@ function FormatItem({
         )}
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
         <Button
           variant="ghost"
           size="icon"

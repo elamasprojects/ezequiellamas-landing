@@ -309,7 +309,10 @@ export default function NewVideo() {
         </Field>
       </Section>
 
-      <div className="sticky bottom-4 flex justify-end pt-4">
+      <div
+        className="sticky flex justify-end pt-4"
+        style={{ bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+      >
         <Button type="submit" variant="brand" size="lg" disabled={submitting} className="shadow-lg">
           <Save className="h-4 w-4" />
           {submitting ? "Guardando..." : "Guardar video"}

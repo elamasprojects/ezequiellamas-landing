@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import MobileNav from "@/components/app/MobileNav";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
@@ -37,9 +38,13 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
       className="min-h-screen text-[var(--ll-text)]"
       style={{ background: "var(--ll-bg)", fontFamily: "'DM Sans', sans-serif" }}
     >
-      <header className="sticky top-0 z-40 border-b border-[var(--ll-border)] bg-[var(--ll-bg)]/85 backdrop-blur">
-        <div className="flex h-14 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
+      <header
+        className="sticky top-0 z-40 border-b border-[var(--ll-border)] bg-[var(--ll-bg)]/85 backdrop-blur"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <div className="flex h-14 items-center justify-between px-3 md:px-6">
+          <div className="flex items-center gap-2 md:gap-4">
+            <MobileNav role={role} roleLabel={roleLabel} navItems={navItems} />
             <Link
               to="/"
               className="text-base"
@@ -47,9 +52,11 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
             >
               Ezequiel <span style={{ color: "var(--ll-accent)" }}>Lamas</span>
             </Link>
-            <Badge variant={role}>{roleLabel}</Badge>
+            <Badge variant={role} className="hidden sm:inline-flex">
+              {roleLabel}
+            </Badge>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <span
               className="hidden text-xs text-[var(--ll-text-muted)] md:inline"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
@@ -60,10 +67,10 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
               variant="ghost"
               size="sm"
               onClick={signOut}
-              className="text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"
+              className="hidden text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)] md:inline-flex"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden md:inline">Salir</span>
+              <span>Salir</span>
             </Button>
           </div>
         </div>
@@ -102,7 +109,13 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
           </nav>
         </aside>
 
-        <main className="flex-1 px-6 py-8 md:px-10">
+        <main
+          className="flex-1 px-4 py-6 md:px-10 md:py-8"
+          style={{
+            paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
+            minWidth: 0,
+          }}
+        >
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
