@@ -110,12 +110,15 @@ Migrations applied (in order):
 | `m1_roles_auth_foundation` | M1 | `app_role` enum, `profiles`, `user_roles`, `has_role()`, `set_updated_at()`, `handle_new_user()` trigger |
 | `m3_formats` | M3 | `formats` (CRUD by admin) |
 | `m2_ideas_scripts_audio` | M2 | `audio_uploads`, `scripts`, `broll_suggestions`, `create_script_with_brolls()` RPC, `audio-ideas` storage bucket + RLS |
+| `m4_videos_metrics` | M4 | `videos`, `video_metrics_history`, `calculate_video_multiplier()` trigger, `video-thumbnails` storage bucket (public read) |
+| `m4_fix_public_bucket_listing` | M4 patch | drops broad SELECT policy on `video-thumbnails` storage objects (Supabase advisor flagged it) |
 
 Buckets:
 
 | Bucket | Visibility | Path | Used by |
 |---|---|---|---|
 | `audio-ideas` | private | `{user_id}/{uuid}.{ext}` | M2 — admin-of-own-folder only |
+| `video-thumbnails` | public | `{user_id}/{video_id}.{ext}` | M4 — admin uploads, anyone reads via public URL (no listing) |
 
 RPCs (security definer):
 
@@ -123,6 +126,7 @@ RPCs (security definer):
 |---|---|
 | `has_role(_user_id, _role)` | RLS helper |
 | `create_script_with_brolls(...)` | Atomically inserts a script + its broll_suggestions for the calling admin (`auth.uid()`) |
+| `calculate_video_multiplier()` (trigger function) | Recomputes `videos.multiplier` and `videos.performance_tier` whenever `videos.views_total` is set/updated, comparing against avg of last-90-days views (excluding the current row) |
 
 ## Edge Functions (in this project)
 

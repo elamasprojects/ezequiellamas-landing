@@ -13,6 +13,9 @@ import FormatsList from "@/pages/app/admin/formats/FormatsList";
 import IdeasInbox from "@/pages/app/admin/ideas/IdeasInbox";
 import NewIdea from "@/pages/app/admin/ideas/NewIdea";
 import ScriptEditor from "@/pages/app/admin/ideas/ScriptEditor";
+import VideosList from "@/pages/app/admin/videos/VideosList";
+import NewVideo from "@/pages/app/admin/videos/NewVideo";
+import VideoDetail from "@/pages/app/admin/videos/VideoDetail";
 import EditorLayout from "@/pages/app/editor/EditorLayout";
 import EditorDashboard from "@/pages/app/editor/EditorDashboard";
 import AdvisorLayout from "@/pages/app/advisor/AdvisorLayout";
@@ -40,6 +43,9 @@ export default function App() {
             <Route path="ideas/new" element={<NewIdea />} />
             <Route path="ideas/:id" element={<ScriptEditor />} />
             <Route path="formats" element={<FormatsList />} />
+            <Route path="videos" element={<VideosList />} />
+            <Route path="videos/new" element={<NewVideo />} />
+            <Route path="videos/:id" element={<VideoDetail />} />
             <Route path="team" element={<Team />} />
           </Route>
         </Route>

@@ -254,6 +254,170 @@ export type Database = {
         };
         Relationships: [];
       };
+      video_metrics_history: {
+        Row: {
+          captured_at: string;
+          comments: number | null;
+          id: string;
+          likes: number | null;
+          raw: Json | null;
+          saves: number | null;
+          shares: number | null;
+          video_id: string;
+          views_organic: number | null;
+          views_paid: number | null;
+          views_total: number | null;
+        };
+        Insert: {
+          captured_at?: string;
+          comments?: number | null;
+          id?: string;
+          likes?: number | null;
+          raw?: Json | null;
+          saves?: number | null;
+          shares?: number | null;
+          video_id: string;
+          views_organic?: number | null;
+          views_paid?: number | null;
+          views_total?: number | null;
+        };
+        Update: {
+          captured_at?: string;
+          comments?: number | null;
+          id?: string;
+          likes?: number | null;
+          raw?: Json | null;
+          saves?: number | null;
+          shares?: number | null;
+          video_id?: string;
+          views_organic?: number | null;
+          views_paid?: number | null;
+          views_total?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "video_metrics_history_video_id_fkey";
+            columns: ["video_id"];
+            isOneToOne: false;
+            referencedRelation: "videos";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      videos: {
+        Row: {
+          caption: string | null;
+          comments: number | null;
+          cpc: number | null;
+          cpm: number | null;
+          created_at: string;
+          drop_off_seconds: number | null;
+          format_id: string | null;
+          id: string;
+          likes: number | null;
+          metrics_updated_at: string | null;
+          multiplier: number | null;
+          notes: string | null;
+          owner_id: string;
+          performance_tier: string | null;
+          posted_at: string | null;
+          reach: number | null;
+          retention_pct: number | null;
+          saves: number | null;
+          script_id: string | null;
+          shares: number | null;
+          source_platform: string | null;
+          source_url: string | null;
+          spend: number | null;
+          thumbnail_url: string | null;
+          title: string | null;
+          updated_at: string;
+          views_organic: number | null;
+          views_paid: number | null;
+          views_total: number | null;
+          watch_time_seconds: number | null;
+        };
+        Insert: {
+          caption?: string | null;
+          comments?: number | null;
+          cpc?: number | null;
+          cpm?: number | null;
+          created_at?: string;
+          drop_off_seconds?: number | null;
+          format_id?: string | null;
+          id?: string;
+          likes?: number | null;
+          metrics_updated_at?: string | null;
+          multiplier?: number | null;
+          notes?: string | null;
+          owner_id: string;
+          performance_tier?: string | null;
+          posted_at?: string | null;
+          reach?: number | null;
+          retention_pct?: number | null;
+          saves?: number | null;
+          script_id?: string | null;
+          shares?: number | null;
+          source_platform?: string | null;
+          source_url?: string | null;
+          spend?: number | null;
+          thumbnail_url?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          views_organic?: number | null;
+          views_paid?: number | null;
+          views_total?: number | null;
+          watch_time_seconds?: number | null;
+        };
+        Update: {
+          caption?: string | null;
+          comments?: number | null;
+          cpc?: number | null;
+          cpm?: number | null;
+          created_at?: string;
+          drop_off_seconds?: number | null;
+          format_id?: string | null;
+          id?: string;
+          likes?: number | null;
+          metrics_updated_at?: string | null;
+          multiplier?: number | null;
+          notes?: string | null;
+          owner_id?: string;
+          performance_tier?: string | null;
+          posted_at?: string | null;
+          reach?: number | null;
+          retention_pct?: number | null;
+          saves?: number | null;
+          script_id?: string | null;
+          shares?: number | null;
+          source_platform?: string | null;
+          source_url?: string | null;
+          spend?: number | null;
+          thumbnail_url?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          views_organic?: number | null;
+          views_paid?: number | null;
+          views_total?: number | null;
+          watch_time_seconds?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "videos_format_id_fkey";
+            columns: ["format_id"];
+            isOneToOne: false;
+            referencedRelation: "formats";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "videos_script_id_fkey";
+            columns: ["script_id"];
+            isOneToOne: false;
+            referencedRelation: "scripts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
