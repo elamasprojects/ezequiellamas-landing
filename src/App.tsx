@@ -16,8 +16,14 @@ import ScriptEditor from "@/pages/app/admin/ideas/ScriptEditor";
 import VideosList from "@/pages/app/admin/videos/VideosList";
 import NewVideo from "@/pages/app/admin/videos/NewVideo";
 import VideoDetail from "@/pages/app/admin/videos/VideoDetail";
+import CalendarPage from "@/pages/app/admin/calendar/CalendarPage";
+import AssignmentsBoard from "@/pages/app/admin/assignments/AssignmentsBoard";
+import NewAssignment from "@/pages/app/admin/assignments/NewAssignment";
+import AssignmentDetail from "@/pages/app/admin/assignments/AssignmentDetail";
 import EditorLayout from "@/pages/app/editor/EditorLayout";
 import EditorDashboard from "@/pages/app/editor/EditorDashboard";
+import AssignmentView from "@/pages/app/editor/AssignmentView";
+import Earnings from "@/pages/app/editor/Earnings";
 import AdvisorLayout from "@/pages/app/advisor/AdvisorLayout";
 import AdvisorDashboard from "@/pages/app/advisor/AdvisorDashboard";
 import RecursosList from "@/pages/recursos/RecursosList";
@@ -46,6 +52,10 @@ export default function App() {
             <Route path="videos" element={<VideosList />} />
             <Route path="videos/new" element={<NewVideo />} />
             <Route path="videos/:id" element={<VideoDetail />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="assignments" element={<AssignmentsBoard />} />
+            <Route path="assignments/new" element={<NewAssignment />} />
+            <Route path="assignments/:id" element={<AssignmentDetail />} />
             <Route path="team" element={<Team />} />
           </Route>
         </Route>
@@ -53,6 +63,8 @@ export default function App() {
         <Route path="editor" element={<RequireRole role="editor" />}>
           <Route element={<EditorLayout />}>
             <Route index element={<EditorDashboard />} />
+            <Route path="earnings" element={<Earnings />} />
+            <Route path=":id" element={<AssignmentView />} />
           </Route>
         </Route>
 

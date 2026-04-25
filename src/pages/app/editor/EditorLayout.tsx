@@ -4,7 +4,7 @@ import DashboardShell, { type NavItem } from "@/components/app/DashboardShell";
 
 const NAV: NavItem[] = [
   { to: "/app/editor", label: "Cola de trabajo", icon: <LayoutDashboard className="h-4 w-4" />, end: true },
-  { to: "/app/editor/earnings", label: "Ganancias", icon: <Wallet className="h-4 w-4" />, disabled: true },
+  { to: "/app/editor/earnings", label: "Ganancias", icon: <Wallet className="h-4 w-4" /> },
 ];
 
 export default function EditorLayout() {

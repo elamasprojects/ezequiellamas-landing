@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
+import NotificationBell from "@/components/app/NotificationBell";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
             </Badge>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
+            <NotificationBell />
             <span
               className="hidden text-xs text-[var(--ll-text-muted)] md:inline"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}

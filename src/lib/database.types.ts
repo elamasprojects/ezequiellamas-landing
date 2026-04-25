@@ -82,15 +82,94 @@ export type Database = {
           script_id?: string;
           suggestion?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "broll_suggestions_script_id_fkey";
-            columns: ["script_id"];
-            isOneToOne: false;
-            referencedRelation: "scripts";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
+      };
+      corrections: {
+        Row: {
+          created_at: string;
+          id: string;
+          notes: string;
+          requested_by: string;
+          resolved_at: string | null;
+          submission_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          notes: string;
+          requested_by: string;
+          resolved_at?: string | null;
+          submission_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          notes?: string;
+          requested_by?: string;
+          resolved_at?: string | null;
+          submission_id?: string;
+        };
+        Relationships: [];
+      };
+      editor_assignments: {
+        Row: {
+          brolls_drive_url: string | null;
+          created_at: string;
+          due_date: string | null;
+          editor_id: string | null;
+          id: string;
+          instructions: string | null;
+          owner_id: string;
+          paid_at: string | null;
+          payment_amount: number | null;
+          payment_currency: string;
+          payment_status: string;
+          raw_drive_url: string | null;
+          script_id: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+          video_id: string | null;
+        };
+        Insert: {
+          brolls_drive_url?: string | null;
+          created_at?: string;
+          due_date?: string | null;
+          editor_id?: string | null;
+          id?: string;
+          instructions?: string | null;
+          owner_id: string;
+          paid_at?: string | null;
+          payment_amount?: number | null;
+          payment_currency?: string;
+          payment_status?: string;
+          raw_drive_url?: string | null;
+          script_id?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+          video_id?: string | null;
+        };
+        Update: {
+          brolls_drive_url?: string | null;
+          created_at?: string;
+          due_date?: string | null;
+          editor_id?: string | null;
+          id?: string;
+          instructions?: string | null;
+          owner_id?: string;
+          paid_at?: string | null;
+          payment_amount?: number | null;
+          payment_currency?: string;
+          payment_status?: string;
+          raw_drive_url?: string | null;
+          script_id?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          video_id?: string | null;
+        };
+        Relationships: [];
       };
       formats: {
         Row: {
@@ -125,6 +204,42 @@ export type Database = {
           owner_id?: string;
           position?: number;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          body: string | null;
+          created_at: string;
+          dedupe_key: string | null;
+          id: string;
+          kind: string;
+          link: string | null;
+          read_at: string | null;
+          title: string;
+          user_id: string;
+        };
+        Insert: {
+          body?: string | null;
+          created_at?: string;
+          dedupe_key?: string | null;
+          id?: string;
+          kind: string;
+          link?: string | null;
+          read_at?: string | null;
+          title: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string | null;
+          created_at?: string;
+          dedupe_key?: string | null;
+          id?: string;
+          kind?: string;
+          link?: string | null;
+          read_at?: string | null;
+          title?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -216,22 +331,7 @@ export type Database = {
           updated_at?: string;
           word_count?: number | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "scripts_audio_upload_id_fkey";
-            columns: ["audio_upload_id"];
-            isOneToOne: false;
-            referencedRelation: "audio_uploads";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "scripts_format_id_fkey";
-            columns: ["format_id"];
-            isOneToOne: false;
-            referencedRelation: "formats";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       user_roles: {
         Row: {
@@ -294,15 +394,40 @@ export type Database = {
           views_paid?: number | null;
           views_total?: number | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "video_metrics_history_video_id_fkey";
-            columns: ["video_id"];
-            isOneToOne: false;
-            referencedRelation: "videos";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
+      };
+      video_submissions: {
+        Row: {
+          assignment_id: string;
+          created_at: string;
+          drive_url: string;
+          editor_id: string;
+          id: string;
+          notes: string | null;
+          status: string;
+          version: number;
+        };
+        Insert: {
+          assignment_id: string;
+          created_at?: string;
+          drive_url: string;
+          editor_id: string;
+          id?: string;
+          notes?: string | null;
+          status?: string;
+          version?: number;
+        };
+        Update: {
+          assignment_id?: string;
+          created_at?: string;
+          drive_url?: string;
+          editor_id?: string;
+          id?: string;
+          notes?: string | null;
+          status?: string;
+          version?: number;
+        };
+        Relationships: [];
       };
       videos: {
         Row: {
@@ -401,22 +526,7 @@ export type Database = {
           views_total?: number | null;
           watch_time_seconds?: number | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "videos_format_id_fkey";
-            columns: ["format_id"];
-            isOneToOne: false;
-            referencedRelation: "formats";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "videos_script_id_fkey";
-            columns: ["script_id"];
-            isOneToOne: false;
-            referencedRelation: "scripts";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
     };
     Views: {
