@@ -339,6 +339,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      resources: {
+        Row: {
+          cover_image_url: string | null;
+          created_at: string;
+          html_body: string;
+          id: string;
+          owner_id: string;
+          published: boolean;
+          published_at: string | null;
+          slug: string;
+          summary: string | null;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          cover_image_url?: string | null;
+          created_at?: string;
+          html_body: string;
+          id?: string;
+          owner_id: string;
+          published?: boolean;
+          published_at?: string | null;
+          slug: string;
+          summary?: string | null;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          cover_image_url?: string | null;
+          created_at?: string;
+          html_body?: string;
+          id?: string;
+          owner_id?: string;
+          published?: boolean;
+          published_at?: string | null;
+          slug?: string;
+          summary?: string | null;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       scripts: {
         Row: {
           ai_summary: string | null;

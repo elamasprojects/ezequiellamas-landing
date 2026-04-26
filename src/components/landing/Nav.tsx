@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Nav() {
   return (
     <nav>
@@ -19,6 +21,9 @@ export default function Nav() {
         </li>
         <li>
           <a href="#vision">Visión</a>
+        </li>
+        <li>
+          <Link to="/recursos">Recursos</Link>
         </li>
       </ul>
     </nav>

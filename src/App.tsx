@@ -39,6 +39,8 @@ const CalendarPage = lazy(() => import("@/pages/app/admin/calendar/CalendarPage"
 const AssignmentsBoard = lazy(() => import("@/pages/app/admin/assignments/AssignmentsBoard"));
 const NewAssignment = lazy(() => import("@/pages/app/admin/assignments/NewAssignment"));
 const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/AssignmentDetail"));
+const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesList"));
+const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
 const EditorDashboard = lazy(() => import("@/pages/app/editor/EditorDashboard"));
 const AssignmentView = lazy(() => import("@/pages/app/editor/AssignmentView"));
 const Earnings = lazy(() => import("@/pages/app/editor/Earnings"));
@@ -77,6 +79,9 @@ export default function App() {
                 <Route path="assignments" element={<AssignmentsBoard />} />
                 <Route path="assignments/new" element={<NewAssignment />} />
                 <Route path="assignments/:id" element={<AssignmentDetail />} />
+                <Route path="resources" element={<ResourcesList />} />
+                <Route path="resources/new" element={<ResourceEditor />} />
+                <Route path="resources/:id" element={<ResourceEditor />} />
                 <Route path="team" element={<Team />} />
               </Route>
             </Route>
