@@ -107,8 +107,8 @@ export default function VideosList() {
             Tus <em style={{ color: "var(--ll-warm)" }}>videos</em> posteados
           </h1>
           <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Cargás manualmente cada video que postées con sus métricas. La columna multiplier compara views vs el
-            promedio de los últimos 90 días.
+            Pegás la URL del video y traemos las métricas (views, likes, comments) automáticamente para Instagram,
+            YouTube y TikTok. La columna multiplier compara views vs el promedio de los últimos 90 días.
           </p>
         </div>
         <Button asChild variant="brand" className="self-start sm:self-auto">

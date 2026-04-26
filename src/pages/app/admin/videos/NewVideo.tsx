@@ -16,7 +16,13 @@ import {
 import { useFormats } from "@/hooks/useFormats";
 import { useScripts } from "@/hooks/useScripts";
 import { useSession } from "@/hooks/useSession";
-import { createVideo, detectPlatform, type VideoPlatform } from "@/lib/api/videos";
+import {
+  createVideo,
+  detectPlatform,
+  isSyncable,
+  syncVideoMetrics,
+  type VideoPlatform,
+} from "@/lib/api/videos";
 import type { VideoInsert } from "@/lib/api/videos";
 
 const NO_VALUE = "__none__";
@@ -99,8 +105,8 @@ export default function NewVideo() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    if (!form.source_url || !form.source_platform || !form.posted_at) {
-      toast.error("URL, plataforma y fecha son requeridos");
+    if (!form.source_url || !form.source_platform) {
+      toast.error("URL y plataforma son requeridos");
       return;
     }
     setSubmitting(true);
@@ -109,7 +115,7 @@ export default function NewVideo() {
         owner_id: user.id,
         source_url: form.source_url.trim(),
         source_platform: form.source_platform,
-        posted_at: new Date(form.posted_at).toISOString(),
+        posted_at: form.posted_at ? new Date(form.posted_at).toISOString() : null,
         title: form.title.trim() || null,
         caption: form.caption.trim() || null,
         thumbnail_url: form.thumbnail_url.trim() || null,
@@ -130,7 +136,19 @@ export default function NewVideo() {
         metrics_updated_at: new Date().toISOString(),
       };
       const created = await createVideo(insert);
-      toast.success("Video cargado");
+
+      if (isSyncable(form.source_platform)) {
+        try {
+          await syncVideoMetrics(created.id);
+          toast.success("Video cargado y métricas sincronizadas");
+        } catch (syncErr) {
+          const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+          toast.warning(`Video cargado, pero el sync falló: ${msg}`);
+        }
+      } else {
+        toast.success("Video cargado");
+      }
+
       navigate(`/app/admin/videos/${created.id}`, { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -162,6 +180,11 @@ export default function NewVideo() {
         >
           Cargá un <em style={{ color: "var(--ll-warm)" }}>video</em> posteado
         </h1>
+        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
+          Pegás la URL y guardás. Si es de Instagram, YouTube o TikTok, al guardar traemos
+          automáticamente views, likes, comments, thumbnail, caption y fecha. El resto
+          (shares privados, retención, spend) se carga a mano si lo necesitás.
+        </p>
       </header>
 
       <Section title="Identificación" subtitle="Lo básico para identificar el video.">
@@ -191,14 +214,16 @@ export default function NewVideo() {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Fecha de posteo *">
+        <Field label="Fecha de posteo">
           <Input
             type="datetime-local"
-            required
             value={form.posted_at}
             onChange={(e) => update("posted_at", e.target.value)}
             className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
           />
+          <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+            Opcional — si dejás vacío y la URL es de IG/YT/TikTok, la traemos del sync.
+          </p>
         </Field>
         <Field label="Título" full>
           <Input
