@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Tables, TablesInsert, TablesUpdate } from "@/lib/database.types";
 import type { ScriptWithBrolls } from "@/lib/api/scripts";
@@ -132,7 +133,18 @@ export async function syncVideoMetrics(video_id: string): Promise<SyncVideoResul
   const { data, error } = await supabase.functions.invoke<
     { ok: true; video: SyncVideoResult; platform: VideoPlatform } | { error: string }
   >("scrape-video", { body: { video_id } });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Forward the body's error message instead of "Edge Function returned a non-2xx status code"
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = (await error.context.json()) as { error?: string };
+        if (body?.error) throw new Error(body.error);
+      } catch (jsonErr) {
+        if (jsonErr instanceof Error && jsonErr.message) throw jsonErr;
+      }
+    }
+    throw new Error(error.message);
+  }
   if (!data) throw new Error("Empty response from scrape-video");
   if ("error" in data) throw new Error(data.error);
   return data.video;
