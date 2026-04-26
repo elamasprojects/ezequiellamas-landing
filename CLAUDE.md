@@ -137,7 +137,9 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 
 | Function | Verify JWT | Hace |
 |---|---|---|
-| `invite-user` | yes | Admin invita por mail. Llama `auth.admin.inviteUserByEmail` + inserta en `user_roles`. Si role es `advisor`, también inserta `advisor_assignments(admin_id=caller, advisor_id=invited, active=true)`. |
+| `create-user` | yes | Admin crea miembro al toque. Llama `auth.admin.createUser({ email, password: "123456", email_confirm: true })` + inserta en `user_roles`. Si role es `advisor`, también inserta `advisor_assignments(admin_id=caller, advisor_id=created, active=true)`. Idempotente: si el email ya existe, asigna el rol al user existente. |
+| `send-access-email` | yes | Admin manda mail brandeado vía Resend con email + password (`123456`) + link a `${APP_URL}/login` + instrucciones de instalar la app como PWA en iPhone/Android. Recibe `{ user_id }`, lee email de `profiles`, manda con `FROM_EMAIL` (default `Ezequiel Lamas <hola@updates.ezequiellamas.com>`). |
+| ~~`invite-user`~~ | yes | **Deprecated** (reemplazada por `create-user` + `send-access-email`). Sigue desplegada pero ya no se llama desde el cliente. Borrarla manualmente desde el dashboard de Supabase cuando se quiera limpiar. |
 | `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
 | `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
 | `send-notification` | yes | Inserta en `notifications` (idempotente vía dedupe_key) + opcionalmente manda mail vía Resend con templates inline (assignment_created / correction_requested / submission_approved / submission_uploaded / feedback_received). Admin puede notificar a cualquiera; editor solo a admins. |
@@ -148,8 +150,9 @@ Custom secrets needed:
 
 | Var | Used by | Required from |
 |---|---|---|
-| `APP_URL` | `invite-user` (magic-link redirectTo) | M1 — `http://localhost:8080` para dev, `https://ezequiellamas.com` (o URL Vercel) para prod |
-| `RESEND_API_KEY` | `send-notification` (M6) | M6 |
+| `APP_URL` | `send-access-email`, `send-notification`, `invite-user` (legacy) | M1 — `http://localhost:8080` para dev, `https://ezequiellamas.com` (o URL Vercel) para prod |
+| `RESEND_API_KEY` | `send-notification`, `send-access-email` | M6 + Equipo |
+| `FROM_EMAIL` | `send-notification`, `send-access-email` | Equipo — `Ezequiel Lamas <hola@updates.ezequiellamas.com>` (dominio verificado en Resend). Si no está seteado, default es ese mismo string. |
 | `OPENAI_API_KEY` | `transcribe-audio`, `generate-script` (Whisper) | M2 ✓ — **swap from Groq**: el plan original mencionaba Groq Whisper, pero solo está configurado OPENAI_API_KEY. Se usa OpenAI Whisper-1. |
 | `ANTHROPIC_API_KEY` | `generate-script` (Claude Sonnet 4.6) | M2 ✓ |
 | `APIFY_API_KEY_INSTAGRAM` | `scrape-video` (rama IG) | M4b ✓ — token de Apify con acceso al actor `apify/instagram-scraper` |

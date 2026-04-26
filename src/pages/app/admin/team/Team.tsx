@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Mail, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,14 @@ import {
 } from "@/components/ui/table";
 import { fetchTeamMembers, ROLE_LABEL, type AppRole } from "@/lib/api/roles";
 import { fetchPairingsForAdmin, togglePairingActive } from "@/lib/api/advisorAssignments";
-import InviteDialog from "@/pages/app/admin/team/InviteDialog";
+import CreateUserDialog from "@/pages/app/admin/team/CreateUserDialog";
+import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 
 export default function Team() {
   const { user } = useSession();
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data: members, isLoading, refetch } = useQuery({
@@ -47,6 +49,23 @@ export default function Team() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  async function handleSendAccess(targetUserId: string, email: string) {
+    setSendingTo(targetUserId);
+    const { data, error } = await supabase.functions.invoke("send-access-email", {
+      body: { user_id: targetUserId },
+    });
+    setSendingTo(null);
+    if (error) {
+      toast.error(error.message ?? "No se pudo enviar el mail");
+      return;
+    }
+    if (data?.error) {
+      toast.error(data.error);
+      return;
+    }
+    toast.success(`Accesos enviados a ${email}`);
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -64,12 +83,13 @@ export default function Team() {
             Quién <em style={{ color: "var(--ll-warm)" }}>tiene acceso</em>
           </h1>
           <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Editores y asesores que invitas reciben un magic-link a su mail. Cuando entran, ven solo lo de su rol.
-            Para los asesores, podés activar/desactivar el acceso a tus videos con el toggle.
+            Creás el usuario al toque con la contraseña por defecto <code className="rounded bg-[var(--ll-surface-2)] px-1.5 py-0.5 font-mono text-[11px]">123456</code>.
+            Cuando esté listo, mandale los accesos por mail con el botón de cada fila. Para los asesores, podés
+            activar/desactivar el acceso a tus videos con el toggle.
           </p>
         </div>
-        <Button variant="brand" onClick={() => setInviteOpen(true)} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4" /> Invitar miembro
+        <Button variant="brand" onClick={() => setCreateOpen(true)} className="self-start sm:self-auto">
+          <Plus className="h-4 w-4" /> Crear miembro
         </Button>
       </header>
 
@@ -81,20 +101,23 @@ export default function Team() {
               <TableHead style={{ color: "var(--ll-text-muted)" }}>Roles</TableHead>
               <TableHead style={{ color: "var(--ll-text-muted)" }}>Asignado</TableHead>
               <TableHead style={{ color: "var(--ll-text-muted)" }}>Desde</TableHead>
+              <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
+                Accesos
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center" style={{ color: "var(--ll-text-muted)" }}>
+                <TableCell colSpan={5} className="text-center" style={{ color: "var(--ll-text-muted)" }}>
                   Cargando...
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && members && members.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center" style={{ color: "var(--ll-text-muted)" }}>
-                  Todavía no hay miembros invitados.
+                <TableCell colSpan={5} className="text-center" style={{ color: "var(--ll-text-muted)" }}>
+                  Todavía no creaste ningún miembro.
                 </TableCell>
               </TableRow>
             )}
@@ -144,6 +167,22 @@ export default function Team() {
                   >
                     {new Date(m.created_at).toLocaleDateString("es-AR")}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {isMe ? (
+                      <span style={{ color: "var(--ll-text-dim)" }}>—</span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={sendingTo === m.user_id}
+                        onClick={() => handleSendAccess(m.user_id, m.email)}
+                        className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        {sendingTo === m.user_id ? "Enviando..." : "Enviar accesos"}
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -151,11 +190,11 @@ export default function Team() {
         </Table>
       </div>
 
-      <InviteDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
+      <CreateUserDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         onSuccess={() => {
-          setInviteOpen(false);
+          setCreateOpen(false);
           refetch();
           qc.invalidateQueries({ queryKey: ["advisor_pairings", user?.id] });
         }}
