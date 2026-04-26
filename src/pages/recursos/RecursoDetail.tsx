@@ -251,7 +251,7 @@ export default function RecursoDetail() {
             }}
           >
             <a
-              href="https://instagram.com/ezequiellamas.ia/"
+              href="https://instagram.com/ezequiellamass"
               target="_blank"
               rel="noreferrer"
               style={{ color: "var(--ll-accent)", textDecoration: "none" }}
@@ -265,14 +265,6 @@ export default function RecursoDetail() {
               style={{ color: "var(--ll-accent)", textDecoration: "none" }}
             >
               YouTube
-            </a>
-            <a
-              href="https://x.com/chessinvesting"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--ll-accent)", textDecoration: "none" }}
-            >
-              Twitter
             </a>
             <Link to="/" style={{ color: "var(--ll-text-muted)", textDecoration: "none" }}>
               Sobre Ezequiel
