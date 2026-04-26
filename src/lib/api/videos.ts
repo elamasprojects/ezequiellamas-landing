@@ -116,17 +116,24 @@ export interface SyncVideoResult {
   views_total: number | null;
   likes: number | null;
   comments: number | null;
+  shares: number | null;
   multiplier: number | null;
   performance_tier: PerformanceTier | null;
   last_scraped_at: string | null;
 }
 
+export const SYNCABLE_PLATFORMS: ReadonlyArray<VideoPlatform> = ["instagram", "youtube", "tiktok"];
+
+export function isSyncable(platform: string | null | undefined): platform is VideoPlatform {
+  return platform != null && (SYNCABLE_PLATFORMS as ReadonlyArray<string>).includes(platform);
+}
+
 export async function syncVideoMetrics(video_id: string): Promise<SyncVideoResult> {
   const { data, error } = await supabase.functions.invoke<
-    { ok: true; video: SyncVideoResult } | { error: string }
-  >("scrape-instagram-video", { body: { video_id } });
+    { ok: true; video: SyncVideoResult; platform: VideoPlatform } | { error: string }
+  >("scrape-video", { body: { video_id } });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Empty response from scrape-instagram-video");
+  if (!data) throw new Error("Empty response from scrape-video");
   if ("error" in data) throw new Error(data.error);
   return data.video;
 }

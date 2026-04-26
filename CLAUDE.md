@@ -141,7 +141,8 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
 | `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
 | `send-notification` | yes | Inserta en `notifications` (idempotente vía dedupe_key) + opcionalmente manda mail vía Resend con templates inline (assignment_created / correction_requested / submission_approved / submission_uploaded / feedback_received). Admin puede notificar a cualquiera; editor solo a admins. |
-| `scrape-instagram-video` | yes | Apify `apify/instagram-scraper`. Recibe `{ video_id }`, valida que sea un video IG del caller (RLS), llama al actor con `directUrls: [source_url]`, mapea `videoPlayCount/likesCount/commentsCount/displayUrl/caption/timestamp/shortCode` a las columnas de `videos`, inserta una row en `video_metrics_history` y devuelve `{ ok, video }`. Solo IG por ahora. |
+| `scrape-video` | yes | Apify multi-plataforma. Recibe `{ video_id }`, valida ownership (RLS) y routea por `source_platform`: **instagram** (`apify/instagram-scraper`), **youtube** (`streamers/youtube-scraper`), **tiktok** (`clockworks/tiktok-scraper`). Mapea views/likes/comments/shares/caption/thumbnail/posted_at/title (YT) a `videos`, inserta snapshot en `video_metrics_history` y devuelve `{ ok, video, platform }`. |
+| ~~`scrape-instagram-video`~~ | yes | **Deprecated** (reemplazada por `scrape-video`). Sigue desplegada pero ya no se llama desde el cliente. Borrarla manualmente desde el dashboard de Supabase cuando se quiera limpiar. |
 
 Custom secrets needed:
 
@@ -151,7 +152,9 @@ Custom secrets needed:
 | `RESEND_API_KEY` | `send-notification` (M6) | M6 |
 | `OPENAI_API_KEY` | `transcribe-audio`, `generate-script` (Whisper) | M2 ✓ — **swap from Groq**: el plan original mencionaba Groq Whisper, pero solo está configurado OPENAI_API_KEY. Se usa OpenAI Whisper-1. |
 | `ANTHROPIC_API_KEY` | `generate-script` (Claude Sonnet 4.6) | M2 ✓ |
-| `APIFY_API_KEY_INSTAGRAM` | `scrape-instagram-video` | M4b ✓ — token de Apify con acceso al actor `apify/instagram-scraper` |
+| `APIFY_API_KEY_INSTAGRAM` | `scrape-video` (rama IG) | M4b ✓ — token de Apify con acceso al actor `apify/instagram-scraper` |
+| `APIFY_API_KEY_YOUTUBE` | `scrape-video` (rama YT) | M4b ✓ — token de Apify con acceso al actor `streamers/youtube-scraper` |
+| `APIFY_API_KEY_TIKTOK` | `scrape-video` (rama TT) | M4b ✓ — token de Apify con acceso al actor `clockworks/tiktok-scraper` |
 | `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
 
 ## Style conventions

@@ -20,6 +20,7 @@ import {
   PLATFORM_LABEL,
   TIER_LABEL,
   deleteVideo,
+  isSyncable,
   syncVideoMetrics,
   type PerformanceTier,
   type VideoPlatform,
@@ -241,7 +242,7 @@ export default function VideoDetail() {
                 <span className="ml-2 text-red-400">· {video.last_scrape_error}</span>
               )}
             </div>
-            {video.source_platform === "instagram" && (
+            {isSyncable(video.source_platform) && (
               <Button
                 variant="outline"
                 size="sm"
