@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Sparkles, Video as VideoIcon } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { Plus, RefreshCw, Sparkles, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,6 +28,8 @@ import { useFormats } from "@/hooks/useFormats";
 import {
   PLATFORM_LABEL,
   TIER_LABEL,
+  isSyncable,
+  syncVideoMetrics,
   type PerformanceTier,
   type Video,
   type VideoFilters,
@@ -58,6 +64,31 @@ export default function VideosList() {
   const { data: videos, isLoading } = useVideos(filters);
 
   const formatsById = new Map((formats ?? []).map((f) => [f.id, f.name]));
+
+  const qc = useQueryClient();
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+  const syncMutation = useMutation({
+    mutationFn: (id: string) => syncVideoMetrics(id),
+    onMutate: (id) => {
+      setPendingIds((prev) => new Set(prev).add(id));
+    },
+    onSettled: (_data, _err, id) => {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    },
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["video", id] });
+      qc.invalidateQueries({ queryKey: ["videos"] });
+      toast.success("Métricas actualizadas");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleSync = (id: string) => syncMutation.mutate(id);
 
   return (
     <div className="space-y-8">
@@ -147,7 +178,12 @@ export default function VideosList() {
           <ul className="space-y-3 md:hidden">
             {videos.map((v) => (
               <li key={v.id}>
-                <VideoCard video={v} formatName={v.format_id ? formatsById.get(v.format_id) : undefined} />
+                <VideoCard
+                  video={v}
+                  formatName={v.format_id ? formatsById.get(v.format_id) : undefined}
+                  pending={pendingIds.has(v.id)}
+                  onSync={handleSync}
+                />
               </li>
             ))}
           </ul>
@@ -167,6 +203,9 @@ export default function VideosList() {
                   </TableHead>
                   <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
                     Multiplier
+                  </TableHead>
+                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
+                    Sync
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -232,6 +271,9 @@ export default function VideosList() {
                         <span style={{ color: "var(--ll-text-dim)" }}>—</span>
                       )}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <SyncCell video={v} pending={pendingIds.has(v.id)} onSync={handleSync} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -243,66 +285,131 @@ export default function VideosList() {
   );
 }
 
-function VideoCard({ video, formatName }: { video: Video; formatName?: string }) {
+function VideoCard({
+  video,
+  formatName,
+  pending,
+  onSync,
+}: {
+  video: Video;
+  formatName?: string;
+  pending: boolean;
+  onSync: (id: string) => void;
+}) {
   const tier = video.performance_tier as PerformanceTier | null;
   return (
-    <Link
-      to={`/app/admin/videos/${video.id}`}
-      className="flex gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3 transition-colors active:bg-[var(--ll-surface-2)]"
-    >
-      {video.thumbnail_url ? (
-        <img src={video.thumbnail_url} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
-      ) : (
-        <div
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded"
-          style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
-        >
-          <VideoIcon className="h-5 w-5" />
-        </div>
-      )}
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate font-medium" style={{ color: "var(--ll-text)" }}>
-            {video.title || (
-              <span className="italic" style={{ color: "var(--ll-text-dim)" }}>
-                sin título
-              </span>
-            )}
-          </h3>
-          {tier && video.multiplier !== null && (
-            <Badge variant="outline" className={cn("shrink-0 border", TIER_CLASS[tier])}>
-              {Number(video.multiplier).toFixed(1)}×
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--ll-text-muted)" }}>
-          {video.source_platform && <span>{PLATFORM_LABEL[video.source_platform as VideoPlatform]}</span>}
-          {formatName && (
-            <>
-              <span style={{ color: "var(--ll-text-dim)" }}>·</span>
-              <span>{formatName}</span>
-            </>
-          )}
-          {video.posted_at && (
-            <>
-              <span style={{ color: "var(--ll-text-dim)" }}>·</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                {new Date(video.posted_at).toLocaleDateString("es-AR")}
-              </span>
-            </>
-          )}
-        </div>
-        {video.views_total !== null && (
+    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3">
+      <Link
+        to={`/app/admin/videos/${video.id}`}
+        className="flex gap-3 transition-colors active:bg-[var(--ll-surface-2)]"
+      >
+        {video.thumbnail_url ? (
+          <img src={video.thumbnail_url} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+        ) : (
           <div
-            className="text-xs"
-            style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded"
+            style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
           >
-            {formatNum(video.views_total)} views
+            <VideoIcon className="h-5 w-5" />
           </div>
         )}
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate font-medium" style={{ color: "var(--ll-text)" }}>
+              {video.title || (
+                <span className="italic" style={{ color: "var(--ll-text-dim)" }}>
+                  sin título
+                </span>
+              )}
+            </h3>
+            {tier && video.multiplier !== null && (
+              <Badge variant="outline" className={cn("shrink-0 border", TIER_CLASS[tier])}>
+                {Number(video.multiplier).toFixed(1)}×
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--ll-text-muted)" }}>
+            {video.source_platform && <span>{PLATFORM_LABEL[video.source_platform as VideoPlatform]}</span>}
+            {formatName && (
+              <>
+                <span style={{ color: "var(--ll-text-dim)" }}>·</span>
+                <span>{formatName}</span>
+              </>
+            )}
+            {video.posted_at && (
+              <>
+                <span style={{ color: "var(--ll-text-dim)" }}>·</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {new Date(video.posted_at).toLocaleDateString("es-AR")}
+                </span>
+              </>
+            )}
+          </div>
+          {video.views_total !== null && (
+            <div
+              className="text-xs"
+              style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {formatNum(video.views_total)} views
+            </div>
+          )}
+        </div>
+      </Link>
+      <div className="mt-3 flex items-center justify-end border-t border-[var(--ll-border)] pt-2">
+        <SyncCell video={video} pending={pending} onSync={onSync} />
       </div>
-    </Link>
+    </div>
   );
+}
+
+function SyncCell({
+  video,
+  pending,
+  onSync,
+}: {
+  video: Video;
+  pending: boolean;
+  onSync: (id: string) => void;
+}) {
+  const syncable = isSyncable(video.source_platform);
+  const time = relTime(video.last_scraped_at);
+  return (
+    <div className="inline-flex items-center justify-end gap-2">
+      <span
+        className="text-xs"
+        style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+        title={video.last_scrape_error ?? undefined}
+      >
+        {video.last_scrape_error && (
+          <span className="text-red-400" aria-hidden>
+            ●{" "}
+          </span>
+        )}
+        {time ?? <span style={{ color: "var(--ll-text-dim)" }}>—</span>}
+      </span>
+      {syncable && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          disabled={pending}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onSync(video.id);
+          }}
+          aria-label="Sincronizar métricas"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", pending && "animate-spin")} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function relTime(iso: string | null): string | null {
+  if (!iso) return null;
+  return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: es });
 }
 
 function FilterSelect({
@@ -353,8 +460,8 @@ function EmptyState() {
         Todavía no cargaste ningún video posteado
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-        Cargás manualmente la URL + métricas de cada video que ya posteaste. Cuando tengas 2+ vamos a calcular el
-        multiplier vs tu promedio.
+        Cargás la URL de cada video que posteaste. Las métricas las podés sincronizar con un click si es de Instagram,
+        YouTube o TikTok. Con 2+ videos calculamos el multiplier vs tu promedio.
       </p>
       <Button asChild variant="brand" className="mt-6">
         <Link to="/app/admin/videos/new">
