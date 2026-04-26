@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import AuthCallback from "@/pages/AuthCallback";
+import NewPassword from "@/pages/NewPassword";
 import NotFound from "@/pages/NotFound";
 import AppLayout from "@/pages/app/AppLayout";
 import RoleRedirect from "@/components/app/RoleRedirect";
@@ -35,6 +36,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/auth/new-password" element={<NewPassword />} />
 
       <Route path="/recursos" element={<RecursosList />} />
       <Route path="/recursos/:slug" element={<RecursoDetail />} />

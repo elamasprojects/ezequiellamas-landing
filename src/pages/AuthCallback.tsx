@@ -6,26 +6,20 @@ export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      // Supabase JS client with detectSessionInUrl: true consumes the
-      // OTP / OAuth params from the URL on import. We just wait until
-      // a session shows up, then redirect.
-      for (let i = 0; i < 20; i++) {
-        if (cancelled) return;
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          navigate("/app", { replace: true });
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 150));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/auth/new-password", { replace: true });
+      } else if (session) {
+        navigate("/app", { replace: true });
       }
-      navigate("/login", { replace: true });
-    })();
+    });
+
+    // Fallback: if no event fires in 5 s, go back to login
+    const timer = setTimeout(() => navigate("/login", { replace: true }), 5000);
 
     return () => {
-      cancelled = true;
+      subscription.unsubscribe();
+      clearTimeout(timer);
     };
   }, [navigate]);
 
