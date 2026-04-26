@@ -112,6 +112,8 @@ Migrations applied (in order):
 | `m2_ideas_scripts_audio` | M2 | `audio_uploads`, `scripts`, `broll_suggestions`, `create_script_with_brolls()` RPC, `audio-ideas` storage bucket + RLS |
 | `m4_videos_metrics` | M4 | `videos`, `video_metrics_history`, `calculate_video_multiplier()` trigger, `video-thumbnails` storage bucket (public read) |
 | `m4_fix_public_bucket_listing` | M4 patch | drops broad SELECT policy on `video-thumbnails` storage objects (Supabase advisor flagged it) |
+| `m6_editor_workflow` | M6 | `editor_assignments`, `video_submissions`, `corrections`, `notifications` tables; RLS for admin/editor; editor reads scripts + brolls via assignment join; notifications added to supabase_realtime publication |
+| `m7_advisor_feedback` | M7 | `advisor_assignments` (admin↔advisor pivot), `advisor_feedback` (threaded comments); RLS for admin/advisor; advisor read of formats/videos/scripts/brolls now gated by active `advisor_assignments` |
 
 Buckets:
 
@@ -134,9 +136,10 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 
 | Function | Verify JWT | Hace |
 |---|---|---|
-| `invite-user` | yes | Admin invita por mail. Llama `auth.admin.inviteUserByEmail` + inserta en `user_roles`. |
+| `invite-user` | yes | Admin invita por mail. Llama `auth.admin.inviteUserByEmail` + inserta en `user_roles`. Si role es `advisor`, también inserta `advisor_assignments(admin_id=caller, advisor_id=invited, active=true)`. |
 | `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
 | `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
+| `send-notification` | yes | Inserta en `notifications` (idempotente vía dedupe_key) + opcionalmente manda mail vía Resend con templates inline (assignment_created / correction_requested / submission_approved / submission_uploaded / feedback_received). Admin puede notificar a cualquiera; editor solo a admins. |
 
 Custom secrets needed:
 

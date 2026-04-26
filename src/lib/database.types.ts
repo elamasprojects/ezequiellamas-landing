@@ -12,6 +12,75 @@ export type Database = {
   };
   public: {
     Tables: {
+      advisor_assignments: {
+        Row: {
+          active: boolean;
+          admin_id: string;
+          advisor_id: string;
+          created_at: string;
+          id: string;
+        };
+        Insert: {
+          active?: boolean;
+          admin_id: string;
+          advisor_id: string;
+          created_at?: string;
+          id?: string;
+        };
+        Update: {
+          active?: boolean;
+          admin_id?: string;
+          advisor_id?: string;
+          created_at?: string;
+          id?: string;
+        };
+        Relationships: [];
+      };
+      advisor_feedback: {
+        Row: {
+          admin_id: string;
+          advisor_id: string;
+          body: string;
+          created_at: string;
+          format_id: string | null;
+          id: string;
+          parent_id: string | null;
+          read: boolean;
+          scope: string;
+          script_id: string | null;
+          updated_at: string;
+          video_id: string | null;
+        };
+        Insert: {
+          admin_id: string;
+          advisor_id: string;
+          body: string;
+          created_at?: string;
+          format_id?: string | null;
+          id?: string;
+          parent_id?: string | null;
+          read?: boolean;
+          scope?: string;
+          script_id?: string | null;
+          updated_at?: string;
+          video_id?: string | null;
+        };
+        Update: {
+          admin_id?: string;
+          advisor_id?: string;
+          body?: string;
+          created_at?: string;
+          format_id?: string | null;
+          id?: string;
+          parent_id?: string | null;
+          read?: boolean;
+          scope?: string;
+          script_id?: string | null;
+          updated_at?: string;
+          video_id?: string | null;
+        };
+        Relationships: [];
+      };
       audio_uploads: {
         Row: {
           created_at: string;

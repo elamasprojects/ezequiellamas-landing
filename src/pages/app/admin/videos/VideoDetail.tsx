@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import ScriptStructure from "@/components/app/ScriptStructure";
 import BrollList from "@/components/app/BrollList";
+import FeedbackThread from "@/components/app/FeedbackThread";
 import { useVideo } from "@/hooks/useVideo";
 import {
   PLATFORM_LABEL,
@@ -150,7 +151,7 @@ export default function VideoDetail() {
           <TabsTrigger value="metricas" className="data-[state=active]:bg-[var(--ll-surface-2)]">
             Métricas
           </TabsTrigger>
-          <TabsTrigger value="asesor" className="data-[state=active]:bg-[var(--ll-surface-2)]" disabled>
+          <TabsTrigger value="asesor" className="data-[state=active]:bg-[var(--ll-surface-2)]">
             Asesor
           </TabsTrigger>
         </TabsList>
@@ -235,11 +236,12 @@ export default function VideoDetail() {
         </TabsContent>
 
         <TabsContent value="asesor" className="mt-6">
-          <Card label="Asesor">
-            <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              El feedback del asesor entra en M7.
-            </p>
-          </Card>
+          <FeedbackThread
+            videoId={video.id}
+            videoTitle={video.title || "Sin título"}
+            adminId={video.owner_id}
+            canWrite
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,7 +4,7 @@ import DashboardShell, { type NavItem } from "@/components/app/DashboardShell";
 
 const NAV: NavItem[] = [
   { to: "/app/advisor", label: "Videos", icon: <LayoutDashboard className="h-4 w-4" />, end: true },
-  { to: "/app/advisor/formats", label: "Formatos", icon: <Library className="h-4 w-4" />, disabled: true },
+  { to: "/app/advisor/formats", label: "Formatos", icon: <Library className="h-4 w-4" /> },
 ];
 
 export default function AdvisorLayout() {
