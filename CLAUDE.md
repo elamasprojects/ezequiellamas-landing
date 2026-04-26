@@ -114,6 +114,7 @@ Migrations applied (in order):
 | `m4_fix_public_bucket_listing` | M4 patch | drops broad SELECT policy on `video-thumbnails` storage objects (Supabase advisor flagged it) |
 | `m6_editor_workflow` | M6 | `editor_assignments`, `video_submissions`, `corrections`, `notifications` tables; RLS for admin/editor; editor reads scripts + brolls via assignment join; notifications added to supabase_realtime publication |
 | `m7_advisor_feedback` | M7 | `advisor_assignments` (admin↔advisor pivot), `advisor_feedback` (threaded comments); RLS for admin/advisor; advisor read of formats/videos/scripts/brolls now gated by active `advisor_assignments` |
+| `m4b_videos_apify_tracking` | M4b | Adds `videos.apify_short_code`, `videos.last_scraped_at`, `videos.last_scrape_error` for the Apify Instagram sync; adds INSERT policy on `video_metrics_history` so admins can write snapshots of their own videos |
 
 Buckets:
 
@@ -140,6 +141,7 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
 | `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
 | `send-notification` | yes | Inserta en `notifications` (idempotente vía dedupe_key) + opcionalmente manda mail vía Resend con templates inline (assignment_created / correction_requested / submission_approved / submission_uploaded / feedback_received). Admin puede notificar a cualquiera; editor solo a admins. |
+| `scrape-instagram-video` | yes | Apify `apify/instagram-scraper`. Recibe `{ video_id }`, valida que sea un video IG del caller (RLS), llama al actor con `directUrls: [source_url]`, mapea `videoPlayCount/likesCount/commentsCount/displayUrl/caption/timestamp/shortCode` a las columnas de `videos`, inserta una row en `video_metrics_history` y devuelve `{ ok, video }`. Solo IG por ahora. |
 
 Custom secrets needed:
 
@@ -149,6 +151,7 @@ Custom secrets needed:
 | `RESEND_API_KEY` | `send-notification` (M6) | M6 |
 | `OPENAI_API_KEY` | `transcribe-audio`, `generate-script` (Whisper) | M2 ✓ — **swap from Groq**: el plan original mencionaba Groq Whisper, pero solo está configurado OPENAI_API_KEY. Se usa OpenAI Whisper-1. |
 | `ANTHROPIC_API_KEY` | `generate-script` (Claude Sonnet 4.6) | M2 ✓ |
+| `APIFY_API_KEY_INSTAGRAM` | `scrape-instagram-video` | M4b ✓ — token de Apify con acceso al actor `apify/instagram-scraper` |
 | `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
 
 ## Style conventions

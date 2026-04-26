@@ -110,3 +110,23 @@ export async function deleteVideo(id: string): Promise<void> {
   const { error } = await supabase.from("videos").delete().eq("id", id);
   if (error) throw error;
 }
+
+export interface SyncVideoResult {
+  id: string;
+  views_total: number | null;
+  likes: number | null;
+  comments: number | null;
+  multiplier: number | null;
+  performance_tier: PerformanceTier | null;
+  last_scraped_at: string | null;
+}
+
+export async function syncVideoMetrics(video_id: string): Promise<SyncVideoResult> {
+  const { data, error } = await supabase.functions.invoke<
+    { ok: true; video: SyncVideoResult } | { error: string }
+  >("scrape-instagram-video", { body: { video_id } });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Empty response from scrape-instagram-video");
+  if ("error" in data) throw new Error(data.error);
+  return data.video;
+}

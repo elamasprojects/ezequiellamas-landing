@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +20,7 @@ import {
   PLATFORM_LABEL,
   TIER_LABEL,
   deleteVideo,
+  syncVideoMetrics,
   type PerformanceTier,
   type VideoPlatform,
 } from "@/lib/api/videos";
@@ -45,6 +46,16 @@ export default function VideoDetail() {
       qc.invalidateQueries({ queryKey: ["videos"] });
       toast.success("Video eliminado");
       navigate("/app/admin/videos", { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncVideoMetrics(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["video", id] });
+      qc.invalidateQueries({ queryKey: ["videos"] });
+      toast.success("Métricas actualizadas");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -218,7 +229,31 @@ export default function VideoDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="metricas" className="mt-6">
+        <TabsContent value="metricas" className="mt-6 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              {video.last_scraped_at ? (
+                <>Sincronizado {new Date(video.last_scraped_at).toLocaleString("es-AR")}</>
+              ) : (
+                <>Nunca sincronizado</>
+              )}
+              {video.last_scrape_error && (
+                <span className="ml-2 text-red-400">· {video.last_scrape_error}</span>
+              )}
+            </div>
+            {video.source_platform === "instagram" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", syncMutation.isPending && "animate-spin")} />
+                {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
+              </Button>
+            )}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Metric label="Views totales" value={video.views_total} />
             <Metric label="Multiplier" value={video.multiplier !== null ? `${Number(video.multiplier).toFixed(2)}×` : null} />
