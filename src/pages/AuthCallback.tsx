@@ -1,59 +1,46 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
 
+  // Capture URL type before Supabase strips the hash/params during token exchange
+  const urlType = (() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const search = new URLSearchParams(window.location.search);
+    return hash.get("type") || search.get("type");
+  })();
+
   useEffect(() => {
-    let cancelled = false;
+    let done = false;
 
-    (async () => {
-      // Supabase posts errors back as URL params (query or hash). Surface
-      // them with a toast before redirecting back to /login.
-      const hashParams = new URLSearchParams(
-        window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash,
-      );
-      const queryParams = new URLSearchParams(window.location.search);
-      const errorDescription =
-        hashParams.get("error_description") ?? queryParams.get("error_description");
-      const errorCode = hashParams.get("error") ?? queryParams.get("error");
+    const go = (path: string) => {
+      if (done) return;
+      done = true;
+      navigate(path, { replace: true });
+    };
 
-      if (errorDescription || errorCode) {
-        toast.error(errorDescription ?? errorCode ?? "No pudimos completar el acceso.");
-        navigate("/login", { replace: true });
-        return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        go("/login?mode=set-password");
+      } else if (event === "SIGNED_IN" && session) {
+        go("/app");
+      } else if (event === "INITIAL_SESSION" && session) {
+        // Session was already established before subscription — use URL type to route
+        go(urlType === "recovery" ? "/login?mode=set-password" : "/app");
       }
+    });
 
-      const flowType = hashParams.get("type") ?? queryParams.get("type");
-
-      // Supabase JS client with detectSessionInUrl: true consumes the
-      // OTP / OAuth params from the URL on import. We just wait until
-      // a session shows up, then redirect.
-      for (let i = 0; i < 20; i++) {
-        if (cancelled) return;
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          if (flowType === "recovery") {
-            navigate("/auth/reset-password", { replace: true });
-          } else {
-            navigate("/app", { replace: true });
-          }
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
-      if (!cancelled) {
-        toast.error("El link expiró o ya fue usado. Pedí uno nuevo.");
-        navigate("/login", { replace: true });
-      }
-    })();
+    // Fallback: if nothing fires in 5s, send back to login
+    const timeout = setTimeout(() => go("/login"), 5000);
 
     return () => {
-      cancelled = true;
+      done = true;
+      subscription.unsubscribe();
+      clearTimeout(timeout);
     };
-  }, [navigate]);
+  }, [navigate, urlType]);
 
   return (
     <div
