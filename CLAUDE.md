@@ -155,9 +155,8 @@ Custom secrets needed:
 | `FROM_EMAIL` | `send-notification`, `send-access-email` | Equipo — `Ezequiel Lamas <hola@updates.ezequiellamas.com>` (dominio verificado en Resend). Si no está seteado, default es ese mismo string. |
 | `OPENAI_API_KEY` | `transcribe-audio`, `generate-script` (Whisper) | M2 ✓ — **swap from Groq**: el plan original mencionaba Groq Whisper, pero solo está configurado OPENAI_API_KEY. Se usa OpenAI Whisper-1. |
 | `ANTHROPIC_API_KEY` | `generate-script` (Claude Sonnet 4.6) | M2 ✓ |
-| `APIFY_API_KEY_INSTAGRAM` | `scrape-video` (rama IG) | M4b ✓ — token de Apify con acceso al actor `apify/instagram-scraper` |
-| `APIFY_API_KEY_YOUTUBE` | `scrape-video` (rama YT) | M4b ✓ — token de Apify con acceso al actor `streamers/youtube-scraper` |
-| `APIFY_API_KEY_TIKTOK` | `scrape-video` (rama TT) | M4b ✓ — token de Apify con acceso al actor `clockworks/tiktok-scraper` |
+| `APIFY_API_KEY` | `scrape-video` (todas las ramas) | M4b ✓ — token personal de cuenta de Apify, una sola key sirve para los 3 actores (`apify/instagram-scraper`, `streamers/youtube-scraper`, `clockworks/tiktok-scraper`). |
+| ~~`APIFY_API_KEY_INSTAGRAM` / `_YOUTUBE` / `_TIKTOK`~~ | fallback legacy | Si `APIFY_API_KEY` no está seteado, la edge function cae a estos por compatibilidad. Una vez que `APIFY_API_KEY` esté funcionando, podés borrarlos del dashboard. |
 | `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
 
 ## Style conventions
