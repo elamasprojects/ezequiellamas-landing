@@ -738,6 +738,8 @@ export type Database = {
       scheduled_posts: {
         Row: {
           asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          bunny_library_id: string | null
+          bunny_video_id: string | null
           cancelled_at: string | null
           caption_default: string | null
           captions: Json
@@ -759,6 +761,8 @@ export type Database = {
         }
         Insert: {
           asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          bunny_library_id?: string | null
+          bunny_video_id?: string | null
           cancelled_at?: string | null
           caption_default?: string | null
           captions?: Json
@@ -780,6 +784,8 @@ export type Database = {
         }
         Update: {
           asset_kind?: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          bunny_library_id?: string | null
+          bunny_video_id?: string | null
           cancelled_at?: string | null
           caption_default?: string | null
           captions?: Json

@@ -16,7 +16,7 @@ import { useSession } from "@/hooks/useSession";
 import { useSocialAccounts } from "@/hooks/useSocialAccounts";
 import { useFormats } from "@/hooks/useFormats";
 import { useCarousels } from "@/hooks/useCarousels";
-import { VideoUploader } from "@/components/publishing/VideoUploader";
+import { VideoUploader, type VideoUploaderState } from "@/components/publishing/VideoUploader";
 import { PlatformPicker } from "@/components/publishing/PlatformPicker";
 import { CaptionEditor } from "@/components/publishing/CaptionEditor";
 import {
@@ -40,9 +40,7 @@ export default function NewScheduledPost() {
 
   const [assetKind, setAssetKind] = useState<ScheduledPostAssetKind>("video");
   const [carouselId, setCarouselId] = useState<string | null>(null);
-  const [videoStoragePath, setVideoStoragePath] = useState<string | null>(null);
-  const [videoDuration, setVideoDuration] = useState<number | null>(null);
-  const [videoMime, setVideoMime] = useState<string | null>(null);
+  const [videoState, setVideoState] = useState<VideoUploaderState | null>(null);
 
   const [title, setTitle] = useState("");
   const [defaultCaption, setDefaultCaption] = useState("");
@@ -72,9 +70,7 @@ export default function NewScheduledPost() {
   function changeKind(k: ScheduledPostAssetKind) {
     setAssetKind(k);
     setCarouselId(null);
-    setVideoStoragePath(null);
-    setVideoDuration(null);
-    setVideoMime(null);
+    setVideoState(null);
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
     }
@@ -87,17 +83,17 @@ export default function NewScheduledPost() {
         asset_kind: assetKind,
         caption: defaultCaption,
         hashtags,
-        video_duration_seconds: videoDuration ?? undefined,
-        video_mime_type: videoMime ?? undefined,
+        video_duration_seconds: videoState?.duration_seconds ?? undefined,
+        video_mime_type: videoState?.mime_type ?? undefined,
         carousel_slide_count: carousels?.find((c) => c.id === carouselId)?.slide_count ?? undefined,
       }),
-    [platforms, assetKind, defaultCaption, hashtags, videoDuration, videoMime, carouselId, carousels],
+    [platforms, assetKind, defaultCaption, hashtags, videoState, carouselId, carousels],
   );
 
   const create = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("No hay sesión");
-      if (assetKind === "video" && !videoStoragePath) throw new Error("Subí un video primero");
+      if (assetKind === "video" && !videoState) throw new Error("Subí un video primero");
       if (assetKind === "carousel" && !carouselId) throw new Error("Elegí un carrousel");
       if (platforms.length === 0) throw new Error("Elegí al menos una plataforma");
       if (validation.length > 0) {
@@ -107,7 +103,8 @@ export default function NewScheduledPost() {
       const post = await createScheduledPost({
         owner_id: user.id,
         asset_kind: assetKind,
-        video_storage_path: videoStoragePath,
+        bunny_video_id: videoState?.bunny_video_id ?? null,
+        bunny_library_id: videoState?.bunny_library_id ?? null,
         carousel_id: carouselId,
         title: title || null,
         caption_default: defaultCaption || null,
@@ -182,19 +179,9 @@ export default function NewScheduledPost() {
       <Section step="2" title={assetKind === "video" ? "Subir video" : "Elegir carrousel"}>
         {assetKind === "video" ? (
           <VideoUploader
-            storagePath={videoStoragePath}
-            durationSeconds={videoDuration}
-            mimeType={videoMime}
-            onUploaded={(r) => {
-              setVideoStoragePath(r.path);
-              setVideoDuration(r.duration_seconds);
-              setVideoMime(r.mime_type);
-            }}
-            onCleared={() => {
-              setVideoStoragePath(null);
-              setVideoDuration(null);
-              setVideoMime(null);
-            }}
+            state={videoState}
+            onUploaded={(r) => setVideoState(r)}
+            onCleared={() => setVideoState(null)}
           />
         ) : (
           <Select value={carouselId ?? ""} onValueChange={(v) => setCarouselId(v || null)}>
