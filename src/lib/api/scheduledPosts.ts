@@ -88,6 +88,10 @@ export interface CreateScheduledPostInput {
   platforms: PublishPlatform[];
   /** If true, schedules immediately; otherwise leaves as 'draft'. */
   schedule_now?: boolean;
+  /** Pre-computed Whisper transcript so we don't re-pay if regenerating later. */
+  transcript?: string | null;
+  transcript_language?: string | null;
+  transcript_status?: string | null;
 }
 
 export async function createScheduledPost(
@@ -114,6 +118,9 @@ export async function createScheduledPost(
       thumbnail_url: rest.thumbnail_url ?? null,
       notes: rest.notes ?? null,
       status: schedule_now ? "scheduled" : "draft",
+      transcript: rest.transcript ?? null,
+      transcript_language: rest.transcript_language ?? null,
+      transcript_status: rest.transcript_status ?? "idle",
     })
     .select()
     .single();

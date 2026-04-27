@@ -756,6 +756,10 @@ export type Database = {
           thumbnail_url: string | null
           timezone: string
           title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
           updated_at: string
           video_storage_path: string | null
         }
@@ -779,6 +783,10 @@ export type Database = {
           thumbnail_url?: string | null
           timezone?: string
           title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
           updated_at?: string
           video_storage_path?: string | null
         }
@@ -802,6 +810,10 @@ export type Database = {
           thumbnail_url?: string | null
           timezone?: string
           title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
           updated_at?: string
           video_storage_path?: string | null
         }

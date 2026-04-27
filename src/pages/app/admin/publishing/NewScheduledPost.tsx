@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,15 @@ import {
 } from "@/lib/api/scheduledPosts";
 import { publishNow } from "@/lib/api/publishing";
 import {
+  transcribeBunnyVideo,
+  generateCaptions,
+  TranscribeError,
+} from "@/lib/api/captions";
+import {
   validatePost,
   type PublishPlatform,
   PLATFORM_LABEL,
+  PUBLISH_PLATFORMS,
 } from "@/lib/publishing/platformLimits";
 
 export default function NewScheduledPost() {
@@ -57,6 +63,14 @@ export default function NewScheduledPost() {
   const [formatId, setFormatId] = useState<string | null>(null);
   const [publishImmediately, setPublishImmediately] = useState(false);
 
+  // AI caption generation
+  const [transcribing, setTranscribing] = useState(false);
+  const [generatingCaptions, setGeneratingCaptions] = useState(false);
+  const [aiSource, setAiSource] = useState<"auto" | "manual" | null>(null);
+  const [cachedTranscript, setCachedTranscript] = useState<string | null>(null);
+  const [cachedTranscriptLang, setCachedTranscriptLang] = useState<string | null>(null);
+  const autoFillTriedFor = useRef<string | null>(null); // bunny_video_id we already tried
+
   const hashtags = useMemo(
     () =>
       hashtagsRaw
@@ -71,10 +85,95 @@ export default function NewScheduledPost() {
     setAssetKind(k);
     setCarouselId(null);
     setVideoState(null);
+    setAiSource(null);
+    setCachedTranscript(null);
+    setCachedTranscriptLang(null);
+    autoFillTriedFor.current = null;
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
     }
   }
+
+  function fieldsAreEmpty(): boolean {
+    return (
+      !defaultCaption.trim() &&
+      !title.trim() &&
+      !hashtagsRaw.trim() &&
+      Object.values(captionsByPlatform).every((v) => !v.trim())
+    );
+  }
+
+  async function runAiGeneration({ source }: { source: "auto" | "manual" }) {
+    if (!videoState || transcribing || generatingCaptions) return;
+
+    // Step 1: Transcribe (use cache if available)
+    let transcript = cachedTranscript;
+    let language = cachedTranscriptLang;
+    if (!transcript) {
+      setTranscribing(true);
+      try {
+        const r = await transcribeBunnyVideo({
+          bunny_video_id: videoState.bunny_video_id,
+        });
+        transcript = r.transcript;
+        language = r.language;
+        setCachedTranscript(transcript);
+        setCachedTranscriptLang(language);
+      } catch (e) {
+        setTranscribing(false);
+        if (e instanceof TranscribeError && e.code === "video_too_large_for_whisper") {
+          toast.error(
+            "El video es muy largo para transcripción automática (>25MB). Escribí los captions manualmente.",
+          );
+        } else {
+          toast.error(
+            `Transcripción falló: ${e instanceof Error ? e.message : "error"}`,
+          );
+        }
+        return;
+      }
+      setTranscribing(false);
+    }
+
+    // Step 2: Generate captions
+    setGeneratingCaptions(true);
+    try {
+      const targetPlatforms =
+        platforms.length > 0 ? platforms : ([...PUBLISH_PLATFORMS] as PublishPlatform[]);
+      const result = await generateCaptions({
+        bunny_video_id: videoState.bunny_video_id,
+        platforms: targetPlatforms,
+        format_id: formatId,
+        transcript,
+      });
+      setDefaultCaption(result.caption_default);
+      setCaptionsByPlatform(result.captions as Record<string, string>);
+      if (result.youtube_title && !title.trim()) {
+        setTitle(result.youtube_title);
+      }
+      setHashtagsRaw(result.hashtags.join(" "));
+      setAiSource(source);
+      toast.success(source === "auto" ? "Captions generadas" : "Regenerado con IA");
+    } catch (e) {
+      toast.error(
+        `Generación falló: ${e instanceof Error ? e.message : "error"}`,
+      );
+    } finally {
+      setGeneratingCaptions(false);
+    }
+  }
+
+  // Hybrid auto-trigger: when upload completes AND fields are empty AND we
+  // haven't tried for this video yet, auto-fill captions.
+  useEffect(() => {
+    if (!videoState) return;
+    if (assetKind !== "video") return;
+    if (autoFillTriedFor.current === videoState.bunny_video_id) return;
+    if (!fieldsAreEmpty()) return;
+    autoFillTriedFor.current = videoState.bunny_video_id;
+    void runAiGeneration({ source: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoState]);
 
   const validation = useMemo(
     () =>
@@ -115,6 +214,10 @@ export default function NewScheduledPost() {
         format_id: formatId,
         platforms,
         schedule_now: true,
+        // Persist transcript so regeneration after submit doesn't re-pay Whisper.
+        transcript: cachedTranscript,
+        transcript_language: cachedTranscriptLang,
+        transcript_status: cachedTranscript ? "done" : "idle",
       });
       if (publishImmediately) {
         await publishNow({ scheduled_post_id: post.id });
@@ -214,6 +317,67 @@ export default function NewScheduledPost() {
 
       {/* Step 3: content */}
       <Section step="3" title="Contenido">
+        {/* AI caption status / actions */}
+        {assetKind === "video" && videoState && (
+          <>
+            {(transcribing || generatingCaptions) && (
+              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ll-warm)" }}>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>
+                  {transcribing
+                    ? "Transcribiendo video con Whisper…"
+                    : "Generando captions con Claude…"}
+                </span>
+              </div>
+            )}
+            {!transcribing && !generatingCaptions && aiSource && (
+              <div
+                className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--ll-accent) 30%, transparent)",
+                  background: "color-mix(in srgb, var(--ll-accent) 8%, transparent)",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--ll-accent)" }} />
+                  <span style={{ color: "var(--ll-text)" }}>
+                    Generado por IA · podés editar todo
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!fieldsAreEmpty()) {
+                      if (
+                        !confirm(
+                          "Esto va a sobreescribir lo que tenés escrito. ¿Seguir?",
+                        )
+                      )
+                        return;
+                    }
+                    void runAiGeneration({ source: "manual" });
+                  }}
+                  className="hover:underline"
+                  style={{ color: "var(--ll-accent)" }}
+                >
+                  Regenerar
+                </button>
+              </div>
+            )}
+            {!transcribing && !generatingCaptions && !aiSource && (
+              <button
+                type="button"
+                onClick={() => void runAiGeneration({ source: "manual" })}
+                className="inline-flex items-center gap-1.5 text-xs hover:underline"
+                style={{ color: "var(--ll-accent)" }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Generar captions con IA
+              </button>
+            )}
+          </>
+        )}
+
         <Field label="Título interno (opcional)">
           <Input
             value={title}
