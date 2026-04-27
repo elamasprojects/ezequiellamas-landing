@@ -41,6 +41,14 @@ const NewAssignment = lazy(() => import("@/pages/app/admin/assignments/NewAssign
 const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/AssignmentDetail"));
 const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesList"));
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
+const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
+const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
+const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
+const PublishingDashboard = lazy(() => import("@/pages/app/admin/publishing/PublishingDashboard"));
+const NewScheduledPost = lazy(() => import("@/pages/app/admin/publishing/NewScheduledPost"));
+const ScheduledPostDetail = lazy(() => import("@/pages/app/admin/publishing/ScheduledPostDetail"));
+const PublishingCalendar = lazy(() => import("@/pages/app/admin/publishing/PublishingCalendar"));
+const Connections = lazy(() => import("@/pages/app/admin/publishing/Connections"));
 const EditorDashboard = lazy(() => import("@/pages/app/editor/EditorDashboard"));
 const AssignmentView = lazy(() => import("@/pages/app/editor/AssignmentView"));
 const Earnings = lazy(() => import("@/pages/app/editor/Earnings"));
@@ -82,6 +90,14 @@ export default function App() {
                 <Route path="resources" element={<ResourcesList />} />
                 <Route path="resources/new" element={<ResourceEditor />} />
                 <Route path="resources/:id" element={<ResourceEditor />} />
+                <Route path="carousels" element={<CarouselsList />} />
+                <Route path="carousels/new" element={<NewCarousel />} />
+                <Route path="carousels/:id" element={<CarouselEditor />} />
+                <Route path="publishing" element={<PublishingDashboard />} />
+                <Route path="publishing/new" element={<NewScheduledPost />} />
+                <Route path="publishing/calendar" element={<PublishingCalendar />} />
+                <Route path="publishing/connections" element={<Connections />} />
+                <Route path="publishing/:id" element={<ScheduledPostDetail />} />
                 <Route path="team" element={<Team />} />
               </Route>
             </Route>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
 import NotificationBell from "@/components/app/NotificationBell";
+import PushPrompt from "@/components/app/PushPrompt";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
@@ -118,7 +119,10 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
             minWidth: 0,
           }}
         >
-          <div className="mx-auto max-w-6xl">{children}</div>
+          <div className="mx-auto max-w-6xl">
+            {role === "admin" && <PushPrompt />}
+            {children}
+          </div>
         </main>
       </div>
     </div>

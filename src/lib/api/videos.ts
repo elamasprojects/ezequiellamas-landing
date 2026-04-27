@@ -298,9 +298,13 @@ export async function syncVideoPost(video_post_id: string): Promise<SyncVideoPos
 export interface DiscoverImportResult {
   ok: true;
   imported: number;
+  /** Posts attached to an existing video via cross-platform fuzzy match. */
+  merged: number;
   skipped: number;
   discovered: number;
   errors: { platform: string; error: string }[];
+  /** Per-merge audit trail — useful if a false positive happens. */
+  matches: { source_url: string; merged_into: string; score: number }[];
 }
 
 export async function discoverAndImportVideos(days = 7): Promise<DiscoverImportResult> {

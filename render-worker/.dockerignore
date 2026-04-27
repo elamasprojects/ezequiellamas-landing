@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+tmp
+.vercel
+.next
+public/eventos
+.claude
+.github
+**/.DS_Store

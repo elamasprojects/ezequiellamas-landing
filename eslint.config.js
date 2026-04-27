@@ -5,7 +5,10 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // Deno-runtime edge function source uses different lint conventions and
+  // imports JSR/esm.sh URLs that ESLint can't resolve; render-worker is also
+  // a separate Node project with its own tsconfig/runtime.
+  { ignores: ["dist", "supabase/functions", "render-worker", "tmp", "scripts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

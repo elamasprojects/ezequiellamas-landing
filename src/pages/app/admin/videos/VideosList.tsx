@@ -101,9 +101,22 @@ export default function VideosList() {
     mutationFn: () => discoverAndImportVideos(7),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["videos"] });
-      const errSummary = data.errors.length > 0 ? ` (errores: ${data.errors.map((e) => e.platform).join(", ")})` : "";
-      if (data.imported > 0) {
-        toast.success(`${data.imported} video${data.imported === 1 ? "" : "s"} nuevo${data.imported === 1 ? "" : "s"} importado${data.imported === 1 ? "" : "s"}${errSummary}`);
+      const errSummary = data.errors.length > 0
+        ? ` (errores: ${data.errors.map((e) => e.platform).join(", ")})`
+        : "";
+      const merged = data.merged ?? 0;
+      const mergedSummary = merged > 0
+        ? `, ${merged} sumada${merged === 1 ? "" : "s"} a existentes`
+        : "";
+      if (data.imported > 0 || merged > 0) {
+        const newCount = data.imported;
+        const newWord = newCount === 1 ? "video nuevo" : "videos nuevos";
+        const verb = newCount === 1 ? "importado" : "importados";
+        toast.success(
+          newCount > 0
+            ? `${newCount} ${newWord} ${verb}${mergedSummary}${errSummary}`
+            : `${merged} plataforma${merged === 1 ? "" : "s"} sumada${merged === 1 ? "" : "s"} a videos existentes${errSummary}`,
+        );
       } else {
         toast(`No hay videos nuevos en los últimos 7 días${errSummary}`);
       }

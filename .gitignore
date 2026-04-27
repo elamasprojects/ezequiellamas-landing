@@ -32,3 +32,11 @@ dist-ssr
 # Supabase CLI
 supabase/.temp
 supabase/.branches
+
+# Render worker
+render-worker/node_modules
+render-worker/dist
+render-worker/.env
+
+# Test renders
+tmp/

@@ -68,6 +68,7 @@ Two are required for the client:
 ```
 VITE_SUPABASE_URL=https://zsbligbfsmdwbxcvoysu.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+VITE_VAPID_PUBLIC_KEY=B...   # M10 — Web Push (clave pública)
 ```
 
 Local: `.env.local` (gitignored). Template: `.env.example`. On Vercel: set both in Project Settings → Environment Variables.
@@ -79,7 +80,12 @@ Local: `.env.local` (gitignored). Template: `.env.example`. On Vercel: set both 
 | `/` | Landing (Spanish, bespoke aesthetic) | public |
 | `/login`, `/auth/callback` | Magic-link auth scaffold | public |
 | `/app` | Auth gate + role-based redirect | session required |
-| `/app/admin/*` | Admin area (dashboard, ideas, formats, videos, calendar, assignments, team) | requires `admin` role |
+| `/app/admin/*` | Admin area (dashboard, ideas, formats, videos, calendar, publishing, assignments, resources, carousels, team) | requires `admin` role |
+| `/app/admin/publishing` | Lista de scheduled posts con filtros | admin |
+| `/app/admin/publishing/new` | Form para programar publicación (video o carrousel) | admin |
+| `/app/admin/publishing/calendar` | Calendario mensual de publicaciones programadas | admin |
+| `/app/admin/publishing/connections` | OAuth connect/disconnect IG/YT/TT + push permission | admin |
+| `/app/admin/publishing/:id` | Detalle del scheduled_post + jobs por plataforma + acciones (cancelar, retry, mark-tt-done) | admin |
 | `/app/editor/*` | Editor area (assignment queue, earnings) | requires `editor` role |
 | `/app/advisor/*` | Asesor area (videos to review, formats) | requires `advisor` role |
 | `/recursos`, `/recursos/:slug` | Public resource library (DB-backed once SPEC lands) | public |
@@ -117,6 +123,10 @@ Migrations applied (in order):
 | `m4b_videos_apify_tracking` | M4b | Adds `videos.apify_short_code`, `videos.last_scraped_at`, `videos.last_scrape_error` for the Apify Instagram sync; adds INSERT policy on `video_metrics_history` so admins can write snapshots of their own videos |
 | `m4c_profile_social_handles` | M4c | Adds `profiles.instagram_handle`, `profiles.youtube_handle`, `profiles.tiktok_handle` (all nullable) so each admin can configure which IG/YT/TT account to discover their unloaded videos from. |
 | `m5_video_posts_split` | M5 | **Major refactor.** Splits the old flat `videos` row into two tables: `videos` (logical video — title, transcript, multiplier, performance_tier) and `video_posts` (one row per platform — source_url, apify_short_code, all metrics, thumbnail, posted_at, raw). Adds `video_platform` enum. Backfills existing rows 1-1. `video_metrics_history` now references `video_post_id` instead of `video_id`. Multiplier trigger moves to `video_posts` and uses `videos.views_total_aggregate` (sum of all platform views). Adds `videos.transcript / transcript_status / transcript_error / transcript_language` columns for Whisper output. |
+| `m8_resources` | M8 | `resources` (DB-backed library para `/recursos`). |
+| `m9_carousels` | M9 | `carousels`, `carousel_slides`, `carousel_render_jobs` (carruseles AI con templates T1Cover/T2Feature/T3Grid/T4VS/T5CTA, renderizados a imágenes en bucket `carousel-renders`). |
+| `m10_publishing_foundation` | M10 | **Publishing**: `social_accounts`, `scheduled_posts`, `publish_jobs`, `web_push_subscriptions`, `oauth_states`. Enums: `scheduled_post_status`, `scheduled_post_asset_kind`, `publish_job_status`. RLS por owner. Trigger `set_updated_at` en social_accounts/scheduled_posts/publish_jobs. Bucket nuevo `videos-final` (privado, MP4 listo para publicar). Realtime publica `publish_jobs` y `scheduled_posts`. |
+| `m11_publishing_cron` | M11 | Habilita `pg_net` + `pg_cron`. Crea función `dispatch_scheduler_tick()` (security definer, search_path pinned) que lee `vault.decrypted_secrets` (`scheduler_service_role_key`, `project_url`) y hace `net.http_post` a la edge function `scheduler-tick`. Schedule: `* * * * *` (cada minuto). Si los secrets no están seteados en Vault, la función es no-op. |
 
 Buckets:
 
@@ -124,6 +134,8 @@ Buckets:
 |---|---|---|---|
 | `audio-ideas` | private | `{user_id}/{uuid}.{ext}` | M2 — admin-of-own-folder only |
 | `video-thumbnails` | public | `{user_id}/{video_post_id}.{ext}` | M5 — `scrape-video` downloads the platform CDN thumbnail and uploads here for permanence (CDN URLs expire). Anyone reads via public URL (no listing) |
+| `carousel-renders` | private | `{owner_id}/{carousel_id}/{slide_index}.{ext}` | M9 — slides renderizados a imagen. Lee `publish-now` para crear children del carousel IG vía signed URLs. |
+| `videos-final` | private | `{owner_id}/{uuid}.{ext}` | M10 — MP4 fuente que se sube a IG/YT/TT cuando se publica. Owner-only. Max 500MB. |
 
 RPCs (security definer):
 
@@ -149,6 +161,14 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `discover-and-import-videos` | yes | (M5) Bulk discovery. Recibe `{ days = 7 }`, lee handles del profile (`instagram_handle/youtube_handle/tiktok_handle`), llama Apify para listar últimos posts de cada perfil, dedupea contra `video_posts.apify_short_code` y `video_posts.source_url` existentes (ownership via join a `videos`). Por cada item nuevo: inserta `videos { owner_id, title }` + `video_posts { video_id, platform, source_url, apify_short_code, todas las métricas }` + snapshot en `video_metrics_history`. Devuelve `{ ok, imported, skipped, discovered, errors[] }`. **Nota:** los thumbnails de discovery quedan apuntando al CDN expirable hasta que se sincronicen vía `scrape-video`. |
 | `transcribe-video` | yes | (M5+) Transcripción multi-platform. Recibe `{ video_id }` (pickea IG > YT > TT) o `{ video_post_id }`. **YouTube:** parsea los SRT auto-generados que vienen en `raw.subtitles[]` (gratis, instantáneo, prefiere `es-auto > es > any-auto`). **IG/TT:** descarga `raw.audioUrl` (IG) o `raw.videoUrl`/`mediaUrls[0]`/`videoMeta.playApi` (TT) y manda a OpenAI Whisper-1 con `language=es`. Si el `raw` es >4h o falta, re-scrapea. Guarda `videos.transcript` + `transcript_status='done'` + `transcript_language`. |
 | `link-video-platform` | yes | (M5) Suma una nueva plataforma a un video existente. Recibe `{ video_id, source_url }`, detecta plataforma del URL, valida ownership, valida que no esté ya vinculada (unique index sobre `(video_id, platform)`), inserta `video_posts` vacío y dispara internamente `scrape-video` para poblarlo. Devuelve `{ ok, video_id, post }` con la fila populada. |
+| `generate-carousel` | yes | (M9) Claude genera carrousel a partir de concept + slide_count + hook_angle + cta_keyword + mode (static/animated). Inserta `carousels` y `carousel_slides` con templates T1-T5. |
+| `regenerate-carousel-slide` | yes | (M9) Regenera un slide específico con instruction opcional. |
+| `oauth-start` | yes | (M10) Recibe `{ platform, redirect_path? }`. Genera `state` (UUID), inserta en `oauth_states` (TTL 5min), arma URL de OAuth con scopes correctos por plataforma. Devuelve `{ url, state }`. El cliente hace `window.location.href = url`. |
+| `oauth-callback` | yes | (M10) Recibe `{ platform, code, state }`. Valida state (ownership + no expirado + platform match), intercambia code → tokens, fetchea info de cuenta (IG: page→ig_user_id; YT: channel; TT: open_id), upserta `social_accounts` por `(owner_id, platform)`, borra el state. Para Instagram hace double-exchange (short→long-lived 60d). Para YouTube guarda `refresh_token`. Devuelve `{ ok, account_id, display_name }`. |
+| `publish-now` | yes (o service-role) | (M10) Recibe `{ scheduled_post_id, platform? }`. Si llamado por user-JWT valida ownership; si por service-role (cron) bypassa. Carga jobs en `pending`/`failed`, llama provider correspondiente. **IG Reel**: container POST + poll `status_code=FINISHED` (90s timeout) + media_publish + permalink. **IG Carousel**: 1..10 children IMAGE + carousel container + publish. **YT**: resumable upload streaming desde `videos-final` (snippet+status JSON, luego PUT bytes). Si caption/title contiene `#Shorts` agrega URL `/shorts/{id}`. **TT**: `/v2/post/publish/inbox/video/init/` con `PULL_FROM_URL` + signed URL → devuelve `publish_id`, job va a `awaiting_user`. Tras éxito, crea fila en `videos` (paraguas) + `video_posts` (per-platform stub) — métricas las llena Apify después. Roll-up del status del scheduled_post: published / partial / failed / publishing. Notifica al owner via `notifications` + push (best-effort). |
+| `register-push-subscription` | yes | (M10) Recibe `{ endpoint, p256dh, auth, user_agent? }`. Upsert en `web_push_subscriptions` por `endpoint`. |
+| `send-push` | NO (service-role only) | (M10) Recibe `{ user_id, title, body, url? }`. Verifica que el caller sea service-role (bearer o apikey). Lee `web_push_subscriptions` del user, manda con `npm:web-push@3.6.7` usando VAPID. Cleanup automático de 404/410 (suscripciones expiradas). |
+| `scheduler-tick` | NO (service-role only) | (M10/M11) Invocado cada minuto por `pg_cron` vía `dispatch_scheduler_tick()`. (1) Manda recordatorios T-30min (insert `notifications` + push, dedupe por `pub:remind:{post_id}`). (2) Selecciona `scheduled_posts` con `scheduled_at <= now()` y `status='scheduled'`, hace CAS a `publishing` (atomic), invoca `publish-now` por cada uno. (3) Cleanup de `oauth_states` expirados via RPC. |
 | ~~`scrape-instagram-video`~~ | yes | **Deprecated** (reemplazada por `scrape-video`). Sigue desplegada pero ya no se llama desde el cliente. Borrarla manualmente desde el dashboard de Supabase cuando se quiera limpiar. |
 
 Custom secrets needed:
@@ -163,6 +183,11 @@ Custom secrets needed:
 | `APIFY_API_KEY` | `scrape-video` (todas las ramas) | M4b ✓ — token personal de cuenta de Apify, una sola key sirve para los 3 actores (`apify/instagram-scraper`, `streamers/youtube-scraper`, `clockworks/tiktok-scraper`). |
 | ~~`APIFY_API_KEY_INSTAGRAM` / `_YOUTUBE` / `_TIKTOK`~~ | fallback legacy | Si `APIFY_API_KEY` no está seteado, la edge function cae a estos por compatibilidad. Una vez que `APIFY_API_KEY` esté funcionando, podés borrarlos del dashboard. |
 | `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
+| `META_APP_ID`, `META_APP_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (IG) | M10 — Meta App en *Development mode* con Ezequiel asignado como admin. Permisos: `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `business_management`. Cuenta IG debe ser Business o Creator vinculada a una FB Page. **No requiere App Review** porque el user es admin. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (YT) | M10 — OAuth Client en Google Cloud, en *Testing mode*, con Ezequiel agregado como test user. Scopes: `youtube.upload`, `youtube.readonly`. Refresh tokens en testing duran 7 días — la edge function los renueva al borde. |
+| `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (TT) | M10 — TikTok Developer App. Sin audit, los videos van solo al Inbox como draft (Upload Mode). Scopes: `user.info.basic`, `user.info.profile`, `video.upload`, `video.publish`. |
+| `OAUTH_REDIRECT_BASE` | `oauth-start` | M10 — base URL del SPA. Default: `http://localhost:8080`. En prod: `https://ezequiellamas.com`. La página `/app/admin/publishing/connections` recibe `?platform&code&state` y dispara `oauth-callback`. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `send-push` | M10 — Web Push. Generar con `npx web-push generate-vapid-keys`. La pública también va al cliente como `VITE_VAPID_PUBLIC_KEY`. `VAPID_SUBJECT` default: `mailto:hola@ezequiellamas.com`. |
 
 ## Style conventions
 
@@ -189,6 +214,34 @@ Specifically useful:
 - `src/components/auth/*Route.tsx` — auth guard patterns.
 - `src/components/layout/*Layout.tsx` — sidebar/topbar layout patterns.
 - `src/hooks/useAuth.ts` — auth hook (this repo's `useSession.ts` is a simpler version).
+
+## Publishing setup checklist (M10/M11)
+
+Una sola vez, cuando se quiera activar la publicación automática:
+
+1. **Generar VAPID keys** (push):
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+   Setear `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` en Edge Functions secrets. Setear `VITE_VAPID_PUBLIC_KEY` (la pública) en `.env.local` y en Vercel.
+
+2. **OAuth apps** (paso manual del user, una vez por plataforma):
+   - **Meta**: crear app en developers.facebook.com → Instagram Graph API → asignar Ezequiel como admin → setear redirect URI a `https://ezequiellamas.com/app/admin/publishing/connections`. Copiar App ID + Secret a Supabase secrets.
+   - **Google**: GCP project → APIs & Services → OAuth consent screen → External + Testing mode → agregar Ezequiel como test user → habilitar YouTube Data API v3 → crear OAuth Client (web) con redirect URI igual que arriba. Copiar client_id + client_secret.
+   - **TikTok**: developers.tiktok.com → register app → request scopes (`video.upload`, `video.publish`) → setear redirect URI igual. Copiar client_key + client_secret.
+   - Setear los 6 secrets (META_APP_ID, META_APP_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET) + `OAUTH_REDIRECT_BASE=https://ezequiellamas.com` en Edge Functions secrets.
+
+3. **Vault secrets** para que el cron pueda invocar `scheduler-tick`:
+   ```sql
+   -- Crear secrets en Supabase Vault (UI o SQL)
+   select vault.create_secret('https://zsbligbfsmdwbxcvoysu.supabase.co', 'project_url');
+   select vault.create_secret('<SERVICE_ROLE_KEY_AQUI>', 'scheduler_service_role_key');
+   ```
+   Sin esto, `dispatch_scheduler_tick()` es no-op (no rompe nada, pero los posts programados nunca se publican solos).
+
+4. **Conectar cuentas**: ir a `/app/admin/publishing/connections` y tocar "Conectar Instagram", "Conectar YouTube", "Conectar TikTok".
+
+5. **Activar push**: en cualquier página de admin va a aparecer el banner "Activar notificaciones". Tocar Activar.
 
 ## Out of scope until the SPEC arrives
 

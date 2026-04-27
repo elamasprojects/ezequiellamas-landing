@@ -1,0 +1,4 @@
+render-worker/
+tmp/
+supabase/functions/
+scripts/

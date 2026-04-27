@@ -192,6 +192,166 @@ export type Database = {
           },
         ]
       }
+      carousel_render_jobs: {
+        Row: {
+          carousel_id: string
+          completed_slides: number
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          mode: string
+          owner_id: string
+          started_at: string | null
+          status: string
+          total_slides: number
+          updated_at: string
+          worker_request_id: string | null
+        }
+        Insert: {
+          carousel_id: string
+          completed_slides?: number
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          mode: string
+          owner_id: string
+          started_at?: string | null
+          status?: string
+          total_slides: number
+          updated_at?: string
+          worker_request_id?: string | null
+        }
+        Update: {
+          carousel_id?: string
+          completed_slides?: number
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          owner_id?: string
+          started_at?: string | null
+          status?: string
+          total_slides?: number
+          updated_at?: string
+          worker_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carousel_render_jobs_carousel_id_fkey"
+            columns: ["carousel_id"]
+            isOneToOne: false
+            referencedRelation: "carousels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      carousel_slides: {
+        Row: {
+          carousel_id: string
+          content: Json
+          created_at: string
+          id: string
+          index: number
+          owner_id: string
+          render_error: string | null
+          render_status: string
+          rendered_at: string | null
+          rendered_format: string | null
+          rendered_path: string | null
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          carousel_id: string
+          content: Json
+          created_at?: string
+          id?: string
+          index: number
+          owner_id: string
+          render_error?: string | null
+          render_status?: string
+          rendered_at?: string | null
+          rendered_format?: string | null
+          rendered_path?: string | null
+          template: string
+          updated_at?: string
+        }
+        Update: {
+          carousel_id?: string
+          content?: Json
+          created_at?: string
+          id?: string
+          index?: number
+          owner_id?: string
+          render_error?: string | null
+          render_status?: string
+          rendered_at?: string | null
+          rendered_format?: string | null
+          rendered_path?: string | null
+          template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carousel_slides_carousel_id_fkey"
+            columns: ["carousel_id"]
+            isOneToOne: false
+            referencedRelation: "carousels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      carousels: {
+        Row: {
+          concept: string
+          created_at: string
+          cta_keyword: string | null
+          generation_error: string | null
+          hook_angle: string | null
+          id: string
+          mode: string
+          owner_id: string
+          slide_count: number | null
+          status: string
+          thumbnail_path: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          concept: string
+          created_at?: string
+          cta_keyword?: string | null
+          generation_error?: string | null
+          hook_angle?: string | null
+          id?: string
+          mode?: string
+          owner_id: string
+          slide_count?: number | null
+          status?: string
+          thumbnail_path?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          concept?: string
+          created_at?: string
+          cta_keyword?: string | null
+          generation_error?: string | null
+          hook_angle?: string | null
+          id?: string
+          mode?: string
+          owner_id?: string
+          slide_count?: number | null
+          status?: string
+          thumbnail_path?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       corrections: {
         Row: {
           created_at: string
@@ -374,6 +534,41 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          redirect_uri: string
+          state: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          redirect_uri: string
+          state: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          owner_id?: string
+          platform?: Database["public"]["Enums"]["video_platform"]
+          redirect_uri?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_states_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -409,6 +604,94 @@ export type Database = {
           youtube_handle?: string | null
         }
         Relationships: []
+      }
+      publish_jobs: {
+        Row: {
+          attempt: number
+          awaiting_user_action_at: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          max_attempts: number
+          payload: Json
+          platform: Database["public"]["Enums"]["video_platform"]
+          provider_post_id: string | null
+          provider_post_url: string | null
+          scheduled_post_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["publish_job_status"]
+          updated_at: string
+          user_completed_at: string | null
+          video_id: string | null
+          video_post_id: string | null
+        }
+        Insert: {
+          attempt?: number
+          awaiting_user_action_at?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          platform: Database["public"]["Enums"]["video_platform"]
+          provider_post_id?: string | null
+          provider_post_url?: string | null
+          scheduled_post_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["publish_job_status"]
+          updated_at?: string
+          user_completed_at?: string | null
+          video_id?: string | null
+          video_post_id?: string | null
+        }
+        Update: {
+          attempt?: number
+          awaiting_user_action_at?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          platform?: Database["public"]["Enums"]["video_platform"]
+          provider_post_id?: string | null
+          provider_post_url?: string | null
+          scheduled_post_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["publish_job_status"]
+          updated_at?: string
+          user_completed_at?: string | null
+          video_id?: string | null
+          video_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_jobs_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_jobs_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_jobs_video_post_id_fkey"
+            columns: ["video_post_id"]
+            isOneToOne: false
+            referencedRelation: "video_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resources: {
         Row: {
@@ -451,6 +734,101 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      scheduled_posts: {
+        Row: {
+          asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          cancelled_at: string | null
+          caption_default: string | null
+          captions: Json
+          carousel_id: string | null
+          created_at: string
+          format_id: string | null
+          hashtags: string[]
+          id: string
+          notes: string | null
+          owner_id: string
+          scheduled_at: string
+          script_id: string | null
+          status: Database["public"]["Enums"]["scheduled_post_status"]
+          thumbnail_url: string | null
+          timezone: string
+          title: string | null
+          updated_at: string
+          video_storage_path: string | null
+        }
+        Insert: {
+          asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          cancelled_at?: string | null
+          caption_default?: string | null
+          captions?: Json
+          carousel_id?: string | null
+          created_at?: string
+          format_id?: string | null
+          hashtags?: string[]
+          id?: string
+          notes?: string | null
+          owner_id: string
+          scheduled_at: string
+          script_id?: string | null
+          status?: Database["public"]["Enums"]["scheduled_post_status"]
+          thumbnail_url?: string | null
+          timezone?: string
+          title?: string | null
+          updated_at?: string
+          video_storage_path?: string | null
+        }
+        Update: {
+          asset_kind?: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          cancelled_at?: string | null
+          caption_default?: string | null
+          captions?: Json
+          carousel_id?: string | null
+          created_at?: string
+          format_id?: string | null
+          hashtags?: string[]
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          scheduled_at?: string
+          script_id?: string | null
+          status?: Database["public"]["Enums"]["scheduled_post_status"]
+          thumbnail_url?: string | null
+          timezone?: string
+          title?: string | null
+          updated_at?: string
+          video_storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_carousel_id_fkey"
+            columns: ["carousel_id"]
+            isOneToOne: false
+            referencedRelation: "carousels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scripts: {
         Row: {
@@ -526,6 +904,68 @@ export type Database = {
             columns: ["format_id"]
             isOneToOne: false
             referencedRelation: "formats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_accounts: {
+        Row: {
+          access_token: string
+          avatar_url: string | null
+          connected_at: string
+          display_name: string | null
+          external_account_id: string
+          id: string
+          last_used_at: string | null
+          meta: Json
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          refresh_token: string | null
+          scopes: string[]
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          avatar_url?: string | null
+          connected_at?: string
+          display_name?: string | null
+          external_account_id: string
+          id?: string
+          last_used_at?: string | null
+          meta?: Json
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          refresh_token?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          avatar_url?: string | null
+          connected_at?: string
+          display_name?: string | null
+          external_account_id?: string
+          id?: string
+          last_used_at?: string | null
+          meta?: Json
+          owner_id?: string
+          platform?: Database["public"]["Enums"]["video_platform"]
+          refresh_token?: string | null
+          scopes?: string[]
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_accounts_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -845,11 +1285,62 @@ export type Database = {
           },
         ]
       }
+      web_push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_label: string | null
+          endpoint: string
+          failed_count: number
+          id: string
+          last_error: string | null
+          last_seen_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_label?: string | null
+          endpoint: string
+          failed_count?: number
+          id?: string
+          last_error?: string | null
+          last_seen_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_label?: string | null
+          endpoint?: string
+          failed_count?: number
+          id?: string
+          last_error?: string | null
+          last_seen_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       create_script_with_brolls: {
         Args: {
           _ai_summary: string
@@ -878,6 +1369,22 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "editor" | "advisor"
+      publish_job_status:
+        | "pending"
+        | "in_progress"
+        | "awaiting_user"
+        | "succeeded"
+        | "failed"
+        | "cancelled"
+      scheduled_post_asset_kind: "video" | "carousel"
+      scheduled_post_status:
+        | "draft"
+        | "scheduled"
+        | "publishing"
+        | "published"
+        | "partial"
+        | "failed"
+        | "cancelled"
       video_platform: "instagram" | "youtube" | "tiktok" | "other"
     }
     CompositeTypes: {
@@ -1007,6 +1514,24 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "editor", "advisor"],
+      publish_job_status: [
+        "pending",
+        "in_progress",
+        "awaiting_user",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ],
+      scheduled_post_asset_kind: ["video", "carousel"],
+      scheduled_post_status: [
+        "draft",
+        "scheduled",
+        "publishing",
+        "published",
+        "partial",
+        "failed",
+        "cancelled",
+      ],
       video_platform: ["instagram", "youtube", "tiktok", "other"],
     },
   },

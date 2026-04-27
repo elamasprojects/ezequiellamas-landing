@@ -1,0 +1,26 @@
+{
+  "name": "ezequiellamas-carousel-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Carousel render worker (Playwright + Hyperframes + FFmpeg). Self-hosted on Railway. Renders 4:5 PNG (all slides) and MP4 (slides 1/3/5 in animated mode) for the @ezequiellamas carousel generator.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.0",
+    "express": "^4.21.2",
+    "gsap": "^3.13.0",
+    "hyperframes": "^0.2.0",
+    "playwright": "^1.48.0",
+    "tsx": "^4.19.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.16.5",
+    "typescript": "^5.8.3"
+  }
+}
