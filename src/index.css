@@ -66,6 +66,17 @@
   --ll-warm-dim: #ff6b3512;
   --ll-blue: #4a9eff;
   --ll-blue-dim: #4a9eff12;
+
+  /* Platform brand tokens (used by VideoDetail metrics cards, switcher, icons) */
+  --platform-instagram: #d946ef;
+  --platform-instagram-dim: #d946ef15;
+  --platform-instagram-mid: #d946ef40;
+  --platform-youtube: #ef4444;
+  --platform-youtube-dim: #ef444415;
+  --platform-youtube-mid: #ef444440;
+  --platform-tiktok: #06b6d4;
+  --platform-tiktok-dim: #06b6d415;
+  --platform-tiktok-mid: #06b6d440;
 }
 
 /* ================================================================

@@ -115,13 +115,15 @@ Migrations applied (in order):
 | `m6_editor_workflow` | M6 | `editor_assignments`, `video_submissions`, `corrections`, `notifications` tables; RLS for admin/editor; editor reads scripts + brolls via assignment join; notifications added to supabase_realtime publication |
 | `m7_advisor_feedback` | M7 | `advisor_assignments` (admin↔advisor pivot), `advisor_feedback` (threaded comments); RLS for admin/advisor; advisor read of formats/videos/scripts/brolls now gated by active `advisor_assignments` |
 | `m4b_videos_apify_tracking` | M4b | Adds `videos.apify_short_code`, `videos.last_scraped_at`, `videos.last_scrape_error` for the Apify Instagram sync; adds INSERT policy on `video_metrics_history` so admins can write snapshots of their own videos |
+| `m4c_profile_social_handles` | M4c | Adds `profiles.instagram_handle`, `profiles.youtube_handle`, `profiles.tiktok_handle` (all nullable) so each admin can configure which IG/YT/TT account to discover their unloaded videos from. |
+| `m5_video_posts_split` | M5 | **Major refactor.** Splits the old flat `videos` row into two tables: `videos` (logical video — title, transcript, multiplier, performance_tier) and `video_posts` (one row per platform — source_url, apify_short_code, all metrics, thumbnail, posted_at, raw). Adds `video_platform` enum. Backfills existing rows 1-1. `video_metrics_history` now references `video_post_id` instead of `video_id`. Multiplier trigger moves to `video_posts` and uses `videos.views_total_aggregate` (sum of all platform views). Adds `videos.transcript / transcript_status / transcript_error / transcript_language` columns for Whisper output. |
 
 Buckets:
 
 | Bucket | Visibility | Path | Used by |
 |---|---|---|---|
 | `audio-ideas` | private | `{user_id}/{uuid}.{ext}` | M2 — admin-of-own-folder only |
-| `video-thumbnails` | public | `{user_id}/{video_id}.{ext}` | M4 — admin uploads, anyone reads via public URL (no listing) |
+| `video-thumbnails` | public | `{user_id}/{video_post_id}.{ext}` | M5 — `scrape-video` downloads the platform CDN thumbnail and uploads here for permanence (CDN URLs expire). Anyone reads via public URL (no listing) |
 
 RPCs (security definer):
 
@@ -129,7 +131,7 @@ RPCs (security definer):
 |---|---|
 | `has_role(_user_id, _role)` | RLS helper |
 | `create_script_with_brolls(...)` | Atomically inserts a script + its broll_suggestions for the calling admin (`auth.uid()`) |
-| `calculate_video_multiplier()` (trigger function) | Recomputes `videos.multiplier` and `videos.performance_tier` whenever `videos.views_total` is set/updated, comparing against avg of last-90-days views (excluding the current row) |
+| `calculate_video_multiplier()` (trigger function) | Fires on `video_posts` insert/delete/update of `views_total`. Recomputes the parent `videos.views_total_aggregate` (sum of all platforms), then compares against avg of other `videos.views_total_aggregate` for the same owner with at least one post in the last 90 days. Tiers: `>=7×` outlier, `>=5×` 5×, `>=3×` 3×, else normal. |
 
 ## Edge Functions (in this project)
 
@@ -143,7 +145,10 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `transcribe-audio` | yes | Whisper-1 (OpenAI). Recibe `{ audio_upload_id }`, baja del bucket, transcribe, guarda en `audio_uploads.transcript`. |
 | `generate-script` | yes | Claude Sonnet 4.6 con tool_use. Recibe `{ audio_upload_id?, raw_concept?, format_id? }`, transcribe si hace falta, inyecta últimos 5 scripts como few-shot, devuelve `{ script_id }`. |
 | `send-notification` | yes | Inserta en `notifications` (idempotente vía dedupe_key) + opcionalmente manda mail vía Resend con templates inline (assignment_created / correction_requested / submission_approved / submission_uploaded / feedback_received). Admin puede notificar a cualquiera; editor solo a admins. |
-| `scrape-video` | yes | Apify multi-plataforma. Recibe `{ video_id }`, valida ownership (RLS) y routea por `source_platform`: **instagram** (`apify/instagram-scraper`), **youtube** (`streamers/youtube-scraper`), **tiktok** (`clockworks/tiktok-scraper`). Mapea views/likes/comments/shares/caption/thumbnail/posted_at/title (YT) a `videos`, inserta snapshot en `video_metrics_history` y devuelve `{ ok, video, platform }`. |
+| `scrape-video` | yes | (M5) Apify multi-plataforma. Recibe `{ video_post_id }` (preferido) o `{ video_id }` (legacy: pickea el primer post syncable del video). Routea por `platform`: IG (`apify/instagram-scraper`), YT (`streamers/youtube-scraper`), TT (`clockworks/tiktok-scraper`). Mapea ~20 campos al `video_posts` (views/likes/comments/shares/saves TT/caption/thumbnail/posted_at/duration/dimensions/owner/hashtags/mentions/music). **Descarga el thumbnail del CDN y lo sube al bucket `video-thumbnails/{user_id}/{video_post_id}.jpg`** (URL permanente). Si YT devuelve title y la fila `videos` no tiene, lo setea. Inserta snapshot en `video_metrics_history` con `video_post_id`. Trigger del multiplier corre solo. |
+| `discover-and-import-videos` | yes | (M5) Bulk discovery. Recibe `{ days = 7 }`, lee handles del profile (`instagram_handle/youtube_handle/tiktok_handle`), llama Apify para listar últimos posts de cada perfil, dedupea contra `video_posts.apify_short_code` y `video_posts.source_url` existentes (ownership via join a `videos`). Por cada item nuevo: inserta `videos { owner_id, title }` + `video_posts { video_id, platform, source_url, apify_short_code, todas las métricas }` + snapshot en `video_metrics_history`. Devuelve `{ ok, imported, skipped, discovered, errors[] }`. **Nota:** los thumbnails de discovery quedan apuntando al CDN expirable hasta que se sincronicen vía `scrape-video`. |
+| `transcribe-video` | yes | (M5) OpenAI Whisper-1. Recibe `{ video_id }` (pickea el primer post syncable, prefiere IG > TT > YT) o `{ video_post_id }` específico. Si el `raw` Apify es viejo (>4h) re-scrapea para refrescar URLs. Toma `audioUrl` (IG) o `videoUrl/playApi` (TT) del raw, descarga, manda a Whisper con `language=es`, guarda `videos.transcript` + `transcript_status='done'` + `transcript_language`. Errores quedan en `transcript_error` con status `failed`. **Limitación:** YT no expone media URL directa — esa rama no transcribe. Solo IG y TT por ahora. |
+| `link-video-platform` | yes | (M5) Suma una nueva plataforma a un video existente. Recibe `{ video_id, source_url }`, detecta plataforma del URL, valida ownership, valida que no esté ya vinculada (unique index sobre `(video_id, platform)`), inserta `video_posts` vacío y dispara internamente `scrape-video` para poblarlo. Devuelve `{ ok, video_id, post }` con la fila populada. |
 | ~~`scrape-instagram-video`~~ | yes | **Deprecated** (reemplazada por `scrape-video`). Sigue desplegada pero ya no se llama desde el cliente. Borrarla manualmente desde el dashboard de Supabase cuando se quiera limpiar. |
 
 Custom secrets needed:

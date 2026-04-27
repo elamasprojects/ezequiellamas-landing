@@ -381,7 +381,10 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          instagram_handle: string | null
+          tiktok_handle: string | null
           updated_at: string
+          youtube_handle: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -389,7 +392,10 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          instagram_handle?: string | null
+          tiktok_handle?: string | null
           updated_at?: string
+          youtube_handle?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -397,7 +403,10 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          instagram_handle?: string | null
+          tiktok_handle?: string | null
           updated_at?: string
+          youtube_handle?: string | null
         }
         Relationships: []
       }
@@ -551,7 +560,7 @@ export type Database = {
           raw: Json | null
           saves: number | null
           shares: number | null
-          video_id: string
+          video_post_id: string
           views_organic: number | null
           views_paid: number | null
           views_total: number | null
@@ -564,7 +573,7 @@ export type Database = {
           raw?: Json | null
           saves?: number | null
           shares?: number | null
-          video_id: string
+          video_post_id: string
           views_organic?: number | null
           views_paid?: number | null
           views_total?: number | null
@@ -577,14 +586,148 @@ export type Database = {
           raw?: Json | null
           saves?: number | null
           shares?: number | null
-          video_id?: string
+          video_post_id?: string
           views_organic?: number | null
           views_paid?: number | null
           views_total?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "video_metrics_history_video_id_fkey"
+            foreignKeyName: "video_metrics_history_video_post_id_fkey"
+            columns: ["video_post_id"]
+            isOneToOne: false
+            referencedRelation: "video_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_posts: {
+        Row: {
+          apify_short_code: string | null
+          caption: string | null
+          comments: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          dimensions_height: number | null
+          dimensions_width: number | null
+          drop_off_seconds: number | null
+          hashtags: string[] | null
+          id: string
+          last_scrape_error: string | null
+          last_scraped_at: string | null
+          likes: number | null
+          mentions: string[] | null
+          metrics_updated_at: string | null
+          music_author: string | null
+          music_name: string | null
+          owner_full_name: string | null
+          owner_username: string | null
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at: string | null
+          raw: Json | null
+          reach: number | null
+          retention_pct: number | null
+          saves: number | null
+          shares: number | null
+          source_url: string
+          spend: number | null
+          thumbnail_cdn_url: string | null
+          thumbnail_storage_path: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          video_duration: number | null
+          video_id: string
+          views_organic: number | null
+          views_paid: number | null
+          views_total: number | null
+          watch_time_seconds: number | null
+        }
+        Insert: {
+          apify_short_code?: string | null
+          caption?: string | null
+          comments?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          dimensions_height?: number | null
+          dimensions_width?: number | null
+          drop_off_seconds?: number | null
+          hashtags?: string[] | null
+          id?: string
+          last_scrape_error?: string | null
+          last_scraped_at?: string | null
+          likes?: number | null
+          mentions?: string[] | null
+          metrics_updated_at?: string | null
+          music_author?: string | null
+          music_name?: string | null
+          owner_full_name?: string | null
+          owner_username?: string | null
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          reach?: number | null
+          retention_pct?: number | null
+          saves?: number | null
+          shares?: number | null
+          source_url: string
+          spend?: number | null
+          thumbnail_cdn_url?: string | null
+          thumbnail_storage_path?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_duration?: number | null
+          video_id: string
+          views_organic?: number | null
+          views_paid?: number | null
+          views_total?: number | null
+          watch_time_seconds?: number | null
+        }
+        Update: {
+          apify_short_code?: string | null
+          caption?: string | null
+          comments?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          dimensions_height?: number | null
+          dimensions_width?: number | null
+          drop_off_seconds?: number | null
+          hashtags?: string[] | null
+          id?: string
+          last_scrape_error?: string | null
+          last_scraped_at?: string | null
+          likes?: number | null
+          mentions?: string[] | null
+          metrics_updated_at?: string | null
+          music_author?: string | null
+          music_name?: string | null
+          owner_full_name?: string | null
+          owner_username?: string | null
+          platform?: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          reach?: number | null
+          retention_pct?: number | null
+          saves?: number | null
+          shares?: number | null
+          source_url?: string
+          spend?: number | null
+          thumbnail_cdn_url?: string | null
+          thumbnail_storage_path?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_duration?: number | null
+          video_id?: string
+          views_organic?: number | null
+          views_paid?: number | null
+          views_total?: number | null
+          watch_time_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_posts_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "videos"
@@ -635,109 +778,55 @@ export type Database = {
       }
       videos: {
         Row: {
-          apify_short_code: string | null
-          caption: string | null
-          comments: number | null
-          cpc: number | null
-          cpm: number | null
           created_at: string
-          drop_off_seconds: number | null
           format_id: string | null
           id: string
-          last_scrape_error: string | null
-          last_scraped_at: string | null
-          likes: number | null
-          metrics_updated_at: string | null
           multiplier: number | null
           notes: string | null
           owner_id: string
           performance_tier: string | null
-          posted_at: string | null
-          reach: number | null
-          retention_pct: number | null
-          saves: number | null
           script_id: string | null
-          shares: number | null
-          source_platform: string | null
-          source_url: string | null
-          spend: number | null
-          thumbnail_url: string | null
           title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string | null
           updated_at: string
-          views_organic: number | null
-          views_paid: number | null
-          views_total: number | null
-          watch_time_seconds: number | null
+          views_total_aggregate: number | null
         }
         Insert: {
-          apify_short_code?: string | null
-          caption?: string | null
-          comments?: number | null
-          cpc?: number | null
-          cpm?: number | null
           created_at?: string
-          drop_off_seconds?: number | null
           format_id?: string | null
           id?: string
-          last_scrape_error?: string | null
-          last_scraped_at?: string | null
-          likes?: number | null
-          metrics_updated_at?: string | null
           multiplier?: number | null
           notes?: string | null
           owner_id: string
           performance_tier?: string | null
-          posted_at?: string | null
-          reach?: number | null
-          retention_pct?: number | null
-          saves?: number | null
           script_id?: string | null
-          shares?: number | null
-          source_platform?: string | null
-          source_url?: string | null
-          spend?: number | null
-          thumbnail_url?: string | null
           title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string | null
           updated_at?: string
-          views_organic?: number | null
-          views_paid?: number | null
-          views_total?: number | null
-          watch_time_seconds?: number | null
+          views_total_aggregate?: number | null
         }
         Update: {
-          apify_short_code?: string | null
-          caption?: string | null
-          comments?: number | null
-          cpc?: number | null
-          cpm?: number | null
           created_at?: string
-          drop_off_seconds?: number | null
           format_id?: string | null
           id?: string
-          last_scrape_error?: string | null
-          last_scraped_at?: string | null
-          likes?: number | null
-          metrics_updated_at?: string | null
           multiplier?: number | null
           notes?: string | null
           owner_id?: string
           performance_tier?: string | null
-          posted_at?: string | null
-          reach?: number | null
-          retention_pct?: number | null
-          saves?: number | null
           script_id?: string | null
-          shares?: number | null
-          source_platform?: string | null
-          source_url?: string | null
-          spend?: number | null
-          thumbnail_url?: string | null
           title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string | null
           updated_at?: string
-          views_organic?: number | null
-          views_paid?: number | null
-          views_total?: number | null
-          watch_time_seconds?: number | null
+          views_total_aggregate?: number | null
         }
         Relationships: [
           {
@@ -789,6 +878,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "editor" | "advisor"
+      video_platform: "instagram" | "youtube" | "tiktok" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -917,6 +1007,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "editor", "advisor"],
+      video_platform: ["instagram", "youtube", "tiktok", "other"],
     },
   },
 } as const
