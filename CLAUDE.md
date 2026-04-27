@@ -163,9 +163,10 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `link-video-platform` | yes | (M5) Suma una nueva plataforma a un video existente. Recibe `{ video_id, source_url }`, detecta plataforma del URL, valida ownership, valida que no esté ya vinculada (unique index sobre `(video_id, platform)`), inserta `video_posts` vacío y dispara internamente `scrape-video` para poblarlo. Devuelve `{ ok, video_id, post }` con la fila populada. |
 | `generate-carousel` | yes | (M9) Claude genera carrousel a partir de concept + slide_count + hook_angle + cta_keyword + mode (static/animated). Inserta `carousels` y `carousel_slides` con templates T1-T5. |
 | `regenerate-carousel-slide` | yes | (M9) Regenera un slide específico con instruction opcional. |
-| `oauth-start` | yes | (M10) Recibe `{ platform, redirect_path? }`. Genera `state` (UUID), inserta en `oauth_states` (TTL 5min), arma URL de OAuth con scopes correctos por plataforma. Devuelve `{ url, state }`. El cliente hace `window.location.href = url`. |
-| `oauth-callback` | yes | (M10) Recibe `{ platform, code, state }`. Valida state (ownership + no expirado + platform match), intercambia code → tokens, fetchea info de cuenta (IG: page→ig_user_id; YT: channel; TT: open_id), upserta `social_accounts` por `(owner_id, platform)`, borra el state. Para Instagram hace double-exchange (short→long-lived 60d). Para YouTube guarda `refresh_token`. Devuelve `{ ok, account_id, display_name }`. |
-| `publish-now` | yes (o service-role) | (M10) Recibe `{ scheduled_post_id, platform? }`. Si llamado por user-JWT valida ownership; si por service-role (cron) bypassa. Carga jobs en `pending`/`failed`, llama provider correspondiente. **IG Reel**: container POST + poll `status_code=FINISHED` (90s timeout) + media_publish + permalink. **IG Carousel**: 1..10 children IMAGE + carousel container + publish. **YT**: resumable upload streaming desde `videos-final` (snippet+status JSON, luego PUT bytes). Si caption/title contiene `#Shorts` agrega URL `/shorts/{id}`. **TT**: `/v2/post/publish/inbox/video/init/` con `PULL_FROM_URL` + signed URL → devuelve `publish_id`, job va a `awaiting_user`. Tras éxito, crea fila en `videos` (paraguas) + `video_posts` (per-platform stub) — métricas las llena Apify después. Roll-up del status del scheduled_post: published / partial / failed / publishing. Notifica al owner via `notifications` + push (best-effort). |
+| ~~`oauth-start`~~ (legacy nativo) | yes | (M10 v1, **deprecated post-Zernio**) Versión nativa con FB/Google/TikTok OAuth directo. Sigue desplegada pero ya no se usa. Pendiente de reescribir para Zernio. |
+| ~~`oauth-callback`~~ (legacy nativo) | yes | (M10 v1, **deprecated post-Zernio**) Versión nativa. Pendiente de reescribir para Zernio. |
+| `publish-now` | yes (o service-role) | (M10 v2, **Zernio**) Recibe `{ scheduled_post_id, platform? }`. Si user-JWT valida ownership; si service-role (cron) bypassa. Carga jobs `pending`/`failed`, marca `in_progress`, construye `mediaItems[]` con signed URLs (60min TTL) del bucket `videos-final` (video) o `carousel-renders` (slides ordenados por `index`), arma `platforms[]` con los `zernio_account_id` de `social_accounts.meta`, llama `POST https://zernio.com/api/v1/posts` con `publishNow: true`. Devuelve `{ ok, zernio_post_id, results }`. **Per-platform overrides** vía `platformSpecificData`: IG video → `mediaType: "reel"`; YT → `title` + `tags` + `privacy: "public"` + auto `#Shorts` si caption contiene `#shorts`. Stamp del `zernio_post_id` en `publish_jobs.payload` para que `zernio-webhook` los matchee. Las filas en `videos`/`video_posts` se crean cuando el webhook confirma éxito (no acá). |
+| `zernio-webhook` | NO (signature-validated) | (M10 v2) Endpoint público `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/zernio-webhook`. Recibe eventos: `post.published / failed / partial / cancelled / scheduled / recycled` + `account.connected / disconnected`. Valida `X-Zernio-Signature` (HMAC-SHA256 del raw body) si `ZERNIO_WEBHOOK_SECRET` está seteado; si no, acepta sin validar y loguea warning. Por cada job matcheado vía `payload->>zernio_post_id`, extrae status per-plataforma (intenta varios shapes del payload — el formato exacto no está documentado), updatea `publish_jobs.status` + `provider_post_url` + `provider_post_id`. En éxito, crea filas stub en `videos` + `video_posts` (idempotente: dedupe por `source_url`). Roll-up del status del scheduled_post: `published / partial / failed`. Dispara notification + push. |
 | `register-push-subscription` | yes | (M10) Recibe `{ endpoint, p256dh, auth, user_agent? }`. Upsert en `web_push_subscriptions` por `endpoint`. |
 | `send-push` | NO (service-role only) | (M10) Recibe `{ user_id, title, body, url? }`. Verifica que el caller sea service-role (bearer o apikey). Lee `web_push_subscriptions` del user, manda con `npm:web-push@3.6.7` usando VAPID. Cleanup automático de 404/410 (suscripciones expiradas). |
 | `scheduler-tick` | NO (service-role only) | (M10/M11) Invocado cada minuto por `pg_cron` vía `dispatch_scheduler_tick()`. (1) Manda recordatorios T-30min (insert `notifications` + push, dedupe por `pub:remind:{post_id}`). (2) Selecciona `scheduled_posts` con `scheduled_at <= now()` y `status='scheduled'`, hace CAS a `publishing` (atomic), invoca `publish-now` por cada uno. (3) Cleanup de `oauth_states` expirados via RPC. |
@@ -183,10 +184,9 @@ Custom secrets needed:
 | `APIFY_API_KEY` | `scrape-video` (todas las ramas) | M4b ✓ — token personal de cuenta de Apify, una sola key sirve para los 3 actores (`apify/instagram-scraper`, `streamers/youtube-scraper`, `clockworks/tiktok-scraper`). |
 | ~~`APIFY_API_KEY_INSTAGRAM` / `_YOUTUBE` / `_TIKTOK`~~ | fallback legacy | Si `APIFY_API_KEY` no está seteado, la edge function cae a estos por compatibilidad. Una vez que `APIFY_API_KEY` esté funcionando, podés borrarlos del dashboard. |
 | `GEMINI_API_KEY`, `SUBMAGIC_API_KEY`, `ELEVENLABS_API_KEY` | reservados Fase 2 | — |
-| `META_APP_ID`, `META_APP_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (IG) | M10 — Meta App en *Development mode* con Ezequiel asignado como admin. Permisos: `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `business_management`. Cuenta IG debe ser Business o Creator vinculada a una FB Page. **No requiere App Review** porque el user es admin. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (YT) | M10 — OAuth Client en Google Cloud, en *Testing mode*, con Ezequiel agregado como test user. Scopes: `youtube.upload`, `youtube.readonly`. Refresh tokens en testing duran 7 días — la edge function los renueva al borde. |
-| `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | `oauth-start`, `oauth-callback`, `publish-now` (TT) | M10 — TikTok Developer App. Sin audit, los videos van solo al Inbox como draft (Upload Mode). Scopes: `user.info.basic`, `user.info.profile`, `video.upload`, `video.publish`. |
-| `OAUTH_REDIRECT_BASE` | `oauth-start` | M10 — base URL del SPA. Default: `http://localhost:8080`. En prod: `https://ezequiellamas.com`. La página `/app/admin/publishing/connections` recibe `?platform&code&state` y dispara `oauth-callback`. |
+| `ZERNIO_API_KEY` | `publish-now` | M10 v2 — API key de Zernio (https://zernio.com). Una sola key cubre IG/YT/TT. Plan Free (20 posts/mes) o Build ($16/mes, 120 posts/mes). |
+| `ZERNIO_WEBHOOK_SECRET` (opcional) | `zernio-webhook` | M10 v2 — Si está seteado, valida firma HMAC-SHA256. Si no, acepta sin validar (deuda técnica para un solo user, OK para MVP). Generar con `openssl rand -hex 32` y pegar en ambos lados (Zernio webhook config + Supabase secret). |
+| ~~`META_APP_ID`, `META_APP_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE`~~ | nativo legacy | M10 v1 — **Deprecated post-Zernio**. Solo si decidís volver a la integración nativa (commit `9181a78` en git). Pueden borrarse del dashboard de Supabase. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `send-push` | M10 — Web Push. Generar con `npx web-push generate-vapid-keys`. La pública también va al cliente como `VITE_VAPID_PUBLIC_KEY`. `VAPID_SUBJECT` default: `mailto:hola@ezequiellamas.com`. |
 
 ## Style conventions
@@ -215,33 +215,41 @@ Specifically useful:
 - `src/components/layout/*Layout.tsx` — sidebar/topbar layout patterns.
 - `src/hooks/useAuth.ts` — auth hook (this repo's `useSession.ts` is a simpler version).
 
-## Publishing setup checklist (M10/M11)
+## Publishing setup checklist (M10/M11) — Zernio path
 
 Una sola vez, cuando se quiera activar la publicación automática:
 
-1. **Generar VAPID keys** (push):
+1. **Crear cuenta en Zernio** (https://zernio.com/signup) y conectar IG, YouTube, TikTok desde su dashboard (1 click-to-connect por plataforma). **No** hace falta Meta App, Google Cloud project, ni TikTok Developer App — Zernio maneja todo eso de su lado. La cuenta IG sí tiene que ser Business/Creator linkeada a una FB Page (es requerimiento de Meta, no de Zernio).
+
+2. **Generar API key** en Zernio dashboard → Settings → API Keys. Setear `ZERNIO_API_KEY` en Supabase Edge Functions secrets.
+
+3. **Crear webhook** en Zernio dashboard apuntando a `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/zernio-webhook`. Suscribir a: `post.published / post.failed / post.partial / post.cancelled / post.scheduled / post.recycled / account.connected / account.disconnected`. (Opcional pero recomendado: generar webhook secret con `openssl rand -hex 32` y pegarlo en Zernio + Supabase como `ZERNIO_WEBHOOK_SECRET`.)
+
+4. **Seedear `social_accounts`** con los 3 accountIds que devuelve Zernio (visibles en su dashboard). Una sola vez vía SQL:
+   ```sql
+   insert into public.social_accounts
+     (owner_id, platform, external_account_id, display_name, access_token, status, meta)
+   values
+     ('<owner_uuid>', 'instagram', '<ig_account_id>', '@ezequiellamass', 'zernio', 'connected',
+      '{"provider":"zernio","zernio_account_id":"<ig_account_id>","zernio_profile_id":"<profile_id>"}'::jsonb),
+     -- ... y lo mismo para tiktok y youtube
+   on conflict (owner_id, platform) do update set ...;
+   ```
+
+5. **Generar VAPID keys** (push):
    ```bash
    npx web-push generate-vapid-keys
    ```
    Setear `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` en Edge Functions secrets. Setear `VITE_VAPID_PUBLIC_KEY` (la pública) en `.env.local` y en Vercel.
 
-2. **OAuth apps** (paso manual del user, una vez por plataforma):
-   - **Meta**: crear app en developers.facebook.com → Instagram Graph API → asignar Ezequiel como admin → setear redirect URI a `https://ezequiellamas.com/app/admin/publishing/connections`. Copiar App ID + Secret a Supabase secrets.
-   - **Google**: GCP project → APIs & Services → OAuth consent screen → External + Testing mode → agregar Ezequiel como test user → habilitar YouTube Data API v3 → crear OAuth Client (web) con redirect URI igual que arriba. Copiar client_id + client_secret.
-   - **TikTok**: developers.tiktok.com → register app → request scopes (`video.upload`, `video.publish`) → setear redirect URI igual. Copiar client_key + client_secret.
-   - Setear los 6 secrets (META_APP_ID, META_APP_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET) + `OAUTH_REDIRECT_BASE=https://ezequiellamas.com` en Edge Functions secrets.
-
-3. **Vault secrets** para que el cron pueda invocar `scheduler-tick`:
+6. **Vault secrets** para que el cron pueda invocar `scheduler-tick`:
    ```sql
-   -- Crear secrets en Supabase Vault (UI o SQL)
    select vault.create_secret('https://zsbligbfsmdwbxcvoysu.supabase.co', 'project_url');
    select vault.create_secret('<SERVICE_ROLE_KEY_AQUI>', 'scheduler_service_role_key');
    ```
-   Sin esto, `dispatch_scheduler_tick()` es no-op (no rompe nada, pero los posts programados nunca se publican solos).
+   Sin esto, `dispatch_scheduler_tick()` es no-op.
 
-4. **Conectar cuentas**: ir a `/app/admin/publishing/connections` y tocar "Conectar Instagram", "Conectar YouTube", "Conectar TikTok".
-
-5. **Activar push**: en cualquier página de admin va a aparecer el banner "Activar notificaciones". Tocar Activar.
+7. **Activar push**: en cualquier página de admin aparece el banner "Activar notificaciones". Tocar Activar.
 
 ## Out of scope until the SPEC arrives
 
