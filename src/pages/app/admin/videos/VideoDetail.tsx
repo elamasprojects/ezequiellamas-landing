@@ -18,6 +18,7 @@ import FeedbackThread from "@/components/app/FeedbackThread";
 import PlatformIcon from "@/components/app/PlatformIcon";
 import PlatformSwitcher, { type PlatformView } from "@/components/app/PlatformSwitcher";
 import PlatformMetricsCard from "@/components/app/PlatformMetricsCard";
+import PostExtras from "@/components/app/PostExtras";
 import VideoEmbed from "@/components/app/VideoEmbed";
 import AddPlatformDialog from "@/components/app/AddPlatformDialog";
 import { useVideo } from "@/hooks/useVideo";
@@ -229,6 +230,7 @@ export default function VideoDetail() {
                   {p.caption}
                 </p>
               )}
+              <PostExtras post={p} />
               <div className="mt-3 flex items-center gap-3 text-xs" style={{ color: "var(--ll-text-muted)" }}>
                 <a
                   href={p.source_url}
