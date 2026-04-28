@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const APIFY_TOKEN_GLOBAL = Deno.env.get("APIFY_API_KEY");
 const APIFY_TOKEN_INSTAGRAM = APIFY_TOKEN_GLOBAL || Deno.env.get("APIFY_API_KEY_INSTAGRAM");
@@ -10,6 +11,11 @@ const APIFY_TOKEN_YOUTUBE = APIFY_TOKEN_GLOBAL || Deno.env.get("APIFY_API_KEY_YO
 const APIFY_TOKEN_TIKTOK = APIFY_TOKEN_GLOBAL || Deno.env.get("APIFY_API_KEY_TIKTOK");
 
 const APIFY_BASE = "https://api.apify.com/v2/acts";
+
+// Reuse the same bucket as scrape-video. Path scope keeps things organized:
+// `referents/{referentId}/{platform}_{shortCode}.{ext}`. Bucket is public-read,
+// no listing — anyone with the URL can fetch the image.
+const THUMB_BUCKET = "video-thumbnails";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,6 +87,52 @@ function parseHmsToSeconds(v: unknown): number | null {
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return parts[0] * 3600 + parts[1] * 60 + parts[2];
 }
+/**
+ * Downloads the platform CDN thumbnail and uploads it to our public bucket so
+ * the UI can render it (Instagram blocks hot-linking from outside cdninstagram).
+ * Returns the public bucket URL on success, or null if anything fails (caller
+ * keeps the original CDN URL as fallback).
+ */
+async function persistThumbnail(
+  service: SupabaseClient,
+  referentId: string,
+  platform: string,
+  shortCode: string,
+  cdnUrl: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(cdnUrl);
+    if (!res.ok) {
+      console.warn(`[thumb] download ${res.status} for ${platform}/${shortCode}`);
+      return null;
+    }
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    const blob = await res.blob();
+    const ext = contentType.includes("png")
+      ? "png"
+      : contentType.includes("webp")
+        ? "webp"
+        : "jpg";
+    const safeShortCode = shortCode.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const path = `referents/${referentId}/${platform}_${safeShortCode}.${ext}`;
+    const { error: upErr } = await service.storage
+      .from(THUMB_BUCKET)
+      .upload(path, blob, { contentType, upsert: true });
+    if (upErr) {
+      console.warn(`[thumb] upload failed ${platform}/${shortCode}:`, upErr.message);
+      return null;
+    }
+    const { data: pub } = service.storage.from(THUMB_BUCKET).getPublicUrl(path);
+    return pub.publicUrl;
+  } catch (err) {
+    console.warn(
+      "[thumb] exception:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return null;
+  }
+}
+
 function stripHandle(raw: string): string {
   let h = raw.trim();
   if (h.startsWith("@")) h = h.slice(1);
@@ -263,6 +315,10 @@ Deno.serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
+    // Service-role client used only for thumbnail uploads (bucket write
+    // bypasses RLS). All DB upserts go through `userClient` so RLS still
+    // gates ownership.
+    const service = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: { user }, error: userErr } = await userClient.auth.getUser();
     if (userErr || !user) return json({ error: "Unauthenticated" }, 401);
 
@@ -305,6 +361,22 @@ Deno.serve(async (req) => {
       }
       if (!r.items || r.items.length === 0) continue;
       try {
+        // Persist thumbnails to our bucket so the UI can render them
+        // (Instagram CDN blocks hot-linking). Done in parallel per platform
+        // batch; individual failures keep the original CDN URL.
+        await Promise.all(
+          r.items.map(async (item) => {
+            if (!item.thumbnail_url) return;
+            const persisted = await persistThumbnail(
+              service,
+              referentId,
+              item.platform,
+              item.apify_short_code,
+              item.thumbnail_url,
+            );
+            if (persisted) item.thumbnail_url = persisted;
+          }),
+        );
         const n = await upsertReferentVideos(userClient, referentId, r.items);
         scraped[r.platform] = n;
       } catch (e) {

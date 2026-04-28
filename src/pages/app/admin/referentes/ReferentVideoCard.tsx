@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import {
+  Bookmark,
   ChevronDown,
   ChevronUp,
   ExternalLink,
@@ -11,11 +14,14 @@ import {
   Loader2,
   MessageCircle,
   Music2,
+  Play,
+  Share2,
   Sparkles,
   Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { analyzeReferentVideo, type ReferentVideo } from "@/lib/api/referents";
+import ReferentVideoEmbedDialog from "@/components/referentes/ReferentVideoEmbedDialog";
 
 interface Props {
   video: ReferentVideo;
@@ -25,6 +31,7 @@ interface Props {
 export default function ReferentVideoCard({ video, readOnly = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"concept" | "transcript">("concept");
+  const [embedOpen, setEmbedOpen] = useState(false);
   const qc = useQueryClient();
 
   const analyzeMutation = useMutation({
@@ -53,13 +60,24 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
       <Music2 className="h-3 w-3" />
     );
 
+  const durationLabel = formatDuration(video.video_duration);
+  const postedAtLabel = video.posted_at ? relativeFromNow(video.posted_at) : null;
+  const canEmbed =
+    !!video.apify_short_code &&
+    (video.platform === "instagram" ||
+      video.platform === "youtube" ||
+      video.platform === "tiktok");
+
   return (
     <div className="flex flex-col rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] overflow-hidden">
-      <a
-        href={video.source_url}
-        target="_blank"
-        rel="noreferrer"
-        className="block aspect-[9/16] overflow-hidden bg-[var(--ll-surface-2)] relative group"
+      <button
+        type="button"
+        onClick={() => {
+          if (canEmbed) setEmbedOpen(true);
+          else window.open(video.source_url, "_blank", "noopener,noreferrer");
+        }}
+        className="block aspect-[9/16] overflow-hidden bg-[var(--ll-surface-2)] relative group text-left"
+        aria-label={canEmbed ? "Reproducir video" : "Abrir en plataforma"}
       >
         {video.thumbnail_url ? (
           <img
@@ -77,12 +95,45 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
             <ExternalLink className="h-6 w-6" />
           </div>
         )}
-        <div className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] backdrop-blur"
-          style={{ color: "var(--ll-text)", fontFamily: "'JetBrains Mono', monospace" }}>
+
+        {/* Play overlay on hover */}
+        {canEmbed && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-black shadow-lg">
+              <Play className="h-5 w-5 fill-current" />
+            </div>
+          </div>
+        )}
+
+        {/* Top-right: platform + views */}
+        <div
+          className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] backdrop-blur"
+          style={{ color: "var(--ll-text)", fontFamily: "'JetBrains Mono', monospace" }}
+        >
           {platformIcon}
           <span>{formatNumber(video.views_total)}</span>
         </div>
-      </a>
+
+        {/* Bottom-right: duration */}
+        {durationLabel && (
+          <div
+            className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] backdrop-blur"
+            style={{ color: "var(--ll-text)", fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {durationLabel}
+          </div>
+        )}
+
+        {/* Bottom-left: posted_at */}
+        {postedAtLabel && (
+          <div
+            className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] backdrop-blur"
+            style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {postedAtLabel}
+          </div>
+        )}
+      </button>
 
       <div className="flex flex-col gap-2 p-3 flex-1">
         <p
@@ -92,7 +143,7 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
           {video.title ?? video.caption ?? "(sin título)"}
         </p>
         <div
-          className="flex items-center gap-3 text-[11px]"
+          className="flex items-center flex-wrap gap-3 text-[11px]"
           style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
         >
           <span className="inline-flex items-center gap-1">
@@ -106,6 +157,16 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
           {video.comments != null && (
             <span className="inline-flex items-center gap-1">
               <MessageCircle className="h-3 w-3" /> {formatNumber(video.comments)}
+            </span>
+          )}
+          {video.shares != null && video.shares > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Share2 className="h-3 w-3" /> {formatNumber(video.shares)}
+            </span>
+          )}
+          {video.saves != null && video.saves > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Bookmark className="h-3 w-3" /> {formatNumber(video.saves)}
             </span>
           )}
         </div>
@@ -190,6 +251,12 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
           </p>
         )}
       </div>
+
+      <ReferentVideoEmbedDialog
+        open={embedOpen}
+        onOpenChange={setEmbedOpen}
+        video={video}
+      />
     </div>
   );
 }
@@ -199,4 +266,19 @@ function formatNumber(n: number | null | undefined): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || seconds <= 0) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function relativeFromNow(iso: string): string | null {
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: es });
+  } catch {
+    return null;
+  }
 }
