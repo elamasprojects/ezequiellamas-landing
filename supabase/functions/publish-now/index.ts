@@ -1,5 +1,5 @@
 // publish-now (Zernio + Bunny version): submits a scheduled_post to Zernio.
-// Videos live on Bunny Stream; we pass the public CDN URL of /original.
+// Videos live on Bunny Stream; we pass the public CDN URL of /play_720p.mp4.
 // Carousel slides still live on Supabase Storage; we sign per-slide URLs.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -60,7 +60,10 @@ function effectiveCaption(post: PostRow, platform: Platform): string {
 function bunnyCdnUrl(bunnyVideoId: string): string {
   const host = Deno.env.get("BUNNY_CDN_HOSTNAME");
   if (!host) throw new Error("BUNNY_CDN_HOSTNAME not set");
-  return `https://${host}/${bunnyVideoId}/original`;
+  // Use the encoded MP4 fallback (always available when MP4 Fallback is enabled
+  // on the library) instead of /original (which requires Early-Play, off by
+  // default → 403). Whisper + IG/YT/TT all consume this fine.
+  return `https://${host}/${bunnyVideoId}/play_720p.mp4`;
 }
 
 async function signedImageUrl(admin: SupabaseClient, path: string): Promise<string> {
