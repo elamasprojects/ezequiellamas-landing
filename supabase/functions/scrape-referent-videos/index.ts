@@ -60,6 +60,11 @@ async function callApify(actor: string, token: string, input: unknown): Promise<
 function num(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
+// For DB columns typed as `integer` (e.g. video_duration). Apify IG/TT return
+// fractional seconds (`6.266`), which Postgres rejects on int columns.
+function roundOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
+}
 function str(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
@@ -114,7 +119,7 @@ async function discoverInstagram(handleRaw: string): Promise<DiscoveredVideo[]> 
       comments: num(post.commentsCount),
       shares: null,
       saves: null,
-      video_duration: num(post.videoDuration),
+      video_duration: roundOrNull(post.videoDuration),
       raw: post,
     });
   }
@@ -207,7 +212,7 @@ async function discoverTikTok(handleRaw: string): Promise<DiscoveredVideo[]> {
       comments: num(post.commentCount),
       shares: num(post.shareCount),
       saves: num(post.collectCount),
-      video_duration: num(videoMeta?.duration),
+      video_duration: roundOrNull(videoMeta?.duration),
       raw: post,
     });
   }
