@@ -1,8 +1,12 @@
+import { Link } from "react-router-dom";
 import { useSession } from "@/hooks/useSession";
+import { useDashboardKpis } from "@/hooks/useDashboardKpis";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AdminDashboard() {
   const { user } = useSession();
+  const { data: kpis, isLoading } = useDashboardKpis();
+
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -18,57 +22,43 @@ export default function AdminDashboard() {
         >
           Hola, <em style={{ color: "var(--ll-accent)" }}>{user?.email?.split("@")[0]}</em>.
         </h1>
-        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Acá vas a ver tus métricas, asignaciones abiertas, ideas en draft y próximos posteos. Por ahora la app está en M1
-          (auth + roles). Las features se prenden por hito.
-        </p>
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Ideas en draft" value="—" hint="M2" />
-        <KpiCard title="Asignaciones abiertas" value="—" hint="M6" />
-        <KpiCard title="Pagos pendientes" value="—" hint="M6" />
-        <KpiCard title="Videos del mes" value="—" hint="M4" />
-      </section>
-
-      <section className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-6">
-        <div
-          className="mb-2 text-[10px] uppercase tracking-[0.25em]"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-warm)" }}
-        >
-          Próximos hitos
-        </div>
-        <ol className="space-y-2 text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M2 — Idea → Guion.</span> Subís audio o texto, te devuelve guion
-            estructurado en tu estilo + B-rolls + lo agendás.
-          </li>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M3 — Catálogo de formatos.</span> CRUD con drag-drop.
-          </li>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M4 — Carga manual de videos posteados.</span> URL + métricas + guion
-            + formato.
-          </li>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M5 — Calendario de contenido.</span>
-          </li>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M6 — Editor workflow.</span> Asignaciones, correcciones,
-            aprobación, registro de pagos.
-          </li>
-          <li>
-            <span style={{ color: "var(--ll-text)" }}>M7 — Asesor feedback.</span>
-          </li>
-        </ol>
+        <KpiCard
+          title="Ideas en draft"
+          value={fmt(kpis?.ideasDraft, isLoading)}
+          to="/app/admin/ideas"
+        />
+        <KpiCard
+          title="Asignaciones abiertas"
+          value={fmt(kpis?.assignmentsOpen, isLoading)}
+          to="/app/admin/assignments"
+        />
+        <KpiCard
+          title="Pagos pendientes"
+          value={fmt(kpis?.paymentsPending, isLoading)}
+          to="/app/admin/assignments"
+        />
+        <KpiCard
+          title="Videos del mes"
+          value={fmt(kpis?.videosThisMonth, isLoading)}
+          to="/app/admin/videos"
+        />
       </section>
     </div>
   );
 }
 
-function KpiCard({ title, value, hint }: { title: string; value: string; hint?: string }) {
-  return (
-    <Card className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+function fmt(value: number | undefined, loading: boolean): string {
+  if (loading) return "…";
+  if (value == null) return "—";
+  return String(value);
+}
+
+function KpiCard({ title, value, to }: { title: string; value: string; to?: string }) {
+  const card = (
+    <Card className="h-full border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)] transition-colors hover:border-[var(--ll-border-strong)] hover:bg-[var(--ll-surface-2)]">
       <CardHeader className="pb-2">
         <CardTitle
           className="text-xs uppercase tracking-[0.15em]"
@@ -84,15 +74,13 @@ function KpiCard({ title, value, hint }: { title: string; value: string; hint?: 
         >
           {value}
         </div>
-        {hint && (
-          <div
-            className="mt-2 text-[10px] uppercase tracking-[0.15em]"
-            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
-          >
-            {hint}
-          </div>
-        )}
       </CardContent>
     </Card>
+  );
+  if (!to) return card;
+  return (
+    <Link to={to} className="block">
+      {card}
+    </Link>
   );
 }
