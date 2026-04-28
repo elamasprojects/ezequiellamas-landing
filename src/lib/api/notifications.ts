@@ -10,12 +10,18 @@ export interface SendNotificationInput {
     | "submission_uploaded"
     | "correction_requested"
     | "submission_approved"
+    | "feedback_received"
+    | "publishing.scheduled"
+    | "publishing.succeeded"
+    | "publishing.failed"
     | string;
   title: string;
   body?: string;
   link?: string;
   dedupe_key?: string;
   send_email?: boolean;
+  /** Push is enabled by default. Pass `false` to opt out for a specific notification. */
+  send_push?: boolean;
   meta?: Record<string, string | number | null>;
 }
 
