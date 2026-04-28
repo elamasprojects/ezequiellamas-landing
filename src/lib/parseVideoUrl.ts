@@ -68,11 +68,12 @@ export function parseVideoUrl(input: string): ParsedVideoUrl | null {
   }
 
   if (host === "tiktok.com" || host.endsWith(".tiktok.com")) {
-    const full = u.pathname.match(/^\/@[^/]+\/video\/(\d+)/);
+    // Soporta tanto /video/ID (reels) como /photo/ID (slideshows TT).
+    const full = u.pathname.match(/^\/@[^/]+\/(video|photo)\/(\d+)/);
     if (full) {
       return {
         platform: "tiktok",
-        short_code: full[1],
+        short_code: full[2],
         normalized_url: `https://www.tiktok.com${u.pathname.replace(/\/$/, "")}`,
       };
     }

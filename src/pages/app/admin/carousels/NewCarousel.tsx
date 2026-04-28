@@ -2,7 +2,16 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Sparkles,
+  Check,
+  Link2,
+  Loader2,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +28,12 @@ import {
   type CarouselMode,
   type GenerateCarouselInput,
 } from "@/lib/api/carousels";
+import {
+  scrapeCarouselReference,
+  buildAutoConceptText,
+  type CarouselReference,
+} from "@/lib/api/carouselReferences";
+import { parseVideoUrl } from "@/lib/parseVideoUrl";
 import { FORMAT_LIST, type FormatSlug } from "@/lib/carousel/formats";
 import { cn } from "@/lib/utils";
 
@@ -39,8 +54,29 @@ const SLIDE_COUNTS = [
   { value: "8", label: "8 slides" },
 ];
 
+const PLATFORM_LABEL: Record<CarouselReference["platform"], string> = {
+  instagram: "Instagram",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  other: "Otro",
+};
+
+type VerifyStep = "idle" | "verifying" | "failed";
+
+function clampSlideCount(n: number): string {
+  if (n <= 4) return "4";
+  if (n >= 8) return "8";
+  return String(n);
+}
+
 export default function NewCarousel() {
   const navigate = useNavigate();
+
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [reference, setReference] = useState<CarouselReference | null>(null);
+  const [verifyStep, setVerifyStep] = useState<VerifyStep>("idle");
+  const [verifyError, setVerifyError] = useState("");
+
   const [concept, setConcept] = useState("");
   const [designFormat, setDesignFormat] = useState<FormatSlug | null>(null);
   const [slideCount, setSlideCount] = useState("auto");
@@ -48,6 +84,46 @@ export default function NewCarousel() {
   const [ctaKeyword, setCtaKeyword] = useState("");
   // M15 MVP: only static. Animated requires per-format GSAP timelines (out of scope).
   const mode: CarouselMode = "static";
+
+  const parsedUrl = referenceUrl.trim().length > 0 ? parseVideoUrl(referenceUrl) : null;
+  const urlInvalid =
+    referenceUrl.trim().length > 0 &&
+    (parsedUrl === null || parsedUrl.platform === "youtube");
+  const canVerify =
+    referenceUrl.trim().length > 0 &&
+    parsedUrl !== null &&
+    parsedUrl.platform !== "youtube" &&
+    verifyStep !== "verifying";
+
+  async function onVerify(force = false) {
+    if (!canVerify) return;
+    setVerifyStep("verifying");
+    setVerifyError("");
+    try {
+      const { reference: ref } = await scrapeCarouselReference({
+        url: referenceUrl.trim(),
+        force,
+      });
+      setReference(ref);
+      setVerifyStep("idle");
+      // Auto-populate textarea + slide count
+      setConcept(buildAutoConceptText(ref));
+      if (ref.slide_count) {
+        setSlideCount(clampSlideCount(ref.slide_count));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setVerifyError(msg);
+      setVerifyStep("failed");
+    }
+  }
+
+  function onClearReference() {
+    setReference(null);
+    setReferenceUrl("");
+    setVerifyError("");
+    setVerifyStep("idle");
+  }
 
   const mutation = useMutation({
     mutationFn: (input: GenerateCarouselInput) => generateCarousel(input),
@@ -78,6 +154,7 @@ export default function NewCarousel() {
           : (hookAngle as "problem" | "contrarian" | "data" | "money_model"),
       cta_keyword: ctaKeyword.trim() || undefined,
       mode,
+      carousel_reference_id: reference?.id,
     });
   }
 
@@ -117,12 +194,161 @@ export default function NewCarousel() {
           ¿Sobre qué <em style={{ color: "var(--ll-warm)" }}>tema</em>?
         </h1>
         <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Pegá tu concepto, elegí un formato visual y la IA escribe cada slide
-          siguiendo tu voz.
+          Pegá un link de referencia (opcional), elegí el formato visual y la IA
+          escribe cada slide en tu voz.
         </p>
       </header>
 
       <form onSubmit={onSubmit} className="space-y-6">
+        {/* Step 0: optional reference link */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <Label className="text-sm" style={{ color: "var(--ll-text)" }}>
+              <span
+                className="mr-2"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: "var(--ll-accent)",
+                }}
+              >
+                00
+              </span>
+              Link de referencia
+              <span
+                className="ml-2 text-xs"
+                style={{ color: "var(--ll-text-dim)" }}
+              >
+                (opcional)
+              </span>
+            </Label>
+          </div>
+          <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+            Pegá un carrusel de Instagram (/p/) o un photo post de TikTok
+            (/photo/). La IA analiza cada slide, sintetiza el concepto y
+            auto-completa los campos de abajo.
+          </p>
+
+          {!reference && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
+                <Link2
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                  style={{ color: "var(--ll-text-dim)" }}
+                />
+                <Input
+                  value={referenceUrl}
+                  onChange={(e) => setReferenceUrl(e.target.value)}
+                  placeholder="https://www.instagram.com/p/..."
+                  disabled={mutation.isPending || verifyStep === "verifying"}
+                  className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] pl-9 text-[var(--ll-text)]"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => onVerify(false)}
+                disabled={!canVerify || mutation.isPending}
+                variant="secondary"
+                className="sm:w-32"
+              >
+                {verifyStep === "verifying" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analizando...
+                  </>
+                ) : (
+                  "Verificar"
+                )}
+              </Button>
+            </div>
+          )}
+
+          {urlInvalid && verifyStep !== "verifying" && (
+            <p className="text-xs text-red-400">
+              Link no soportado. Solo IG /p/ o TT /photo/.
+            </p>
+          )}
+
+          {verifyStep === "verifying" && (
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Scrapeando + analizando con IA visión (puede tardar 30-60s)...
+            </p>
+          )}
+
+          {verifyStep === "failed" && verifyError && (
+            <div className="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+              <div className="flex-1 text-red-300">{verifyError}</div>
+              <Button
+                type="button"
+                onClick={() => onVerify(true)}
+                size="sm"
+                variant="ghost"
+                className="text-red-200 hover:text-red-100"
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
+
+          {reference && reference.analysis_status === "done" && (
+            <div className="flex gap-3 rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] p-3">
+              <div className="flex flex-1 flex-col gap-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className="h-4 w-4"
+                    style={{ color: "var(--ll-accent)" }}
+                  />
+                  <span
+                    className="text-[10px] uppercase tracking-[0.2em]"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      color: "var(--ll-accent)",
+                    }}
+                  >
+                    {PLATFORM_LABEL[reference.platform]} · {reference.slide_count}{" "}
+                    slides
+                  </span>
+                </div>
+                {reference.caption && (
+                  <p
+                    className="line-clamp-2 text-xs"
+                    style={{ color: "var(--ll-text-muted)" }}
+                  >
+                    {reference.caption}
+                  </p>
+                )}
+                <a
+                  href={reference.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs underline-offset-2 hover:underline"
+                  style={{ color: "var(--ll-text-dim)" }}
+                >
+                  Ver original
+                </a>
+                <p
+                  className="mt-1 text-xs"
+                  style={{ color: "var(--ll-text-dim)" }}
+                >
+                  Concepto y cantidad de slides cargados abajo. Editalos antes
+                  de generar.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={onClearReference}
+                disabled={mutation.isPending}
+                size="icon"
+                variant="ghost"
+                className="shrink-0"
+                title="Quitar referencia"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </section>
+
         {/* Step 1: format selector */}
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
@@ -244,13 +470,15 @@ export default function NewCarousel() {
               placeholder="Ej: cómo armé el sistema de UGC scripts que escala a 100 clientes sin pagar fees"
               value={concept}
               onChange={(e) => setConcept(e.target.value)}
-              rows={5}
+              rows={reference ? 14 : 5}
               disabled={!designFormat}
-              className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+              className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] font-mono text-sm text-[var(--ll-text)]"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
             />
             <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
-              Más contexto = mejores slides. Mencioná números, tools, learnings
-              específicos.
+              {reference
+                ? "Auto-populado con el análisis de la referencia. Editá lo que quieras antes de generar."
+                : "Más contexto = mejores slides. Mencioná números, tools, learnings específicos."}
             </p>
           </div>
 

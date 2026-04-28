@@ -405,6 +405,7 @@ interface RequestBody {
   hook_angle?: "problem" | "contrarian" | "data" | "money_model";
   cta_keyword?: string;
   mode?: "static" | "animated";
+  carousel_reference_id?: string;
 }
 
 interface EmittedSlide {
@@ -441,6 +442,7 @@ Deno.serve(async (req: Request) => {
     hook_angle,
     cta_keyword,
     mode = "static",
+    carousel_reference_id,
   } = body;
   if (!concept || typeof concept !== "string" || concept.trim().length < 5) {
     return json({ error: "concept_required" }, 400);
@@ -480,6 +482,7 @@ Deno.serve(async (req: Request) => {
       cta_keyword: cta_keyword?.trim() || null,
       mode,
       status: "generating",
+      carousel_reference_id: carousel_reference_id ?? null,
     })
     .select("id")
     .single();

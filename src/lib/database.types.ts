@@ -192,6 +192,75 @@ export type Database = {
           },
         ]
       }
+      carousel_references: {
+        Row: {
+          analysis_error: string | null
+          analysis_status: string
+          apify_short_code: string | null
+          caption: string | null
+          concept: string | null
+          created_at: string
+          id: string
+          last_analyzed_at: string | null
+          last_scraped_at: string | null
+          normalized_url: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at: string | null
+          raw: Json | null
+          scrape_error: string | null
+          scrape_status: string
+          slide_count: number | null
+          slides: Json | null
+          source_url: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_error?: string | null
+          analysis_status?: string
+          apify_short_code?: string | null
+          caption?: string | null
+          concept?: string | null
+          created_at?: string
+          id?: string
+          last_analyzed_at?: string | null
+          last_scraped_at?: string | null
+          normalized_url: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          scrape_error?: string | null
+          scrape_status?: string
+          slide_count?: number | null
+          slides?: Json | null
+          source_url: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_error?: string | null
+          analysis_status?: string
+          apify_short_code?: string | null
+          caption?: string | null
+          concept?: string | null
+          created_at?: string
+          id?: string
+          last_analyzed_at?: string | null
+          last_scraped_at?: string | null
+          normalized_url?: string
+          owner_id?: string
+          platform?: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          scrape_error?: string | null
+          scrape_status?: string
+          slide_count?: number | null
+          slides?: Json | null
+          source_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       carousel_render_jobs: {
         Row: {
           carousel_id: string
@@ -306,6 +375,7 @@ export type Database = {
       }
       carousels: {
         Row: {
+          carousel_reference_id: string | null
           concept: string
           created_at: string
           cta_keyword: string | null
@@ -322,6 +392,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          carousel_reference_id?: string | null
           concept: string
           created_at?: string
           cta_keyword?: string | null
@@ -338,6 +409,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          carousel_reference_id?: string | null
           concept?: string
           created_at?: string
           cta_keyword?: string | null
@@ -353,7 +425,15 @@ export type Database = {
           title?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "carousels_carousel_reference_id_fkey"
+            columns: ["carousel_reference_id"]
+            isOneToOne: false
+            referencedRelation: "carousel_references"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       corrections: {
         Row: {

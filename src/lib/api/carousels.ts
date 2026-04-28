@@ -165,6 +165,7 @@ export interface GenerateCarouselInput {
   hook_angle?: "problem" | "contrarian" | "data" | "money_model";
   cta_keyword?: string;
   mode: CarouselMode;
+  carousel_reference_id?: string;
 }
 
 export async function generateCarousel(input: GenerateCarouselInput): Promise<{
