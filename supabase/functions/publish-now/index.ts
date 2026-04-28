@@ -1,6 +1,9 @@
-// publish-now (Zernio + Bunny version): submits a scheduled_post to Zernio.
-// Videos live on Bunny Stream; we pass the public CDN URL of /play_720p.mp4.
-// Carousel slides still live on Supabase Storage; we sign per-slide URLs.
+// publish-now (Zernio version): submits a scheduled_post to Zernio.
+// Videos can live in two places:
+//   - Bunny Stream → public CDN URL `/{videoId}/play_720p.mp4`
+//   - Supabase Storage (videos-final bucket) → signed URL with 24h TTL
+// Carousel slides live on Supabase Storage (carousel-renders bucket) and
+// are signed per-slide.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -26,6 +29,7 @@ interface PostRow {
   asset_kind: "video" | "carousel";
   bunny_video_id: string | null;
   bunny_library_id: string | null;
+  video_storage_path: string | null;
   carousel_id: string | null;
   title: string | null;
   caption_default: string | null;
@@ -72,12 +76,27 @@ async function signedImageUrl(admin: SupabaseClient, path: string): Promise<stri
   return data.signedUrl;
 }
 
+// 24h TTL — Zernio downloads quickly, but per-platform processing (Reels
+// transcoding, etc.) can re-fetch hours later. 24h is comfortably above
+// observed worst case while still bounding exposure of the signed URL.
+async function signedVideoUrl(admin: SupabaseClient, path: string): Promise<string> {
+  const { data, error } = await admin.storage.from("videos-final").createSignedUrl(path, 24 * 60 * 60);
+  if (error || !data) throw new Error(error?.message ?? "signed_video_url_failed");
+  return data.signedUrl;
+}
+
 async function buildMediaItems(
   admin: SupabaseClient,
   post: PostRow,
 ): Promise<Array<{ type: "video" | "image"; url: string }>> {
   if (post.asset_kind === "video") {
-    if (!post.bunny_video_id) throw new Error("missing_bunny_video_id");
+    // Supabase provider takes precedence if both happen to be set (shouldn't,
+    // by CHECK constraint, but defensive — gives the deterministic Supabase
+    // path priority while keeping Bunny as the documented default).
+    if (post.video_storage_path) {
+      return [{ type: "video", url: await signedVideoUrl(admin, post.video_storage_path) }];
+    }
+    if (!post.bunny_video_id) throw new Error("missing_video_source");
     return [{ type: "video", url: bunnyCdnUrl(post.bunny_video_id) }];
   }
 

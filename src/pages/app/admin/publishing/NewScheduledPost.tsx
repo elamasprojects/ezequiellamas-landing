@@ -69,7 +69,9 @@ export default function NewScheduledPost() {
   const [aiSource, setAiSource] = useState<"auto" | "manual" | null>(null);
   const [cachedTranscript, setCachedTranscript] = useState<string | null>(null);
   const [cachedTranscriptLang, setCachedTranscriptLang] = useState<string | null>(null);
-  const autoFillTriedFor = useRef<string | null>(null); // bunny_video_id we already tried
+  // Provider-agnostic identifier for the currently uploaded video — used for
+  // dedup of the auto-fill effect. Either bunny_video_id or video_storage_path.
+  const autoFillTriedFor = useRef<string | null>(null);
 
   const hashtags = useMemo(
     () =>
@@ -103,6 +105,18 @@ export default function NewScheduledPost() {
     );
   }
 
+  /** Build the source-identifier params for transcribe/captions based on the
+   * provider currently in videoState. */
+  function videoSourceParams(): {
+    bunny_video_id?: string;
+    video_storage_path?: string;
+  } {
+    if (!videoState) return {};
+    return videoState.provider === "bunny"
+      ? { bunny_video_id: videoState.bunny_video_id }
+      : { video_storage_path: videoState.video_storage_path };
+  }
+
   async function runAiGeneration({ source }: { source: "auto" | "manual" }) {
     if (!videoState || transcribing || generatingCaptions) return;
 
@@ -112,9 +126,7 @@ export default function NewScheduledPost() {
     if (!transcript) {
       setTranscribing(true);
       try {
-        const r = await transcribeBunnyVideo({
-          bunny_video_id: videoState.bunny_video_id,
-        });
+        const r = await transcribeBunnyVideo(videoSourceParams());
         transcript = r.transcript;
         language = r.language;
         setCachedTranscript(transcript);
@@ -141,7 +153,7 @@ export default function NewScheduledPost() {
       const targetPlatforms =
         platforms.length > 0 ? platforms : ([...PUBLISH_PLATFORMS] as PublishPlatform[]);
       const result = await generateCaptions({
-        bunny_video_id: videoState.bunny_video_id,
+        ...videoSourceParams(),
         platforms: targetPlatforms,
         format_id: formatId,
         transcript,
@@ -168,9 +180,13 @@ export default function NewScheduledPost() {
   useEffect(() => {
     if (!videoState) return;
     if (assetKind !== "video") return;
-    if (autoFillTriedFor.current === videoState.bunny_video_id) return;
+    const sourceKey =
+      videoState.provider === "bunny"
+        ? videoState.bunny_video_id
+        : videoState.video_storage_path;
+    if (autoFillTriedFor.current === sourceKey) return;
     if (!fieldsAreEmpty()) return;
-    autoFillTriedFor.current = videoState.bunny_video_id;
+    autoFillTriedFor.current = sourceKey;
     void runAiGeneration({ source: "auto" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoState]);
@@ -202,8 +218,12 @@ export default function NewScheduledPost() {
       const post = await createScheduledPost({
         owner_id: user.id,
         asset_kind: assetKind,
-        bunny_video_id: videoState?.bunny_video_id ?? null,
-        bunny_library_id: videoState?.bunny_library_id ?? null,
+        bunny_video_id:
+          videoState?.provider === "bunny" ? videoState.bunny_video_id : null,
+        bunny_library_id:
+          videoState?.provider === "bunny" ? videoState.bunny_library_id : null,
+        video_storage_path:
+          videoState?.provider === "supabase" ? videoState.video_storage_path : null,
         carousel_id: carouselId,
         title: title || null,
         caption_default: defaultCaption || null,

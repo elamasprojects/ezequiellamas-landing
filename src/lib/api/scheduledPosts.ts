@@ -69,10 +69,12 @@ export async function fetchScheduledPost(id: string): Promise<ScheduledPostWithJ
 export interface CreateScheduledPostInput {
   owner_id: string;
   asset_kind: ScheduledPostAssetKind;
-  /** Bunny Stream video GUID (asset_kind = video). */
+  /** Bunny Stream video GUID (asset_kind = video, Bunny provider). */
   bunny_video_id?: string | null;
-  /** Bunny Stream library id (asset_kind = video). */
+  /** Bunny Stream library id (asset_kind = video, Bunny provider). */
   bunny_library_id?: string | null;
+  /** Supabase Storage path within the videos-final bucket (asset_kind = video, Supabase provider). */
+  video_storage_path?: string | null;
   carousel_id?: string | null;
   title?: string | null;
   caption_default?: string | null;
@@ -106,6 +108,7 @@ export async function createScheduledPost(
       asset_kind: rest.asset_kind,
       bunny_video_id: rest.bunny_video_id ?? null,
       bunny_library_id: rest.bunny_library_id ?? null,
+      video_storage_path: rest.video_storage_path ?? null,
       carousel_id: rest.carousel_id ?? null,
       title: rest.title ?? null,
       caption_default: rest.caption_default ?? null,

@@ -19,7 +19,10 @@ async function unwrapError(error: unknown): Promise<never> {
 // ──────────────────────────────────────────────────────────────────────────
 
 export interface TranscribeBunnyInput {
+  /** Bunny Stream video GUID (Bunny provider). */
   bunny_video_id?: string;
+  /** Supabase Storage path inside videos-final (Supabase provider). */
+  video_storage_path?: string;
   scheduled_post_id?: string;
   language?: string;
   force?: boolean;
@@ -69,6 +72,7 @@ export async function transcribeBunnyVideo(
 
 export interface GenerateCaptionsInput {
   bunny_video_id?: string;
+  video_storage_path?: string;
   scheduled_post_id?: string;
   transcript?: string;
   platforms?: PublishPlatform[];
