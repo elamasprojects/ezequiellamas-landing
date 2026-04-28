@@ -1149,6 +1149,47 @@ export type Database = {
           },
         ]
       }
+      script_approvals: {
+        Row: {
+          admin_id: string
+          advisor_id: string
+          created_at: string
+          decision: string
+          id: string
+          notes: string | null
+          script_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          advisor_id: string
+          created_at?: string
+          decision: string
+          id?: string
+          notes?: string | null
+          script_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          advisor_id?: string
+          created_at?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          script_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_approvals_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scripts: {
         Row: {
           ai_summary: string | null

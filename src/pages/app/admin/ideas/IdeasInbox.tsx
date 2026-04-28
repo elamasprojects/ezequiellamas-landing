@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Plus, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, CheckCircle2, Plus, Sparkles, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScripts } from "@/hooks/useScripts";
 import type { ScriptStatus, Script } from "@/lib/api/scripts";
+import {
+  fetchAdminScriptApprovals,
+  type ScriptApproval,
+} from "@/lib/api/scriptApprovals";
 
 const TABS: { value: ScriptStatus; label: string }[] = [
   { value: "draft", label: "Drafts" },
@@ -18,6 +23,11 @@ const TABS: { value: ScriptStatus; label: string }[] = [
 export default function IdeasInbox() {
   const [tab, setTab] = useState<ScriptStatus>("draft");
   const { data: scripts, isLoading } = useScripts({ status: tab });
+  const { data: approvals } = useQuery({
+    queryKey: ["script_approvals_admin"],
+    queryFn: fetchAdminScriptApprovals,
+    staleTime: 30_000,
+  });
 
   return (
     <div className="space-y-8">
@@ -68,7 +78,11 @@ export default function IdeasInbox() {
             ) : (
               <ul className="space-y-2">
                 {scripts.map((s) => (
-                  <ScriptRow key={s.id} script={s} />
+                  <ScriptRow
+                    key={s.id}
+                    script={s}
+                    approval={approvals?.get(s.id)}
+                  />
                 ))}
               </ul>
             )}
@@ -93,7 +107,13 @@ const AVATAR_CHIP_LABELS: Record<string, string> = {
   developer: "Developer",
 };
 
-function ScriptRow({ script }: { script: Script }) {
+function ScriptRow({
+  script,
+  approval,
+}: {
+  script: Script;
+  approval: ScriptApproval | undefined;
+}) {
   return (
     <li>
       <Link
@@ -133,11 +153,13 @@ function ScriptRow({ script }: { script: Script }) {
                 )}
               </div>
             )}
+            {approval && <ApprovalNote approval={approval} />}
           </div>
           <div className="text-right">
+            {approval && <ApprovalBadge approval={approval} />}
             {script.scheduled_at && (
               <div
-                className="flex items-center gap-1 text-xs"
+                className="mt-1 flex items-center justify-end gap-1 text-xs"
                 style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
               >
                 <Calendar className="h-3 w-3" />
@@ -157,6 +179,60 @@ function ScriptRow({ script }: { script: Script }) {
         </div>
       </Link>
     </li>
+  );
+}
+
+function ApprovalBadge({ approval }: { approval: ScriptApproval }) {
+  const isApproved = approval.decision === "approved";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] ${
+        isApproved
+          ? "border-[var(--ll-accent)]/40 bg-[var(--ll-accent)]/15"
+          : "border-red-500/40 bg-red-500/15"
+      }`}
+      style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        color: isApproved ? "var(--ll-accent)" : "rgb(248 113 113)",
+      }}
+    >
+      {isApproved ? (
+        <CheckCircle2 className="h-3 w-3" />
+      ) : (
+        <XCircle className="h-3 w-3" />
+      )}
+      {isApproved ? "Aprobado" : "Rechazado"}
+    </span>
+  );
+}
+
+function ApprovalNote({ approval }: { approval: ScriptApproval }) {
+  if (!approval.notes) return null;
+  const isApproved = approval.decision === "approved";
+  return (
+    <div
+      className={`mt-2 rounded-md border px-2 py-1.5 text-xs ${
+        isApproved
+          ? "border-[var(--ll-accent)]/30 bg-[var(--ll-accent)]/5"
+          : "border-red-500/30 bg-red-950/20"
+      }`}
+    >
+      <div
+        className="text-[9px] uppercase tracking-[0.15em]"
+        style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          color: isApproved ? "var(--ll-accent)" : "rgb(248 113 113)",
+        }}
+      >
+        Nota del asesor
+      </div>
+      <p
+        className="mt-0.5 line-clamp-2"
+        style={{ color: "var(--ll-text-muted)" }}
+      >
+        {approval.notes}
+      </p>
+    </div>
   );
 }
 

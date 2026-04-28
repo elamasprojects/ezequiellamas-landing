@@ -61,6 +61,7 @@ const VideoFeedback = lazy(() => import("@/pages/app/advisor/VideoFeedback"));
 const FormatsView = lazy(() => import("@/pages/app/advisor/FormatsView"));
 const AdvisorReferentes = lazy(() => import("@/pages/app/advisor/ReferentesView"));
 const AdvisorReferenteDetail = lazy(() => import("@/pages/app/advisor/ReferenteDetailView"));
+const AdvisorScriptsApproval = lazy(() => import("@/pages/app/advisor/ScriptsApproval"));
 
 export default function App() {
   return (
@@ -123,6 +124,7 @@ export default function App() {
             <Route path="advisor" element={<RequireRole role="advisor" />}>
               <Route element={<AdvisorLayout />}>
                 <Route index element={<AdvisorDashboard />} />
+                <Route path="scripts" element={<AdvisorScriptsApproval />} />
                 <Route path="videos/:id" element={<VideoFeedback />} />
                 <Route path="formats" element={<FormatsView />} />
                 <Route path="referentes" element={<AdvisorReferentes />} />
