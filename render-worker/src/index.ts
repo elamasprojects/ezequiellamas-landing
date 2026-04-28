@@ -49,7 +49,7 @@ const RenderJobSchema = z.object({
       z.object({
         index: z.number().int().min(0).max(15),
         template: z.enum(["T1Cover", "T2Feature", "T3Grid", "T4VS", "T5CTA"]),
-        content: z.record(z.unknown()),
+        content: z.record(z.string(), z.unknown()),
         output_format: z.enum(["png", "mp4"]),
       }),
     )

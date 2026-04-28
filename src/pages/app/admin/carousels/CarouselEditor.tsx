@@ -11,6 +11,7 @@ import {
   Download,
   Film,
   Image as ImageIcon,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ import {
 import { buildSlideHtml } from "@/lib/carousel/render";
 import type { CarouselMode, CarouselTemplate, Slide } from "@/lib/carousel/types";
 import SlideEditor from "@/components/carousel/editors/SlideEditor";
+import CarouselPreviewDialog from "@/components/carousel/CarouselPreviewDialog";
 import { cn } from "@/lib/utils";
 
 const SLIDE_W = 1080;
@@ -60,6 +62,7 @@ export default function CarouselEditor() {
   const [saveState, setSaveState] = useState<Record<string, "idle" | "saving" | "saved">>({});
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenInstruction, setRegenInstruction] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -248,6 +251,18 @@ export default function CarouselEditor() {
           <StatusBadge status={status} />
           <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="text-[var(--ll-text-muted)]"
+            onClick={() => setPreviewOpen(true)}
+            disabled={localSlides.length === 0 || status === "generating"}
+            title="Preview tipo Instagram (← → para navegar)"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </Button>
+          <Button
+            type="button"
             variant="brand"
             size="sm"
             onClick={() => carousel && exportMutation.mutate(carousel.id)}
@@ -266,6 +281,13 @@ export default function CarouselEditor() {
           </Button>
         </div>
       </div>
+
+      <CarouselPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        slides={localSlides}
+        mode={mode}
+      />
 
       {/* Render progress strip */}
       {status === "rendering" && (

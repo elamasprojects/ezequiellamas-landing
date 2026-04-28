@@ -11,7 +11,7 @@
 # sandbox -- in Docker we ask Playwright where it installed its binary and
 # stash the path in /tmp/chromium.path so the runtime CMD reads it back.
 
-FROM node:22-bookworm-slim
+FROM node:20-bookworm-slim
 
 # System deps: FFmpeg for Hyperframes MP4 export, ca-certs for HTTPS, git in
 # case any npm dep needs it (rare). Keep image lean.
