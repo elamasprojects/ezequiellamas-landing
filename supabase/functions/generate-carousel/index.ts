@@ -27,6 +27,36 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Claude's tool_use input occasionally arrives with literal `\uXXXX` sequences
+// (6 chars: '\','u','0','0','e','1') instead of decoded characters (e.g. 'á').
+// Walk the parsed tool input and decode them so accented Spanish prose is
+// stored correctly. Handles surrogate pairs for non-BMP code points.
+function decodeUnicodeEscapes<T>(value: T): T {
+  if (typeof value === "string") {
+    return value
+      .replace(
+        /\\u([dD][89aAbB][0-9a-fA-F]{2})\\u([dD][c-fC-F][0-9a-fA-F]{2})/g,
+        (_m, hi, lo) =>
+          String.fromCharCode(parseInt(hi, 16), parseInt(lo, 16)),
+      )
+      .replace(
+        /\\u([0-9a-fA-F]{4})/g,
+        (_m, hex) => String.fromCharCode(parseInt(hex, 16)),
+      ) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => decodeUnicodeEscapes(v)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = decodeUnicodeEscapes(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 // ============================================================================
 // SYSTEM PROMPT v2.2 — single source of truth
 // ============================================================================
@@ -601,7 +631,7 @@ async function callClaude(userMessage: string): Promise<EmittedSlide[]> {
   if (!toolUse || !toolUse.input?.slides) {
     throw new Error("no_tool_use_in_response");
   }
-  return toolUse.input.slides as EmittedSlide[];
+  return decodeUnicodeEscapes(toolUse.input.slides as EmittedSlide[]);
 }
 
 function validateSlides(slides: unknown): EmittedSlide[] {

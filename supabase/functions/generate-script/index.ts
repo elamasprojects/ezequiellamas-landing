@@ -28,6 +28,36 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Claude's tool_use input occasionally arrives with literal `\uXXXX` sequences
+// (6 chars: '\','u','0','0','e','1') instead of decoded characters (e.g. 'á').
+// Walk the parsed tool input and decode them so accented Spanish prose is
+// stored correctly. Handles surrogate pairs for non-BMP code points.
+function decodeUnicodeEscapes<T>(value: T): T {
+  if (typeof value === "string") {
+    return value
+      .replace(
+        /\\u([dD][89aAbB][0-9a-fA-F]{2})\\u([dD][c-fC-F][0-9a-fA-F]{2})/g,
+        (_m, hi, lo) =>
+          String.fromCharCode(parseInt(hi, 16), parseInt(lo, 16)),
+      )
+      .replace(
+        /\\u([0-9a-fA-F]{4})/g,
+        (_m, hex) => String.fromCharCode(parseInt(hex, 16)),
+      ) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => decodeUnicodeEscapes(v)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = decodeUnicodeEscapes(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // Whisper transcription
 // ---------------------------------------------------------------------------
@@ -215,7 +245,7 @@ async function callClaude(
   if (!toolBlock?.input) {
     throw new Error("Claude did not return a submit_script tool_use block");
   }
-  return { result: toolBlock.input, usage: data.usage ?? {} };
+  return { result: decodeUnicodeEscapes(toolBlock.input), usage: data.usage ?? {} };
 }
 
 // ---------------------------------------------------------------------------
