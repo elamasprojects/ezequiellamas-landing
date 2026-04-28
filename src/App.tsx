@@ -41,6 +41,8 @@ const NewAssignment = lazy(() => import("@/pages/app/admin/assignments/NewAssign
 const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/AssignmentDetail"));
 const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesList"));
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
+const ReferentesList = lazy(() => import("@/pages/app/admin/referentes/ReferentesList"));
+const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/ReferenteDetail"));
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
@@ -52,9 +54,13 @@ const Connections = lazy(() => import("@/pages/app/admin/publishing/Connections"
 const EditorDashboard = lazy(() => import("@/pages/app/editor/EditorDashboard"));
 const AssignmentView = lazy(() => import("@/pages/app/editor/AssignmentView"));
 const Earnings = lazy(() => import("@/pages/app/editor/Earnings"));
+const EditorReferentes = lazy(() => import("@/pages/app/editor/ReferentesView"));
+const EditorReferenteDetail = lazy(() => import("@/pages/app/editor/ReferenteDetailView"));
 const AdvisorDashboard = lazy(() => import("@/pages/app/advisor/AdvisorDashboard"));
 const VideoFeedback = lazy(() => import("@/pages/app/advisor/VideoFeedback"));
 const FormatsView = lazy(() => import("@/pages/app/advisor/FormatsView"));
+const AdvisorReferentes = lazy(() => import("@/pages/app/advisor/ReferentesView"));
+const AdvisorReferenteDetail = lazy(() => import("@/pages/app/advisor/ReferenteDetailView"));
 
 export default function App() {
   return (
@@ -90,6 +96,8 @@ export default function App() {
                 <Route path="resources" element={<ResourcesList />} />
                 <Route path="resources/new" element={<ResourceEditor />} />
                 <Route path="resources/:id" element={<ResourceEditor />} />
+                <Route path="referentes" element={<ReferentesList />} />
+                <Route path="referentes/:id" element={<ReferenteDetail />} />
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
@@ -106,6 +114,8 @@ export default function App() {
               <Route element={<EditorLayout />}>
                 <Route index element={<EditorDashboard />} />
                 <Route path="earnings" element={<Earnings />} />
+                <Route path="referentes" element={<EditorReferentes />} />
+                <Route path="referentes/:id" element={<EditorReferenteDetail />} />
                 <Route path=":id" element={<AssignmentView />} />
               </Route>
             </Route>
@@ -115,6 +125,8 @@ export default function App() {
                 <Route index element={<AdvisorDashboard />} />
                 <Route path="videos/:id" element={<VideoFeedback />} />
                 <Route path="formats" element={<FormatsView />} />
+                <Route path="referentes" element={<AdvisorReferentes />} />
+                <Route path="referentes/:id" element={<AdvisorReferenteDetail />} />
               </Route>
             </Route>
           </Route>

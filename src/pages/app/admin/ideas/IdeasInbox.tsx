@@ -79,6 +79,20 @@ export default function IdeasInbox() {
   );
 }
 
+const BUCKET_CHIP_LABELS: Record<string, string> = {
+  negocios: "Negocios",
+  sistemas: "Sistemas",
+  ia_estrategica: "IA",
+  finanzas: "Finanzas",
+  mentalidad: "Mentalidad",
+};
+
+const AVATAR_CHIP_LABELS: Record<string, string> = {
+  newbie: "Newbie",
+  owner: "Owner",
+  developer: "Developer",
+};
+
 function ScriptRow({ script }: { script: Script }) {
   return (
     <li>
@@ -98,6 +112,26 @@ function ScriptRow({ script }: { script: Script }) {
               >
                 {script.hook}
               </p>
+            )}
+            {(script.content_bucket || script.avatar_target) && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {script.content_bucket && (
+                  <span
+                    className="rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+                  >
+                    {BUCKET_CHIP_LABELS[script.content_bucket] ?? script.content_bucket}
+                  </span>
+                )}
+                {script.avatar_target && (
+                  <span
+                    className="rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-muted)" }}
+                  >
+                    {AVATAR_CHIP_LABELS[script.avatar_target] ?? script.avatar_target}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div className="text-right">

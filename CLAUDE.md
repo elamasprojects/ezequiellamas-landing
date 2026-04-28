@@ -80,14 +80,18 @@ Local: `.env.local` (gitignored). Template: `.env.example`. On Vercel: set both 
 | `/` | Landing (Spanish, bespoke aesthetic) | public |
 | `/login`, `/auth/callback` | Magic-link auth scaffold | public |
 | `/app` | Auth gate + role-based redirect | session required |
-| `/app/admin/*` | Admin area (dashboard, ideas, formats, videos, calendar, publishing, assignments, resources, carousels, team) | requires `admin` role |
+| `/app/admin/*` | Admin area (dashboard, ideas, formats, videos, calendar, publishing, assignments, resources, referentes, carousels, team) | requires `admin` role |
 | `/app/admin/publishing` | Lista de scheduled posts con filtros | admin |
 | `/app/admin/publishing/new` | Form para programar publicación (video o carrousel) | admin |
 | `/app/admin/publishing/calendar` | Calendario mensual de publicaciones programadas | admin |
 | `/app/admin/publishing/connections` | OAuth connect/disconnect IG/YT/TT + push permission | admin |
 | `/app/admin/publishing/:id` | Detalle del scheduled_post + jobs por plataforma + acciones (cancelar, retry, mark-tt-done) | admin |
-| `/app/editor/*` | Editor area (assignment queue, earnings) | requires `editor` role |
-| `/app/advisor/*` | Asesor area (videos to review, formats) | requires `advisor` role |
+| `/app/admin/referentes` | (M14) Lista de creators de inspiración (CRUD admin) | admin |
+| `/app/admin/referentes/:id` | (M14) Detalle del referente: links, nota, grid de virales scrapeados con análisis IA (transcript + concept_summary) | admin |
+| `/app/editor/*` | Editor area (assignment queue, earnings, referentes read-only) | requires `editor` role |
+| `/app/editor/referentes`, `/app/editor/referentes/:id` | (M14) Read-only de los referentes del admin (mismo grid de virales con guion + concepto) | editor |
+| `/app/advisor/*` | Asesor area (videos to review, formats, referentes read-only) | requires `advisor` role |
+| `/app/advisor/referentes`, `/app/advisor/referentes/:id` | (M14) Read-only de los referentes del admin asignado | advisor |
 | `/recursos`, `/recursos/:slug` | Public resource library (DB-backed once SPEC lands) | public |
 | `/eventos/*` | Static HTML decks, served from `public/eventos/...` | public |
 
@@ -130,6 +134,8 @@ Migrations applied (in order):
 | `m12_publishing_bunny_stream` | M12 | Reemplaza Supabase Storage por **Bunny Stream** para uploads de videos en `scheduled_posts`. Agrega `bunny_video_id` + `bunny_library_id` columnas. Cambia el CHECK constraint: video kind ahora requiere `bunny_video_id` (en vez de `video_storage_path`). `video_storage_path` queda nullable y deprecated. Index parcial en `bunny_video_id` para lookups rápidos. |
 | `m13_publishing_transcript` | M13 | Agrega columnas `transcript`, `transcript_language`, `transcript_status`, `transcript_error` a `scheduled_posts`. Cache del transcript de Whisper para que `generate-captions` no re-pague Whisper en cada regeneración. `transcript_status` valores: `idle | pending | done | failed | too_large`. Index parcial en `pending`. |
 | `m10_publish_jobs_owner_write_policies` | M10 patch | Agrega INSERT y UPDATE RLS policies a `publish_jobs` (owner del parent `scheduled_post`). M10 original solo tenía SELECT, lo que rompía el create-scheduled-post flow desde el cliente y `markJobPublished` (TikTok Upload Mode + Manual). DELETE no hace falta porque el FK es ON DELETE CASCADE. |
+| `m14_referents` | M14 | `referents` (banco de creators inspiración). Columnas: `name`, `note`, `instagram_url/handle`, `youtube_url/handle`, `tiktok_url/handle`, `position`, `last_scraped_at`, `last_scrape_error`. CHECK: al menos un URL. RLS triple — admin manages own; editor lee todos vía `has_role('editor')`; advisor lee vía `advisor_assignments` activo (mismo patrón que `formats`). Trigger `set_updated_at`. |
+| `m14b_referent_videos` | M14b | `referent_videos` (videos virales scrapeados de los referentes). FK a `referents` con `on delete cascade`. Reusa enum `video_platform`. Columnas de scrape (`source_url`, `apify_short_code`, `posted_at`, `title`, `caption`, `thumbnail_url`, `views_total`, `likes`, `comments`, `shares`, `saves`, `video_duration`, `raw`, `last_scraped_at`, `metrics_updated_at`) + columnas de análisis IA (`transcript`, `transcript_language`, `transcript_status`, `transcript_error`, `concept_summary`, `concept_status`, `concept_error`). Indexes: unique `(referent_id, source_url)`, unique parcial `(referent_id, platform, apify_short_code)`, btree `(referent_id, views_total desc)`. RLS triple igual que `referents`. |
 
 Buckets:
 
@@ -177,6 +183,8 @@ Deployed via `mcp__e44037be-...__deploy_edge_function({ project_id: "zsbligbfsmd
 | `send-push` | NO (service-role only) | (M10) Recibe `{ user_id, title, body, url? }`. Verifica que el caller sea service-role (bearer o apikey). Lee `web_push_subscriptions` del user, manda con `npm:web-push@3.6.7` usando VAPID. Cleanup automático de 404/410 (suscripciones expiradas). |
 | `scheduler-tick` | NO (service-role only) | (M10/M11) Invocado cada minuto por `pg_cron` vía `dispatch_scheduler_tick()`. (1) Manda recordatorios T-30min (insert `notifications` + push, dedupe por `pub:remind:{post_id}`). (2) Selecciona `scheduled_posts` con `scheduled_at <= now()` y `status='scheduled'`, hace CAS a `publishing` (atomic), invoca `publish-now` por cada uno. (3) Cleanup de `oauth_states` expirados via RPC. |
 | ~~`scrape-instagram-video`~~ | yes | **Deprecated** (reemplazada por `scrape-video`). Sigue desplegada pero ya no se llama desde el cliente. Borrarla manualmente desde el dashboard de Supabase cuando se quiera limpiar. |
+| `scrape-referent-videos` | yes | (M14) Apify multi-plataforma para referentes. Recibe `{ referent_id }`. Lee `referents` row (RLS valida ownership), llama Apify por cada handle no-null (`apify~instagram-scraper`, `streamers~youtube-scraper` con `subtitles: true`, `clockworks~tiktok-scraper`). Upsert en `referent_videos` por `(referent_id, source_url)`. Stampa `last_scraped_at` + `last_scrape_error` en `referents`. Devuelve `{ ok, scraped: { instagram, youtube, tiktok }, errors[] }`. **No hace cross-platform fuzzy merge** (cada video del referente es independiente). Reusa `callApify`/`stripHandle`/etc de `discover-and-import-videos`. |
+| `analyze-referent-video` | yes | (M14) Toma un `referent_videos` row y le saca transcript + concept_summary. Recibe `{ referent_video_id, force? }`. Si `transcript_status='done'` y `concept_status='done'` y `!force` → devuelve cached. Si no: marca `pending`, calcula transcript (YT: parsea SRT del `raw.subtitles[]` con prioridad `es-auto > es > any-auto`; IG: descarga `raw.audioUrl`; TT: descarga `raw.videoUrl`/`mediaUrls[0]`/`videoMeta.playApi`). Si >25MB Whisper rechaza con 422. Manda audio a OpenAI Whisper-1 con `response_format=verbose_json`. Cachea transcript. Después llama Claude Sonnet 4.6 con tool `emit_concept` (schema: `hook, format, angle, cta, summary`); guarda `concept_summary`. En errores marca `*_status='failed'` + `*_error=msg`. |
 
 Custom secrets needed:
 

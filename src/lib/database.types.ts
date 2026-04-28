@@ -693,6 +693,158 @@ export type Database = {
           },
         ]
       }
+      referent_videos: {
+        Row: {
+          apify_short_code: string | null
+          caption: string | null
+          comments: number | null
+          concept_error: string | null
+          concept_status: string
+          concept_summary: string | null
+          created_at: string
+          id: string
+          last_scraped_at: string | null
+          likes: number | null
+          metrics_updated_at: string | null
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at: string | null
+          raw: Json | null
+          referent_id: string
+          saves: number | null
+          shares: number | null
+          source_url: string
+          thumbnail_url: string | null
+          title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
+          updated_at: string
+          video_duration: number | null
+          views_total: number | null
+        }
+        Insert: {
+          apify_short_code?: string | null
+          caption?: string | null
+          comments?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          created_at?: string
+          id?: string
+          last_scraped_at?: string | null
+          likes?: number | null
+          metrics_updated_at?: string | null
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          referent_id: string
+          saves?: number | null
+          shares?: number | null
+          source_url: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          video_duration?: number | null
+          views_total?: number | null
+        }
+        Update: {
+          apify_short_code?: string | null
+          caption?: string | null
+          comments?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          created_at?: string
+          id?: string
+          last_scraped_at?: string | null
+          likes?: number | null
+          metrics_updated_at?: string | null
+          platform?: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          referent_id?: string
+          saves?: number | null
+          shares?: number | null
+          source_url?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          video_duration?: number | null
+          views_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referent_videos_referent_id_fkey"
+            columns: ["referent_id"]
+            isOneToOne: false
+            referencedRelation: "referents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referents: {
+        Row: {
+          created_at: string
+          id: string
+          instagram_handle: string | null
+          instagram_url: string | null
+          last_scrape_error: string | null
+          last_scraped_at: string | null
+          name: string
+          note: string | null
+          owner_id: string
+          position: number
+          tiktok_handle: string | null
+          tiktok_url: string | null
+          updated_at: string
+          youtube_handle: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instagram_handle?: string | null
+          instagram_url?: string | null
+          last_scrape_error?: string | null
+          last_scraped_at?: string | null
+          name: string
+          note?: string | null
+          owner_id: string
+          position?: number
+          tiktok_handle?: string | null
+          tiktok_url?: string | null
+          updated_at?: string
+          youtube_handle?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instagram_handle?: string | null
+          instagram_url?: string | null
+          last_scrape_error?: string | null
+          last_scraped_at?: string | null
+          name?: string
+          note?: string | null
+          owner_id?: string
+          position?: number
+          tiktok_handle?: string | null
+          tiktok_url?: string | null
+          updated_at?: string
+          youtube_handle?: string | null
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
       resources: {
         Row: {
           cover_image_url: string | null
@@ -852,61 +1004,109 @@ export type Database = {
         Row: {
           ai_summary: string | null
           audio_upload_id: string | null
+          avatar_target: string | null
+          caption: string | null
+          content_bucket: string | null
           created_at: string
           cta: string | null
           development: string | null
           estimated_wpm: number | null
           format_id: string | null
           generated_script: string | null
+          generation_warning: string | null
+          hashtags: string[]
           hook: string | null
+          hook_alternatives: string[]
+          hook_reference: string | null
           id: string
+          mental_model: string | null
+          on_screen_text: string | null
           owner_id: string
+          platform_codes: string[]
           raw_concept: string | null
           scheduled_at: string | null
+          seo_keywords: string[]
           status: string
+          storytelling_conflict: string | null
+          storytelling_resolution: string | null
+          storytelling_setup: string | null
           title: string | null
           tone: string | null
           updated_at: string
+          visual_hook_format: number | null
+          why_it_works: string | null
           word_count: number | null
         }
         Insert: {
           ai_summary?: string | null
           audio_upload_id?: string | null
+          avatar_target?: string | null
+          caption?: string | null
+          content_bucket?: string | null
           created_at?: string
           cta?: string | null
           development?: string | null
           estimated_wpm?: number | null
           format_id?: string | null
           generated_script?: string | null
+          generation_warning?: string | null
+          hashtags?: string[]
           hook?: string | null
+          hook_alternatives?: string[]
+          hook_reference?: string | null
           id?: string
+          mental_model?: string | null
+          on_screen_text?: string | null
           owner_id: string
+          platform_codes?: string[]
           raw_concept?: string | null
           scheduled_at?: string | null
+          seo_keywords?: string[]
           status?: string
+          storytelling_conflict?: string | null
+          storytelling_resolution?: string | null
+          storytelling_setup?: string | null
           title?: string | null
           tone?: string | null
           updated_at?: string
+          visual_hook_format?: number | null
+          why_it_works?: string | null
           word_count?: number | null
         }
         Update: {
           ai_summary?: string | null
           audio_upload_id?: string | null
+          avatar_target?: string | null
+          caption?: string | null
+          content_bucket?: string | null
           created_at?: string
           cta?: string | null
           development?: string | null
           estimated_wpm?: number | null
           format_id?: string | null
           generated_script?: string | null
+          generation_warning?: string | null
+          hashtags?: string[]
           hook?: string | null
+          hook_alternatives?: string[]
+          hook_reference?: string | null
           id?: string
+          mental_model?: string | null
+          on_screen_text?: string | null
           owner_id?: string
+          platform_codes?: string[]
           raw_concept?: string | null
           scheduled_at?: string | null
+          seo_keywords?: string[]
           status?: string
+          storytelling_conflict?: string | null
+          storytelling_resolution?: string | null
+          storytelling_setup?: string | null
           title?: string | null
           tone?: string | null
           updated_at?: string
+          visual_hook_format?: number | null
+          why_it_works?: string | null
           word_count?: number | null
         }
         Relationships: [
@@ -1363,20 +1563,37 @@ export type Database = {
         Args: {
           _ai_summary: string
           _audio_upload_id: string
+          _avatar_target?: string
           _brolls: Json
+          _caption?: string
+          _content_bucket?: string
           _cta: string
           _development: string
           _estimated_wpm: number
           _format_id: string
           _generated_script: string
+          _generation_warning?: string
+          _hashtags?: string[]
           _hook: string
+          _hook_alternatives?: string[]
+          _hook_reference?: string
+          _mental_model?: string
+          _on_screen_text?: string
+          _platform_codes?: string[]
           _raw_concept: string
+          _seo_keywords?: string[]
+          _storytelling_conflict?: string
+          _storytelling_resolution?: string
+          _storytelling_setup?: string
           _title: string
           _tone: string
+          _visual_hook_format?: number
+          _why_it_works?: string
           _word_count: number
         }
         Returns: string
       }
+      dispatch_scheduler_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
