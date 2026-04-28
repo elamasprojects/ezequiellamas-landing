@@ -9,7 +9,12 @@
  *  - "animated": produces a Hyperframes-compatible page with `data-composition-id`,
  *              local GSAP, and a per-slide timeline. Used ONLY for MP4 renders.
  *
- * Both produce a complete <!doctype html> document. Editor iframes inject via srcdoc.
+ * Each slide renders inside a per-carousel `design_format` (Diario / Punk /
+ * Minimalista / Tech / Esquemas / …). The format contributes design tokens
+ * (colors, font stacks), format-specific CSS, optional ornaments and a
+ * Google Fonts URL. The 5 structural templates (T1Cover…T5CTA) read
+ * everything via CSS custom properties, so the same slide content paints
+ * differently per format with no template duplication.
  */
 
 import type {
@@ -23,8 +28,8 @@ import type {
   T4VSContent,
   T5CTAContent,
 } from "./types";
-import { CAROUSEL_CSS } from "./design-tokens";
-import { GOOGLE_FONTS_LINK } from "./fonts";
+import { BASE_CAROUSEL_CSS, SLIDE_WIDTH, SLIDE_HEIGHT } from "./design-tokens";
+import { getFormat, tokensToCssVars, type FormatSlug } from "./formats";
 import { renderT1Cover } from "./templates/t1_cover";
 import { renderT2Feature } from "./templates/t2_feature";
 import { renderT3Grid } from "./templates/t3_grid";
@@ -78,6 +83,13 @@ export function timelineFor(template: CarouselTemplate): { js: string; duration:
 interface BuildSlideOpts extends RenderOpts {
   index: number;          // 0-based slide index
   outputMode: CarouselMode; // "static" or "animated" (final output target)
+  format: FormatSlug;     // design system to apply (e.g. "diario", "punk", …)
+}
+
+function fontsLink(href: string): string {
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="${href}" rel="stylesheet">`;
 }
 
 /**
@@ -88,9 +100,15 @@ interface BuildSlideOpts extends RenderOpts {
  *   and includes <script src="./gsap.min.js"> (LOCAL, not CDN -- v2.2 §7 critical rule).
  */
 export function buildSlideHtml(slide: Slide, opts: BuildSlideOpts): string {
-  const { totalSlides, mode: _mode, handle = DEFAULT_HANDLE, index, outputMode } = opts;
+  const { totalSlides, mode: _mode, handle = DEFAULT_HANDLE, index, outputMode, format } = opts;
   const isLast = index === totalSlides - 1;
   const slideNumber = index + 1;
+
+  const fmt = getFormat(format);
+  const tokensCss = tokensToCssVars(format);
+  const formatCss = fmt.css;
+  const ornaments = fmt.ornaments;
+  const fonts = fontsLink(fmt.fontsUrl);
 
   const body = renderTemplate(slide.template, slide.content);
   const topbar = `
@@ -103,16 +121,17 @@ export function buildSlideHtml(slide: Slide, opts: BuildSlideOpts): string {
 
   if (outputMode === "static") {
     return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-format="${format}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1080, initial-scale=1">
+  <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
   <title>Slide ${slideNumber}</title>
-  ${GOOGLE_FONTS_LINK}
-  <style>${CAROUSEL_CSS}</style>
+  ${fonts}
+  <style>${tokensCss}${BASE_CAROUSEL_CSS}${formatCss}</style>
 </head>
 <body>
   <section class="slide">
+    ${ornaments}
     ${topbar}
     ${body}
     ${footer}
@@ -125,22 +144,23 @@ export function buildSlideHtml(slide: Slide, opts: BuildSlideOpts): string {
   const { js: timelineJs, duration } = timelineFor(slide.template);
 
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-format="${format}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1080, initial-scale=1">
+  <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
   <title>Slide ${slideNumber}</title>
-  ${GOOGLE_FONTS_LINK}
+  ${fonts}
   <script src="./gsap.min.js"></script>
-  <style>${CAROUSEL_CSS}
-    [data-composition-id]{ position: relative; width: 1080px; height: 1350px; overflow: hidden; }
+  <style>${tokensCss}${BASE_CAROUSEL_CSS}${formatCss}
+    [data-composition-id]{ position: relative; width: ${SLIDE_WIDTH}px; height: ${SLIDE_HEIGHT}px; overflow: hidden; }
   </style>
 </head>
 <body>
   <div data-composition-id="slide-${slideNumber}"
-       data-width="1080" data-height="1350"
+       data-width="${SLIDE_WIDTH}" data-height="${SLIDE_HEIGHT}"
        data-start="0" data-duration="${duration}">
     <section class="slide">
+      ${ornaments}
       ${topbar}
       ${body}
       ${footer}
@@ -164,8 +184,15 @@ export function buildSlideHtml(slide: Slide, opts: BuildSlideOpts): string {
  * Each slide is wrapped in a <section class="slide"> at native 1080x1350.
  * Useful for: dev visual review, side-by-side spec compliance check.
  */
-export function buildCarouselTestHtml(slides: Slide[], handle = DEFAULT_HANDLE): string {
+export function buildCarouselTestHtml(
+  slides: Slide[],
+  format: FormatSlug,
+  handle = DEFAULT_HANDLE,
+): string {
   const total = slides.length;
+  const fmt = getFormat(format);
+  const tokensCss = tokensToCssVars(format);
+  const fonts = fontsLink(fmt.fontsUrl);
 
   const sections = slides
     .map((s, i) => {
@@ -174,6 +201,7 @@ export function buildCarouselTestHtml(slides: Slide[], handle = DEFAULT_HANDLE):
       const slideNumber = i + 1;
       return `
         <section class="slide">
+          ${fmt.ornaments}
           <header class="topbar">
             <span>${handle}</span>
             <span>${slideNumber}/${total}</span>
@@ -186,13 +214,13 @@ export function buildCarouselTestHtml(slides: Slide[], handle = DEFAULT_HANDLE):
     .join('<div class="slide-gap"></div>');
 
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-format="${format}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1080, initial-scale=1">
+  <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
   <title>Carousel test — ${total} slides</title>
-  ${GOOGLE_FONTS_LINK}
-  <style>${CAROUSEL_CSS}
+  ${fonts}
+  <style>${tokensCss}${BASE_CAROUSEL_CSS}${fmt.css}
     html, body { width: auto; height: auto; }
     body { padding: 40px; background: #1a1a1a; }
     .slide-gap { height: 40px; }

@@ -41,11 +41,11 @@ export function renderT5CTA(content: T5CTAContent): string {
   .cta-sub strong { color: var(--text); font-weight: 600; }
 
   .cta-keyword {
-    font-family: 'Playfair Display', 'Georgia', serif;
+    font-family: var(--font-punch);
     font-style: italic;
     font-weight: 700;
     color: var(--accent);
-    filter: drop-shadow(0 0 32px rgba(139,92,246,0.65));
+    filter: var(--accent-glow);
     font-size: 140px;
     line-height: 1.0;
     letter-spacing: -0.03em;
@@ -67,7 +67,7 @@ export function renderT5CTA(content: T5CTAContent): string {
     border: 1px solid var(--accent-border);
     background: var(--accent-fill);
     border-radius: 999px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     font-weight: 600;
     color: var(--accent);
@@ -90,7 +90,7 @@ export function renderT5CTA(content: T5CTAContent): string {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), #6d28d9);
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
     flex-shrink: 0;
   }
   .cta-signature-text {

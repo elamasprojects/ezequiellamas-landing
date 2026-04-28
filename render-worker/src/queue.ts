@@ -9,12 +9,14 @@ import { renderPng, renderMp4 } from "./render.js";
 import { uploadSlide } from "./upload.js";
 import { callback } from "./callback.js";
 import type { Slide, CarouselTemplate } from "../../src/lib/carousel/types";
+import type { FormatSlug } from "../../src/lib/carousel/formats";
 
 export interface RenderJobInput {
   job_id: string;
   carousel_id: string;
   owner_id: string;
   mode: "static" | "animated";
+  design_format: FormatSlug;
   slides: Array<{
     index: number;
     template: CarouselTemplate;
@@ -24,7 +26,7 @@ export interface RenderJobInput {
 }
 
 export async function processRenderJob(input: RenderJobInput): Promise<void> {
-  const { job_id, carousel_id, owner_id, slides } = input;
+  const { job_id, carousel_id, owner_id, slides, design_format } = input;
   const totalSlides = slides.length;
   let hadError = false;
 
@@ -38,8 +40,8 @@ export async function processRenderJob(input: RenderJobInput): Promise<void> {
     try {
       const buffer =
         item.output_format === "mp4"
-          ? await renderMp4({ slide, totalSlides })
-          : await renderPng({ slide, totalSlides });
+          ? await renderMp4({ slide, totalSlides, design_format })
+          : await renderPng({ slide, totalSlides, design_format });
 
       const rendered_path = await uploadSlide({
         ownerId: owner_id,

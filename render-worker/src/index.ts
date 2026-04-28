@@ -44,6 +44,13 @@ const RenderJobSchema = z.object({
   carousel_id: z.string().uuid(),
   owner_id: z.string().uuid(),
   mode: z.enum(["static", "animated"]),
+  design_format: z.enum([
+    "diario",
+    "punk",
+    "minimalista",
+    "tech",
+    "esquemas",
+  ]),
   slides: z
     .array(
       z.object({

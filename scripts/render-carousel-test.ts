@@ -31,8 +31,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, "..", "tmp", "carousel-test");
 mkdirSync(outDir, { recursive: true });
 
+// Default format for the test fixture. Override with FORMAT=punk (or any slug)
+// when running the script: `FORMAT=punk npx tsx scripts/render-carousel-test.ts`.
+const TEST_FORMAT =
+  (process.env.FORMAT as
+    | "diario"
+    | "punk"
+    | "minimalista"
+    | "tech"
+    | "esquemas"
+    | undefined) ?? "tech";
+
 // 1. Stacked-vertical view for visual review
-const stacked = buildCarouselTestHtml(SAMPLE_SLIDES);
+const stacked = buildCarouselTestHtml(SAMPLE_SLIDES, TEST_FORMAT);
 writeFileSync(resolve(outDir, "index.html"), stacked, "utf-8");
 
 // 2. One static HTML per slide (matches editor iframe srcdoc input)
@@ -42,6 +53,7 @@ for (const slide of SAMPLE_SLIDES) {
     mode: "static",
     index: slide.index,
     outputMode: "static",
+    format: TEST_FORMAT,
   });
   const n = String(slide.index + 1).padStart(2, "0");
   writeFileSync(resolve(outDir, `slide_${n}.html`), html, "utf-8");

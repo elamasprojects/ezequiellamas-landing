@@ -57,13 +57,16 @@ Deno.serve(async (req: Request) => {
   // 1) Load carousel + slides via JWT-bound client (RLS scopes to owner)
   const { data: carousel, error: cErr } = await userClient
     .from("carousels")
-    .select("id, owner_id, mode, status")
+    .select("id, owner_id, mode, status, design_format")
     .eq("id", carousel_id)
     .maybeSingle();
   if (cErr) return json({ error: "load_failed", detail: cErr.message }, 500);
   if (!carousel) return json({ error: "carousel_not_found" }, 404);
   if (carousel.status === "rendering") {
     return json({ error: "already_rendering" }, 409);
+  }
+  if (!carousel.design_format) {
+    return json({ error: "missing_design_format" }, 400);
   }
 
   const { data: slides, error: sErr } = await userClient
@@ -121,6 +124,7 @@ Deno.serve(async (req: Request) => {
     carousel_id,
     owner_id: carousel.owner_id,
     mode,
+    design_format: carousel.design_format,
     slides: workerSlides,
   };
   const rawBody = JSON.stringify(workerBody);

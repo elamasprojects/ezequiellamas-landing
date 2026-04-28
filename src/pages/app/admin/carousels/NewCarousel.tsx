@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,8 @@ import {
   type CarouselMode,
   type GenerateCarouselInput,
 } from "@/lib/api/carousels";
+import { FORMAT_LIST, type FormatSlug } from "@/lib/carousel/formats";
+import { cn } from "@/lib/utils";
 
 const HOOK_ANGLES = [
   { value: "auto", label: "Que decida la IA" },
@@ -40,10 +42,12 @@ const SLIDE_COUNTS = [
 export default function NewCarousel() {
   const navigate = useNavigate();
   const [concept, setConcept] = useState("");
+  const [designFormat, setDesignFormat] = useState<FormatSlug | null>(null);
   const [slideCount, setSlideCount] = useState("auto");
   const [hookAngle, setHookAngle] = useState("auto");
   const [ctaKeyword, setCtaKeyword] = useState("");
-  const [mode, setMode] = useState<CarouselMode>("static");
+  // M15 MVP: only static. Animated requires per-format GSAP timelines (out of scope).
+  const mode: CarouselMode = "static";
 
   const mutation = useMutation({
     mutationFn: (input: GenerateCarouselInput) => generateCarousel(input),
@@ -60,8 +64,13 @@ export default function NewCarousel() {
       toast.error("El concepto necesita al menos 10 caracteres");
       return;
     }
+    if (!designFormat) {
+      toast.error("Elegí un formato visual");
+      return;
+    }
     mutation.mutate({
       concept: concept.trim(),
+      design_format: designFormat,
       slide_count: slideCount === "auto" ? undefined : Number(slideCount),
       hook_angle:
         hookAngle === "auto"
@@ -73,7 +82,7 @@ export default function NewCarousel() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <Button
           asChild
@@ -108,76 +117,192 @@ export default function NewCarousel() {
           ¿Sobre qué <em style={{ color: "var(--ll-warm)" }}>tema</em>?
         </h1>
         <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Pegá tu concepto en 1-3 líneas. La IA elige los templates y escribe
-          cada slide siguiendo tu voz y la estética del brand.
+          Pegá tu concepto, elegí un formato visual y la IA escribe cada slide
+          siguiendo tu voz.
         </p>
       </header>
 
-      <form
-        onSubmit={onSubmit}
-        className="space-y-5 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-6"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="concept" style={{ color: "var(--ll-text-muted)" }}>
-            Concepto
-          </Label>
-          <Textarea
-            id="concept"
-            required
-            autoFocus
-            placeholder="Ej: cómo armé el sistema de UGC scripts que escala a 100 clientes sin pagar fees"
-            value={concept}
-            onChange={(e) => setConcept(e.target.value)}
-            rows={5}
-            className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
-          />
-          <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
-            Más contexto = mejores slides. Mencioná números, tools, learnings
-            específicos.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label style={{ color: "var(--ll-text-muted)" }}>
-              Cantidad de slides
+      <form onSubmit={onSubmit} className="space-y-6">
+        {/* Step 1: format selector */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <Label
+              className="text-sm"
+              style={{ color: "var(--ll-text)" }}
+            >
+              <span
+                className="mr-2"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: "var(--ll-accent)",
+                }}
+              >
+                01
+              </span>
+              Formato visual
             </Label>
-            <Select value={slideCount} onValueChange={setSlideCount}>
-              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
-                {SLIDE_COUNTS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {designFormat && (
+              <span
+                className="text-xs"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: "var(--ll-text-muted)",
+                }}
+              >
+                {FORMAT_LIST.find((f) => f.slug === designFormat)?.name}
+              </span>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label style={{ color: "var(--ll-text-muted)" }}>
-              Ángulo del hook
-            </Label>
-            <Select value={hookAngle} onValueChange={setHookAngle}>
-              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
-                {HOOK_ANGLES.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {FORMAT_LIST.map((fmt) => {
+              const selected = designFormat === fmt.slug;
+              return (
+                <button
+                  type="button"
+                  key={fmt.slug}
+                  onClick={() => setDesignFormat(fmt.slug)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "group relative overflow-hidden rounded-lg border bg-[var(--ll-surface)] text-left transition-all",
+                    selected
+                      ? "border-[var(--ll-accent)] ring-2 ring-[var(--ll-accent)]/30"
+                      : "border-[var(--ll-border)] hover:border-[var(--ll-border-strong)] hover:bg-[var(--ll-surface-2)]",
+                  )}
+                >
+                  <div
+                    className="aspect-[4/5] w-full overflow-hidden bg-black"
+                    style={{ borderBottom: "1px solid var(--ll-border)" }}
+                  >
+                    <img
+                      src={`/carousel-format-previews/${fmt.slug}.webp`}
+                      alt={`Formato ${fmt.name}`}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // Fallback if preview asset is missing
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--ll-text)" }}
+                      >
+                        {fmt.name}
+                      </div>
+                      {selected && (
+                        <Check className="h-4 w-4 text-[var(--ll-accent)]" />
+                      )}
+                    </div>
+                    <div
+                      className="text-xs leading-tight"
+                      style={{ color: "var(--ll-text-muted)" }}
+                    >
+                      {fmt.tagline}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        </div>
+          {designFormat && (
+            <p
+              className="text-xs"
+              style={{ color: "var(--ll-text-dim)" }}
+            >
+              {FORMAT_LIST.find((f) => f.slug === designFormat)?.description}
+            </p>
+          )}
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Step 2: concept + options */}
+        <section
+          className="space-y-5 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-6"
+          aria-disabled={!designFormat}
+          style={{ opacity: designFormat ? 1 : 0.5 }}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="concept" style={{ color: "var(--ll-text)" }}>
+              <span
+                className="mr-2"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: "var(--ll-accent)",
+                }}
+              >
+                02
+              </span>
+              Concepto
+            </Label>
+            <Textarea
+              id="concept"
+              required
+              autoFocus
+              placeholder="Ej: cómo armé el sistema de UGC scripts que escala a 100 clientes sin pagar fees"
+              value={concept}
+              onChange={(e) => setConcept(e.target.value)}
+              rows={5}
+              disabled={!designFormat}
+              className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+            />
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Más contexto = mejores slides. Mencioná números, tools, learnings
+              específicos.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label style={{ color: "var(--ll-text-muted)" }}>
+                Cantidad de slides
+              </Label>
+              <Select
+                value={slideCount}
+                onValueChange={setSlideCount}
+                disabled={!designFormat}
+              >
+                <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                  {SLIDE_COUNTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label style={{ color: "var(--ll-text-muted)" }}>
+                Ángulo del hook
+              </Label>
+              <Select
+                value={hookAngle}
+                onValueChange={setHookAngle}
+                disabled={!designFormat}
+              >
+                <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                  {HOOK_ANGLES.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="cta" style={{ color: "var(--ll-text-muted)" }}>
-              Keyword del CTA <span style={{ color: "var(--ll-text-dim)" }}>(opcional)</span>
+              Keyword del CTA{" "}
+              <span style={{ color: "var(--ll-text-dim)" }}>(opcional)</span>
             </Label>
             <Input
               id="cta"
@@ -185,61 +310,42 @@ export default function NewCarousel() {
               value={ctaKeyword}
               onChange={(e) => setCtaKeyword(e.target.value.toUpperCase())}
               maxLength={20}
+              disabled={!designFormat}
               className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 letterSpacing: "0.05em",
               }}
             />
-          </div>
-          <div className="space-y-2">
-            <Label style={{ color: "var(--ll-text-muted)" }}>Modo</Label>
-            <div
-              role="radiogroup"
-              className="grid grid-cols-2 gap-1 rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] p-1"
-            >
-              {(["static", "animated"] as const).map((m) => (
-                <button
-                  type="button"
-                  key={m}
-                  role="radio"
-                  aria-checked={mode === m}
-                  onClick={() => setMode(m)}
-                  className={
-                    mode === m
-                      ? "rounded bg-[var(--ll-accent)] px-3 py-1.5 text-sm font-medium text-black"
-                      : "rounded px-3 py-1.5 text-sm text-[var(--ll-text-muted)] hover:text-[var(--ll-text)]"
-                  }
-                >
-                  {m === "static" ? "Estático (PNG)" : "Animado (MP4)"}
-                </button>
-              ))}
-            </div>
             <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
-              Animado: slides 1, 3 y 5 se exportan como MP4 con animaciones GSAP.
-              El resto, PNG.
+              Por ahora solo modo estático (PNG). Animado/MP4 viene cuando cada
+              formato tenga sus timelines.
             </p>
           </div>
-        </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            asChild
-            disabled={mutation.isPending}
-          >
-            <Link to="/app/admin/carousels">Cancelar</Link>
-          </Button>
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={mutation.isPending || concept.trim().length < 10}
-          >
-            <Sparkles className="h-4 w-4" />
-            {mutation.isPending ? "Generando…" : "Generar carrusel"}
-          </Button>
-        </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              asChild
+              disabled={mutation.isPending}
+            >
+              <Link to="/app/admin/carousels">Cancelar</Link>
+            </Button>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={
+                mutation.isPending ||
+                concept.trim().length < 10 ||
+                !designFormat
+              }
+            >
+              <Sparkles className="h-4 w-4" />
+              {mutation.isPending ? "Generando…" : "Generar carrusel"}
+            </Button>
+          </div>
+        </section>
       </form>
     </div>
   );

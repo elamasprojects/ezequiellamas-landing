@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildSlideHtml } from "../../src/lib/carousel/render";
 import type { Slide } from "../../src/lib/carousel/types";
+import type { FormatSlug } from "../../src/lib/carousel/formats";
 
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
@@ -40,12 +41,14 @@ export async function shutdownBrowser(): Promise<void> {
 export async function renderPng(opts: {
   slide: Slide;
   totalSlides: number;
+  design_format: FormatSlug;
 }): Promise<Buffer> {
   const html = buildSlideHtml(opts.slide, {
     totalSlides: opts.totalSlides,
     mode: "static",
     index: opts.slide.index,
     outputMode: "static",
+    format: opts.design_format,
   });
 
   const browser = await getBrowser();
@@ -71,12 +74,14 @@ export async function renderPng(opts: {
 export async function renderMp4(opts: {
   slide: Slide;
   totalSlides: number;
+  design_format: FormatSlug;
 }): Promise<Buffer> {
   const html = buildSlideHtml(opts.slide, {
     totalSlides: opts.totalSlides,
     mode: "animated",
     index: opts.slide.index,
     outputMode: "animated",
+    format: opts.design_format,
   });
 
   const tmpDir = await mkdtemp(join(tmpdir(), "carousel-mp4-"));

@@ -8,6 +8,7 @@ import type {
   T4VSContent,
   T5CTAContent,
 } from "@/lib/carousel/types";
+import type { FormatSlug } from "@/lib/carousel/formats";
 
 export type Carousel = Tables<"carousels">;
 export type CarouselSlide = Tables<"carousel_slides">;
@@ -111,6 +112,7 @@ export async function duplicateCarousel(
     .insert({
       owner_id: ownerId,
       concept: source.concept,
+      design_format: source.design_format,
       title: source.title ? `${source.title} (copia)` : null,
       hook_angle: source.hook_angle,
       cta_keyword: source.cta_keyword,
@@ -158,6 +160,7 @@ export async function updateSlideContent(
 // ============================================================================
 export interface GenerateCarouselInput {
   concept: string;
+  design_format: FormatSlug;
   slide_count?: number;
   hook_angle?: "problem" | "contrarian" | "data" | "money_model";
   cta_keyword?: string;

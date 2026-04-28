@@ -84,7 +84,7 @@ export function renderT2Feature(content: T2FeatureContent): string {
     border-radius: 12px;
     background: var(--accent-fill);
     border: 1px solid var(--accent-border);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 22px;
     font-weight: 700;
     color: var(--accent);
@@ -127,7 +127,7 @@ export function renderT2Feature(content: T2FeatureContent): string {
     flex-direction: column;
   }
   .feature-card-header {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 16px;
     font-weight: 600;
     color: var(--accent);

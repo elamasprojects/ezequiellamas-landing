@@ -61,12 +61,12 @@ export function renderT1Cover(content: T1CoverContent): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 42px;
     font-weight: 700;
     color: var(--accent);
     margin-bottom: 40px;
-    filter: ${"drop-shadow(0 0 28px rgba(139,92,246,0.35))"};
+    filter: var(--accent-glow);
   }
   .cover-headline {
     margin-bottom: 24px;
@@ -121,7 +121,7 @@ export function renderT1Cover(content: T1CoverContent): string {
     border: 1px solid var(--card-border);
     background: var(--card-fill);
     border-radius: 999px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     color: var(--muted);
     letter-spacing: 0.05em;

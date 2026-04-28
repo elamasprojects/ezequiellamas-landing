@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formato Punk — Manifiesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Caveat:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     FORMATO PUNK — DESIGN TOKENS
+     Neo-brutalismo playful con vibe Memphis 80s.
+     Formas geométricas + stickers rotados + sombras sólidas.
+     ============================================================ */
+  :root{
+    --paper:#FFF8E7;       /* fondo crema cálido */
+    --ink:#0A0A0A;
+    --lime:#C8FF00;
+    --orange:#FF6A36;
+    --shadow:5px 5px 0 #0A0A0A;
+    --shadow-big:8px 8px 0 #0A0A0A;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#222;-webkit-font-smoothing:antialiased}
+  body{display:flex;justify-content:center;padding:40px;
+    font-family:'Bricolage Grotesque',sans-serif}
+
+  .slide{
+    width:1080px;height:1350px;
+    background:var(--paper);
+    color:var(--ink);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* SHAPES de fondo — posicionadas para NO tapar texto */
+  .shapes{position:absolute;inset:0;pointer-events:none}
+
+  .shapes .circle-lime{
+    position:absolute;width:100px;height:100px;border-radius:50%;
+    background:var(--lime);border:5px solid var(--ink);
+    top:80px;left:55%;
+  }
+
+  .shapes .circle-orange{
+    position:absolute;width:60px;height:60px;border-radius:50%;
+    background:var(--orange);border:4px solid var(--ink);
+    top:130px;left:78%;
+  }
+
+  .shapes .triangle-orange{
+    position:absolute;
+    width:0;height:0;
+    border-left:32px solid transparent;
+    border-right:32px solid transparent;
+    border-bottom:54px solid var(--orange);
+    bottom:340px;right:50px;
+    transform:rotate(15deg);
+  }
+
+  /* Striped diagonal block */
+  .shapes .stripes{
+    position:absolute;width:60px;height:120px;
+    background:repeating-linear-gradient(45deg,
+      var(--orange) 0,var(--orange) 8px,
+      var(--ink) 8px,var(--ink) 16px);
+    border:4px solid var(--ink);
+    transform:rotate(20deg);
+    top:380px;right:80px;
+  }
+
+  /* Dotted grid pattern */
+  .shapes .grid{
+    position:absolute;width:160px;height:160px;
+    background-image:radial-gradient(var(--ink) 2px, transparent 2px);
+    background-size:18px 18px;
+    bottom:120px;left:60px;
+    opacity:0.5;
+  }
+
+  /* Squiggle */
+  .shapes svg.squiggle{
+    position:absolute;
+    bottom:80px;right:120px;
+  }
+
+  /* Diamond */
+  .shapes .diamond{
+    position:absolute;width:60px;height:60px;
+    background:var(--lime);border:4px solid var(--ink);
+    transform:rotate(45deg);
+    top:520px;left:60px;
+  }
+
+
+  /* CONTENT */
+  .content{position:relative;z-index:2;padding:70px 80px;height:100%;
+    display:flex;flex-direction:column;justify-content:space-between}
+
+  /* TOP BAR — sticker estilo */
+  .topbar{display:flex;justify-content:space-between;align-items:center;
+    font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;
+    letter-spacing:-0.5px}
+  .topbar .star{color:var(--lime);
+    -webkit-text-stroke:2px var(--ink);font-size:24px}
+  .topbar .pageno{background:var(--orange);color:#fff;padding:8px 14px;
+    border-radius:99px;border:3px solid var(--ink);font-size:16px;
+    box-shadow:3px 3px 0 var(--ink)}
+
+  /* MAIN HEADLINE BLOCK */
+  .headline-block{margin-top:60px}
+
+  .label-tag{
+    display:inline-block;
+    background:var(--lime);color:var(--ink);
+    padding:6px 14px;border:3px solid var(--ink);border-radius:8px;
+    box-shadow:4px 4px 0 var(--ink);
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;
+    letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:32px;
+  }
+
+  .headline{
+    font-family:'Bricolage Grotesque',sans-serif;font-weight:900;
+    font-size:160px;line-height:0.88;letter-spacing:-7px;
+    color:var(--ink);
+  }
+  .headline .it{
+    font-family:'Fraunces',serif;font-style:italic;font-weight:700;
+    color:var(--orange);
+  }
+  .headline .lime-block{
+    background:var(--lime);
+    padding:0 16px;display:inline-block;line-height:0.9;
+    border:5px solid var(--ink);border-radius:18px;
+    box-shadow:6px 6px 0 var(--ink);
+  }
+
+  /* DECK */
+  .deck{
+    margin-top:40px;
+    font-family:'Bricolage Grotesque',sans-serif;font-size:24px;
+    color:var(--ink);line-height:1.45;font-weight:500;
+    max-width:680px;
+  }
+  .deck strong{background:var(--lime);padding:0 6px;font-weight:700}
+
+  /* CARDS — donde explico cómo se usa el formato */
+  .cards{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:780px}
+
+  .card{
+    background:#fff;border:4px solid var(--ink);border-radius:20px;
+    padding:18px 22px;position:relative;
+    box-shadow:var(--shadow-big);
+  }
+  .card .badge{
+    position:absolute;top:-12px;left:18px;
+    background:var(--lime);color:var(--ink);
+    border:3px solid var(--ink);padding:3px 10px;border-radius:8px;
+    font-family:'JetBrains Mono',monospace;font-weight:800;
+    font-size:12px;letter-spacing:1.5px;
+  }
+  .card.b .badge{background:var(--orange);color:#fff}
+  .card .ttl{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;
+    font-size:24px;color:var(--ink);letter-spacing:-1px;line-height:1;
+    margin-top:6px;margin-bottom:6px}
+  .card .desc{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;
+    color:#333;line-height:1.4;font-weight:500}
+
+  /* BOTTOM */
+  .bottom{display:flex;justify-content:space-between;align-items:flex-end;
+    font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:16px}
+  .bottom .arrow-btn{background:var(--ink);color:var(--lime);
+    padding:14px 26px;border-radius:99px;font-weight:800;letter-spacing:0.5px;
+    font-size:16px}
+  .bottom .handnote{font-family:'Caveat',cursive;font-size:30px;
+    color:var(--orange);font-weight:600;transform:rotate(-3deg);
+    transform-origin:left center}
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <!-- SHAPES de fondo — posicionadas LEJOS del bloque de texto principal -->
+  <div class="shapes">
+    <div class="circle-lime"></div>
+    <div class="circle-orange"></div>
+    <div class="triangle-orange"></div>
+    <div class="stripes"></div>
+    <div class="diamond"></div>
+    <div class="grid"></div>
+    <svg class="squiggle" width="180" height="60" viewBox="0 0 180 60">
+      <path d="M 0 30 Q 22 0, 45 30 T 90 30 T 135 30 T 180 30"
+            stroke="#0A0A0A" stroke-width="5" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="content">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <span><span class="star">✦</span> EZEQUIELLAMAS</span>
+      <span class="pageno">FMT 02</span>
+    </div>
+
+    <!-- HEADLINE BLOCK -->
+    <div class="headline-block">
+      <div class="label-tag">▼ FORMATO 02</div>
+      <div class="headline">
+        Formato<br>
+        <span class="lime-block">Punk.</span><br>
+        <span class="it">qué onda.</span>
+      </div>
+      <div class="deck">
+        Para cuando querés que el post <strong>frene el scroll a la fuerza</strong>. Formas locas, sombras duras, colores que pegan. Vibe sticker pack mezclado con manifiesto callejero.
+      </div>
+    </div>
+
+    <!-- CARDS -->
+    <div class="cards">
+      <div class="card">
+        <div class="badge">A · CUÁNDO</div>
+        <div class="ttl">Hooks virales</div>
+        <div class="desc">Ideas contraintuitivas, anuncios de producto, contenido que necesita energía para no pasar desapercibido.</div>
+      </div>
+      <div class="card b">
+        <div class="badge">B · CUÁNDO NO</div>
+        <div class="ttl">Tutoriales largos</div>
+        <div class="desc">Si el contenido necesita explicación detallada, pasá al formato Diario o Esquemas. Acá no entra.</div>
+      </div>
+    </div>
+
+    <!-- BOTTOM -->
+    <div class="bottom">
+      <span class="handnote">para frenar el scroll →</span>
+      <span class="arrow-btn">DESLIZÁ →</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

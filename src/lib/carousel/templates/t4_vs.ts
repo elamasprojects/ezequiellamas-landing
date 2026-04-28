@@ -70,10 +70,10 @@ export function renderT4VS(content: T4VSContent): string {
   }
   .t4-col.right {
     border-color: var(--accent-border);
-    background: rgba(139,92,246,0.05);
+    background: var(--accent-soft);
   }
   .t4-col-label {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.18em;
@@ -111,12 +111,12 @@ export function renderT4VS(content: T4VSContent): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 18px;
     font-weight: 700;
     color: var(--accent);
     letter-spacing: 0.05em;
-    filter: drop-shadow(0 0 24px rgba(139,92,246,0.5));
+    filter: var(--accent-glow);
   }
 
   .t4-footer-lines {
@@ -125,7 +125,7 @@ export function renderT4VS(content: T4VSContent): string {
     border-top: 1px dashed var(--card-border);
   }
   .t4-footer-line {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 16px;
     font-weight: 600;
     color: var(--text);

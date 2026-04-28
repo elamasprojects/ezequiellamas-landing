@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formato Tech Cargado — Manifiesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     FORMATO TECH CARGADO — DESIGN TOKENS
+     Mono dominante, hard edges, vibe Berghain/Vetements,
+     strikethrough + underline para enfatizar.
+     ============================================================ */
+  :root{
+    --bg:#1A1A1A;
+    --text:#E6E4E0;
+    --muted:#9A968F;
+    --muted-soft:#666666;
+    --lime:#C8FF00;
+    --orange:#FF6A36;
+    --strike:#555555;
+    --rule:var(--lime);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000;font-family:'IBM Plex Mono',monospace;-webkit-font-smoothing:antialiased}
+  body{display:flex;justify-content:center;padding:40px;color:var(--text)}
+
+  .slide{
+    width:1080px;height:1350px;
+    background:var(--bg);
+    color:var(--text);
+    position:relative;overflow:hidden;
+    font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* TEXTURA grain sutil */
+  .slide::before{
+    content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity:0.5;mix-blend-mode:screen;
+  }
+
+  .content{position:relative;z-index:2;height:100%;display:grid;
+    grid-template-rows:auto 1fr auto}
+
+  /* TOP BAR — estilo system / metadata */
+  .topbar{
+    padding:40px 60px;
+    border-bottom:2px solid var(--lime);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:14px;letter-spacing:3px;text-transform:uppercase;
+  }
+  .topbar .lime{color:var(--lime);font-weight:700}
+  .topbar .or{color:var(--orange);font-weight:700}
+
+  .main{padding:0 60px;display:flex;flex-direction:column;justify-content:center}
+
+  /* TAG */
+  .tag{
+    font-size:14px;color:var(--orange);
+    letter-spacing:3px;font-weight:700;
+    margin-bottom:30px;text-transform:uppercase;
+  }
+  .tag::before{content:"▌ "}
+
+  /* HEADLINE — el título tal cual L1, sin subtítulo descriptivo */
+  .headline{
+    font-family:'IBM Plex Mono',monospace;font-weight:700;
+    font-size:108px;line-height:0.9;letter-spacing:-3px;
+    color:var(--text);text-transform:uppercase;
+  }
+  .headline .lime{
+    color:var(--lime);
+    text-decoration:underline;
+    text-decoration-thickness:6px;
+    text-underline-offset:14px;
+  }
+  .headline .or{color:var(--orange)}
+  .headline .strike{
+    text-decoration:line-through;
+    color:var(--strike);
+    text-decoration-color:var(--orange);
+    text-decoration-thickness:5px;
+  }
+
+  /* ICONS ROW — reemplaza el texto descriptivo "sin contratar dev / sin pagar SaaS"
+     por iconos tachados, mucho más liviano */
+  .icons-row{
+    margin-top:50px;
+    display:flex;gap:32px;flex-wrap:wrap;
+  }
+
+  .icon-item{
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    position:relative;
+  }
+  .icon-box{
+    width:80px;height:80px;
+    border:2px solid var(--strike);
+    background:rgba(255,255,255,0.02);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  /* La línea diagonal que tacha el icono */
+  .icon-box::after{
+    content:"";position:absolute;
+    width:115%;height:3px;
+    background:var(--orange);
+    top:50%;left:-8%;
+    transform:rotate(-25deg);
+    transform-origin:center;
+    box-shadow:0 0 0 1px rgba(255,106,54,0.3);
+  }
+  .icon-box svg{width:38px;height:38px;color:var(--strike)}
+  .icon-label{
+    font-size:12px;color:var(--muted-soft);
+    letter-spacing:2px;text-transform:uppercase;
+    text-decoration:line-through;
+    text-decoration-color:var(--orange);
+    text-decoration-thickness:1.5px;
+  }
+
+  /* BOTTOM BAR */
+  .bottombar{
+    padding:30px 60px;border-top:2px solid var(--lime);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--muted-soft);
+  }
+  .bottombar .or{
+    color:var(--orange);font-weight:700;
+    font-size:32px;letter-spacing:0;
+  }
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="content">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <span>EZ.LAMAS</span>
+      <span><span class="lime">●</span> FORMATO 04</span>
+      <span class="or">TECH</span>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <div class="tag">CASO REAL — REEMPLAZÓ 6 SAAS</div>
+
+      <!-- HEADLINE: igual a L1, simple, sin subtítulo descriptivo extra -->
+      <div class="headline">
+        FORMATO <span class="lime">TECH</span><br>
+        <span class="strike">CARGADO</span><br>
+        <span class="or">DENSO.</span>
+      </div>
+
+      <!-- ICONS ROW: reemplaza la descripción "sin contratar dev / sin pagar SaaS"
+           por iconos tachados, visualmente más liviano -->
+      <div class="icons-row">
+        <div class="icon-item">
+          <div class="icon-box">
+            <!-- icono: code brackets -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </div>
+          <div class="icon-label">programar</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-box">
+            <!-- icono: persona -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="icon-label">contratar dev</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-box">
+            <!-- icono: tarjeta de crédito -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+          </div>
+          <div class="icon-label">pagar saas</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-box">
+            <!-- icono: reloj -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="icon-label">esperar dev</div>
+        </div>
+
+        <div class="icon-item">
+          <div class="icon-box">
+            <!-- icono: gear -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+          <div class="icon-label">configurar</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR -->
+    <div class="bottombar">
+      <span>BUILDING IN PUBLIC</span>
+      <span>PARA CONTENIDO TECH DENSO →</span>
+      <span class="or">04</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

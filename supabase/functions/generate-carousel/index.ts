@@ -6,8 +6,12 @@
 // brief, you redeploy this function.
 //
 // Auth: requires authenticated admin (RLS enforced on the inserts via JWT-bound client).
-// Body: { concept: string, slide_count?: number, hook_angle?: string, cta_keyword?: string, mode?: 'static'|'animated' }
+// Body: { concept: string, design_format: string, slide_count?: number, hook_angle?: string, cta_keyword?: string, mode?: 'static'|'animated' }
 // Returns: { carousel_id: string, slides: Array<{ index, template, content }> }
+//
+// `design_format` is the visual system (diario/punk/minimalista/tech/esquemas).
+// It is purely visual — Claude's copy is not modulated by it. The renderer
+// picks tokens + ornaments from src/lib/carousel/formats/ at draw time.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -385,8 +389,18 @@ const EMIT_CAROUSEL_TOOL = {
 // ============================================================================
 // Types
 // ============================================================================
+type DesignFormat = "diario" | "punk" | "minimalista" | "tech" | "esquemas";
+const DESIGN_FORMATS: ReadonlySet<DesignFormat> = new Set([
+  "diario",
+  "punk",
+  "minimalista",
+  "tech",
+  "esquemas",
+]);
+
 interface RequestBody {
   concept: string;
+  design_format?: string;
   slide_count?: number;
   hook_angle?: "problem" | "contrarian" | "data" | "money_model";
   cta_keyword?: string;
@@ -420,10 +434,19 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const { concept, slide_count, hook_angle, cta_keyword, mode = "static" } =
-    body;
+  const {
+    concept,
+    design_format,
+    slide_count,
+    hook_angle,
+    cta_keyword,
+    mode = "static",
+  } = body;
   if (!concept || typeof concept !== "string" || concept.trim().length < 5) {
     return json({ error: "concept_required" }, 400);
+  }
+  if (!design_format || !DESIGN_FORMATS.has(design_format as DesignFormat)) {
+    return json({ error: "design_format_required_or_invalid" }, 400);
   }
 
   // Auth: bind to caller's JWT so RLS enforces admin
@@ -451,6 +474,7 @@ Deno.serve(async (req: Request) => {
     .insert({
       owner_id: userId,
       concept: concept.trim(),
+      design_format,
       slide_count: slide_count ?? null,
       hook_angle: hook_angle ?? null,
       cta_keyword: cta_keyword?.trim() || null,

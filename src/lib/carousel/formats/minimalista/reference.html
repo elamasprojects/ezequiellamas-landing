@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formato Minimalista — Manifiesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     FORMATO MINIMALISTA / STARTUP — DESIGN TOKENS
+     Glassmorphism, una sola jerarquía visual fuerte, app-like.
+     Inspiración: Linear, Apple, Vercel.
+     ============================================================ */
+  :root{
+    --bg:#050505;
+    --text:#E6E4E0;
+    --muted:rgba(255,255,255,0.65);
+    --muted-soft:rgba(255,255,255,0.45);
+    --lime:#C8FF00;
+    --orange:#FF6A36;
+    --glass-bg:rgba(20,20,20,0.55);
+    --glass-border:rgba(255,255,255,0.12);
+    --glass-soft:rgba(20,20,20,0.45);
+    --glass-soft-border:rgba(255,255,255,0.08);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+  body{display:flex;justify-content:center;padding:40px;color:var(--text)}
+
+  .slide{
+    width:1080px;height:1350px;
+    background:var(--bg);
+    position:relative;overflow:hidden;
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+  }
+
+  /* GRADIENT BACKDROP — orbs de color que el blur captura */
+  .backdrop{position:absolute;inset:0;z-index:1;
+    background:
+      radial-gradient(circle at 80% 20%, rgba(200,255,0,0.55), transparent 30%),
+      radial-gradient(circle at 20% 80%, rgba(255,106,54,0.55), transparent 35%),
+      radial-gradient(circle at 60% 60%, rgba(150,80,200,0.30), transparent 40%),
+      var(--bg);
+    filter:saturate(1.2);
+  }
+
+  .content{position:relative;z-index:2;padding:60px;height:100%;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;gap:24px}
+
+  /* MINI PILL TOP — mini elemento glass arriba */
+  .mini-pill{
+    background:var(--glass-soft);
+    backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+    border:1px solid var(--glass-soft-border);
+    border-radius:99px;
+    padding:14px 22px;
+    font-family:'JetBrains Mono',monospace;font-size:14px;
+    color:var(--muted);letter-spacing:2px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .mini-pill::before{
+    content:"";width:8px;height:8px;border-radius:50%;
+    background:var(--lime);
+    box-shadow:0 0 12px var(--lime);
+  }
+
+  /* MAIN CARD — donde manda toda la jerarquía */
+  .main-card{
+    background:var(--glass-bg);
+    backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+    border:1px solid var(--glass-border);
+    border-radius:32px;
+    padding:50px 56px;
+    width:100%;max-width:920px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.5);
+  }
+
+  /* TOP ROW de la card */
+  .toprow{display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:36px}
+  .toprow .pill{
+    background:rgba(200,255,0,0.15);
+    border:1px solid rgba(200,255,0,0.4);
+    color:var(--lime);
+    font-family:'JetBrains Mono',monospace;font-size:13px;
+    letter-spacing:2px;padding:6px 14px;border-radius:99px;
+    text-transform:uppercase;
+  }
+  .toprow .num{
+    font-family:'JetBrains Mono',monospace;font-size:14px;
+    color:var(--muted-soft);letter-spacing:2px;
+  }
+
+  /* HEADLINE — la jerarquía clara, lo primero que se lee */
+  .headline{
+    font-family:'Inter',sans-serif;font-weight:700;font-size:84px;
+    line-height:1;letter-spacing:-3px;color:var(--text);
+  }
+  .headline .it{
+    font-family:'Fraunces',serif;font-style:italic;
+    font-weight:400;color:var(--lime);
+  }
+  .headline .or{
+    font-family:'Fraunces',serif;font-style:italic;
+    font-weight:400;color:var(--orange);
+  }
+
+  /* DECK — bajada del headline */
+  .deck{
+    margin-top:24px;
+    font-size:22px;line-height:1.5;color:var(--muted);
+    font-weight:400;max-width:780px;
+  }
+  .deck strong{color:var(--text);font-weight:600}
+
+  /* STATS ROW — 3 datos clave del formato */
+  .stats{margin-top:36px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .stat{
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:18px;padding:18px 22px;
+  }
+  .stat .num{
+    font-family:'Inter',sans-serif;font-weight:700;font-size:36px;
+    color:var(--lime);letter-spacing:-1.5px;line-height:1;
+  }
+  .stat.b .num{color:var(--orange)}
+  .stat .lbl{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:var(--muted-soft);letter-spacing:2px;
+    margin-top:8px;text-transform:uppercase;
+  }
+
+  /* BOTTOM PILL */
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="backdrop"></div>
+
+  <div class="content">
+
+    <!-- MINI PILL ARRIBA -->
+    <div class="mini-pill">EZ.LAMAS · FORMATO 03</div>
+
+    <!-- MAIN CARD: una sola jerarquía visual, una sola idea principal -->
+    <div class="main-card">
+      <div class="toprow">
+        <span class="pill">▸ MINIMALISTA</span>
+        <span class="num">FMT 03</span>
+      </div>
+
+      <!-- HEADLINE: lo primero que se lee -->
+      <div class="headline">
+        Formato<br>
+        <span class="it">Minimalista.</span>
+      </div>
+
+      <!-- DECK: bajada -->
+      <div class="deck">
+        Una sola idea por slide. <strong>Una sola jerarquía visual.</strong>
+        El título manda, todo lo demás respira. Vibe Linear, Apple, Vercel.
+      </div>
+
+      <!-- STATS / 3 reglas del formato -->
+      <div class="stats">
+        <div class="stat">
+          <div class="num">01</div>
+          <div class="lbl">Una idea por slide</div>
+        </div>
+        <div class="stat b">
+          <div class="num">02</div>
+          <div class="lbl">Glass + backdrop</div>
+        </div>
+        <div class="stat">
+          <div class="num">03</div>
+          <div class="lbl">Whitespace gana</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MINI PILL ABAJO -->
+    <div class="mini-pill">PARA CONTENIDO QUE NO NECESITA EXPLICAR DE MÁS</div>
+  </div>
+</section>
+
+</body>
+</html>

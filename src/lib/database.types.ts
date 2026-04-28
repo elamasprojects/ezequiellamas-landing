@@ -309,6 +309,7 @@ export type Database = {
           concept: string
           created_at: string
           cta_keyword: string | null
+          design_format: string
           generation_error: string | null
           hook_angle: string | null
           id: string
@@ -324,6 +325,7 @@ export type Database = {
           concept: string
           created_at?: string
           cta_keyword?: string | null
+          design_format: string
           generation_error?: string | null
           hook_angle?: string | null
           id?: string
@@ -339,6 +341,7 @@ export type Database = {
           concept?: string
           created_at?: string
           cta_keyword?: string | null
+          design_format?: string
           generation_error?: string | null
           hook_angle?: string | null
           id?: string
@@ -495,6 +498,72 @@ export type Database = {
           owner_id?: string
           position?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      idea_references: {
+        Row: {
+          apify_short_code: string | null
+          caption: string | null
+          created_at: string
+          id: string
+          last_scraped_at: string | null
+          normalized_url: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at: string | null
+          raw: Json | null
+          source_url: string
+          thumbnail_url: string | null
+          title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
+          updated_at: string
+          video_duration: number | null
+        }
+        Insert: {
+          apify_short_code?: string | null
+          caption?: string | null
+          created_at?: string
+          id?: string
+          last_scraped_at?: string | null
+          normalized_url: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          source_url: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          video_duration?: number | null
+        }
+        Update: {
+          apify_short_code?: string | null
+          caption?: string | null
+          created_at?: string
+          id?: string
+          last_scraped_at?: string | null
+          normalized_url?: string
+          owner_id?: string
+          platform?: Database["public"]["Enums"]["video_platform"]
+          posted_at?: string | null
+          raw?: Json | null
+          source_url?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          video_duration?: number | null
         }
         Relationships: []
       }
@@ -1019,11 +1088,13 @@ export type Database = {
           hook_alternatives: string[]
           hook_reference: string | null
           id: string
+          idea_reference_id: string | null
           mental_model: string | null
           on_screen_text: string | null
           owner_id: string
           platform_codes: string[]
           raw_concept: string | null
+          reference_mode: string | null
           scheduled_at: string | null
           seo_keywords: string[]
           status: string
@@ -1055,11 +1126,13 @@ export type Database = {
           hook_alternatives?: string[]
           hook_reference?: string | null
           id?: string
+          idea_reference_id?: string | null
           mental_model?: string | null
           on_screen_text?: string | null
           owner_id: string
           platform_codes?: string[]
           raw_concept?: string | null
+          reference_mode?: string | null
           scheduled_at?: string | null
           seo_keywords?: string[]
           status?: string
@@ -1091,11 +1164,13 @@ export type Database = {
           hook_alternatives?: string[]
           hook_reference?: string | null
           id?: string
+          idea_reference_id?: string | null
           mental_model?: string | null
           on_screen_text?: string | null
           owner_id?: string
           platform_codes?: string[]
           raw_concept?: string | null
+          reference_mode?: string | null
           scheduled_at?: string | null
           seo_keywords?: string[]
           status?: string
@@ -1122,6 +1197,13 @@ export type Database = {
             columns: ["format_id"]
             isOneToOne: false
             referencedRelation: "formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_idea_reference_id_fkey"
+            columns: ["idea_reference_id"]
+            isOneToOne: false
+            referencedRelation: "idea_references"
             referencedColumns: ["id"]
           },
         ]
@@ -1577,10 +1659,12 @@ export type Database = {
           _hook: string
           _hook_alternatives?: string[]
           _hook_reference?: string
+          _idea_reference_id?: string
           _mental_model?: string
           _on_screen_text?: string
           _platform_codes?: string[]
           _raw_concept: string
+          _reference_mode?: string
           _seo_keywords?: string[]
           _storytelling_conflict?: string
           _storytelling_resolution?: string

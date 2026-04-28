@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { buildSlideHtml } from "@/lib/carousel/render";
 import type { TypedSlide } from "@/lib/api/carousels";
 import type { CarouselMode } from "@/lib/carousel/types";
+import type { FormatSlug } from "@/lib/carousel/formats";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   slides: TypedSlide[];
   mode: CarouselMode;
+  designFormat: FormatSlug;
 }
 
 /**
@@ -29,6 +31,7 @@ export default function CarouselPreviewDialog({
   onOpenChange,
   slides,
   mode,
+  designFormat,
 }: Props) {
   const [index, setIndex] = useState(0);
   const total = slides.length;
@@ -84,6 +87,7 @@ export default function CarouselPreviewDialog({
       mode,
       index: slide.index,
       outputMode: "static",
+      format: designFormat,
     },
   );
 

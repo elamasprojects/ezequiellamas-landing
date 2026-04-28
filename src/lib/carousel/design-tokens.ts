@@ -1,67 +1,30 @@
 /**
- * Design tokens for Ezequiel Lamas Instagram carousels.
- * Source of truth: system_prompt_carrousel_generator_v2.md (§3 DESIGN SYSTEM).
+ * Base CSS shared across all carousel design formats.
  *
- * These tokens live INSIDE the rendered carousel iframe — they are not the
- * dashboard's brand tokens (those use --ll-* prefix). Do not mix.
+ * This file used to hold a single hardcoded TOKENS object (dark + purple).
+ * That has been replaced by a per-format token system (see ./formats/*).
+ * What remains here is the *structural* CSS — layout, topbar, footer pill,
+ * shared element patterns (bullets, compare, badges, card chrome) — all
+ * referencing CSS custom properties that the format catalog injects.
+ *
+ * Hot rules carried over from v2.2:
+ *   §6 Bullets: ::before is `position:absolute`, never `display:flex`.
+ *   §7 No CDN deps in animated mode (gsap is local).
  */
 
-export const TOKENS = {
-  // Colors
-  bg: "#0A0A0A",
-  gridLine: "rgba(255,255,255,0.035)",
-  text: "#FFFFFF",
-  textMuted: "#A0A0A0",
-  textFooter: "#888888",
-  cardBorder: "rgba(255,255,255,0.08)",
-  cardFill: "rgba(255,255,255,0.02)",
-  accent: "#8B5CF6",
-  accentBorder: "rgba(139,92,246,0.35)",
-  accentFill: "rgba(139,92,246,0.12)",
-  glow: "drop-shadow(0 0 28px rgba(139,92,246,0.55))",
-  strike: "#555555",
-  danger: "#EF4444",
-  // Layout
-  width: 1080,
-  height: 1350,
-  paddingX: 80,
-  paddingTop: 60,
-  gridSize: 40,
-} as const;
+export const SLIDE_WIDTH = 1080;
+export const SLIDE_HEIGHT = 1350;
 
-/**
- * The exact CSS that goes inside every slide's <style> block.
- * Includes: CSS variables, base reset, top bar / footer pill, bullets pattern,
- * and the .punch class for serif italic accent + glow.
- *
- * The bullets bug from v2.2 §6: NEVER use display:flex on <li>, use position:absolute
- * for ::before so <strong> inside the li flows correctly.
- */
-export const CAROUSEL_CSS = `
-:root {
-  --bg: ${TOKENS.bg};
-  --grid: ${TOKENS.gridLine};
-  --text: ${TOKENS.text};
-  --muted: ${TOKENS.textMuted};
-  --footer: ${TOKENS.textFooter};
-  --card-border: ${TOKENS.cardBorder};
-  --card-fill: ${TOKENS.cardFill};
-  --accent: ${TOKENS.accent};
-  --accent-border: ${TOKENS.accentBorder};
-  --accent-fill: ${TOKENS.accentFill};
-  --strike: ${TOKENS.strike};
-  --danger: ${TOKENS.danger};
-}
-
+export const BASE_CAROUSEL_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  width: ${TOKENS.width}px;
-  height: ${TOKENS.height}px;
+  width: ${SLIDE_WIDTH}px;
+  height: ${SLIDE_HEIGHT}px;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body);
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -69,13 +32,14 @@ html, body {
 
 .slide {
   position: relative;
-  width: ${TOKENS.width}px;
-  height: ${TOKENS.height}px;
+  width: ${SLIDE_WIDTH}px;
+  height: ${SLIDE_HEIGHT}px;
   overflow: hidden;
   background: var(--bg);
+  color: var(--text);
 }
 
-/* Subtle grid background on every slide */
+/* Subtle grid background driven by --grid (transparent if format opts out). */
 .slide::before {
   content: '';
   position: absolute;
@@ -83,33 +47,38 @@ html, body {
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: ${TOKENS.gridSize}px ${TOKENS.gridSize}px;
+  background-size: 60px 60px;
   pointer-events: none;
   z-index: 0;
 }
 
 .slide > * { position: relative; z-index: 1; }
+.slide > .format-ornaments,
+.slide > .format-ornaments-paper,
+.slide > .format-ornaments-shapes,
+.slide > .format-ornaments-orbs,
+.slide > .format-ornaments-blueprint { z-index: 0; }
 
 /* Top bar */
 .topbar {
   position: absolute;
   top: 32px;
-  left: ${TOKENS.paddingX}px;
-  right: ${TOKENS.paddingX}px;
+  left: 80px;
+  right: 80px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 500;
   color: var(--text);
-  opacity: 0.55;
+  opacity: 0.6;
   letter-spacing: 0.02em;
 }
 
-/* Optional label (PARTE 0X / DATO 0X) */
+/* Optional small label (PARTE 0X / DATO 0X) */
 .label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 18px;
   font-weight: 600;
   color: var(--accent);
@@ -129,19 +98,20 @@ html, body {
   padding: 8px 18px;
   border: 1px solid var(--card-border);
   border-radius: 999px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 16px;
   color: var(--footer);
   letter-spacing: 0.05em;
+  background: transparent;
 }
 
-/* Frase puñal — serif italic accent + glow */
+/* Frase puñal — styled by --font-punch + --accent + --accent-glow */
 .punch {
-  font-family: 'Playfair Display', 'Georgia', serif;
+  font-family: var(--font-punch);
   font-style: italic;
   font-weight: 700;
   color: var(--accent);
-  filter: ${TOKENS.glow};
+  filter: var(--accent-glow);
   letter-spacing: -0.01em;
 }
 
@@ -163,7 +133,7 @@ html, body {
   left: 0;
   top: 0;
   color: var(--accent);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
 }
 .bullets.x li::before {
@@ -179,13 +149,13 @@ html, body {
 .badge {
   display: inline-flex;
   align-items: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.08em;
   padding: 4px 8px;
   border-radius: 4px;
-  background: var(--accent-fill);
+  background: var(--accent-soft);
   color: var(--accent);
   text-transform: uppercase;
 }
@@ -200,7 +170,7 @@ html, body {
   display: inline-block;
   padding: 8px 18px;
   border: 1px solid var(--accent-border);
-  background: var(--accent-fill);
+  background: var(--accent-soft);
   color: var(--accent);
   border-radius: 999px;
   font-weight: 600;
@@ -209,7 +179,7 @@ html, body {
 /* Card */
 .card {
   border: 1px solid var(--card-border);
-  background: var(--card-fill);
+  background: var(--card-bg);
   border-radius: 18px;
   padding: 30px;
 }

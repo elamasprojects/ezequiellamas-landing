@@ -40,6 +40,7 @@ import {
   type TypedSlide,
 } from "@/lib/api/carousels";
 import { buildSlideHtml } from "@/lib/carousel/render";
+import { isFormatSlug, DEFAULT_FORMAT, type FormatSlug } from "@/lib/carousel/formats";
 import type { CarouselMode, CarouselTemplate, Slide } from "@/lib/carousel/types";
 import SlideEditor from "@/components/carousel/editors/SlideEditor";
 import CarouselPreviewDialog from "@/components/carousel/CarouselPreviewDialog";
@@ -190,6 +191,9 @@ export default function CarouselEditor() {
 
   const status = carousel.status as CarouselStatus;
   const mode = (carousel.mode as CarouselMode) ?? "static";
+  const designFormat: FormatSlug = isFormatSlug(carousel.design_format)
+    ? carousel.design_format
+    : DEFAULT_FORMAT;
   const isGenerating = status === "generating";
   const focused = localSlides[focusIndex];
 
@@ -287,6 +291,7 @@ export default function CarouselEditor() {
         onOpenChange={setPreviewOpen}
         slides={localSlides}
         mode={mode}
+        designFormat={designFormat}
       />
 
       {/* Render progress strip */}
@@ -423,6 +428,7 @@ export default function CarouselEditor() {
               }}
               totalSlides={localSlides.length}
               mode={mode}
+              designFormat={designFormat}
             />
           </div>
 
@@ -537,10 +543,12 @@ function SlidePreview({
   slide,
   totalSlides,
   mode,
+  designFormat,
 }: {
   slide: Slide;
   totalSlides: number;
   mode: CarouselMode;
+  designFormat: FormatSlug;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -568,8 +576,9 @@ function SlidePreview({
         mode,
         index: debouncedSlide.index,
         outputMode: "static",
+        format: designFormat,
       }),
-    [debouncedSlide, totalSlides, mode],
+    [debouncedSlide, totalSlides, mode, designFormat],
   );
 
   const scale = width === 0 ? 0 : Math.min(1, width / SLIDE_W);

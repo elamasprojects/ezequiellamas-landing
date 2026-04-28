@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formato Diario — Manifiesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Libre+Caslon+Display&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     FORMATO DIARIO — DESIGN TOKENS
+     ============================================================ */
+  :root{
+    --paper:#F4F1EA;       /* fondo crema / papel reciclado */
+    --ink:#0A0A0A;         /* texto principal — negro tinta */
+    --red:#C73E1D;         /* accent — rojo periodístico */
+    --gray:#555555;        /* texto secundario */
+    --gray-soft:#888888;   /* meta/byline */
+    --rule:#0A0A0A;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#222;font-family:'Bodoni Moda',serif;-webkit-font-smoothing:antialiased}
+  body{display:flex;justify-content:center;padding:40px}
+
+  .slide{
+    width:1080px;height:1350px;
+    background:var(--paper);
+    color:var(--ink);
+    position:relative;
+    overflow:hidden;
+    font-family:'Bodoni Moda',serif;
+  }
+
+  /* Textura sutil de papel */
+  .slide::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size:3px 3px;
+    mix-blend-mode:multiply;
+  }
+
+  .content{position:relative;z-index:2;padding:60px 80px;height:100%;
+    display:flex;flex-direction:column}
+
+  /* MASTHEAD */
+  .mast{display:flex;justify-content:space-between;align-items:center;
+    border-bottom:3px double var(--ink);padding-bottom:20px;
+    font-family:'Bodoni Moda',serif;font-size:16px;font-weight:600;
+    text-transform:uppercase;letter-spacing:3px}
+  .mast .center{font-family:'Libre Caslon Display',serif;font-size:42px;
+    font-weight:400;letter-spacing:0;text-transform:none;font-style:italic}
+
+  /* META BAR (date / section / price) */
+  .meta{display:flex;justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:2px;
+    text-transform:uppercase;padding:14px 0;border-bottom:1px solid var(--ink);
+    color:var(--gray)}
+  .meta .red{color:var(--red);font-weight:700}
+
+  /* HEADLINE */
+  .headline{margin-top:60px;font-family:'Libre Caslon Display','Bodoni Moda',serif;
+    font-weight:400;font-size:108px;line-height:0.95;letter-spacing:-2px;
+    color:var(--ink);text-align:center}
+  .headline .it{font-style:italic}
+  .headline .red{color:var(--red);font-style:italic}
+
+  /* DECK / SUBTITULO */
+  .deck{margin-top:36px;text-align:center;
+    font-family:'Bodoni Moda',serif;font-style:italic;font-size:28px;line-height:1.4;
+    color:var(--gray);font-weight:400;max-width:800px;margin-left:auto;margin-right:auto}
+
+  /* ORNAMENTAL DIVIDER */
+  .rule{margin:50px auto 0;width:120px;height:1px;background:var(--ink);position:relative}
+  .rule::before{content:"❦";position:absolute;left:50%;top:50%;
+    transform:translate(-50%,-50%);background:var(--paper);padding:0 10px;
+    font-size:22px;color:var(--red)}
+
+  /* TWO-COLUMN BODY */
+  .twocol{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:50px;
+    font-family:'Bodoni Moda',serif;font-size:18px;line-height:1.6;color:var(--ink)}
+  .twocol p{margin-bottom:14px;text-align:justify}
+  .twocol p::first-letter{font-family:'Libre Caslon Display',serif;font-size:60px;
+    float:left;line-height:0.85;padding-right:8px;padding-top:6px;color:var(--red)}
+
+  /* SPECS BOX */
+  .specs{margin-top:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+    border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+  .specs .cell{padding:18px 16px;border-right:1px solid var(--ink);font-family:'Bodoni Moda',serif}
+  .specs .cell:last-child{border-right:0}
+  .specs .num{font-family:'Libre Caslon Display',serif;font-size:42px;line-height:1;
+    color:var(--red);font-weight:400;font-style:italic}
+  .specs .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;
+    color:var(--gray);margin-top:8px;text-transform:uppercase}
+
+  /* BYLINE */
+  .byline{margin-top:auto;text-align:center;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;
+    color:var(--gray-soft);text-transform:uppercase;padding-top:20px;border-top:1px solid var(--gray-soft)}
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="content">
+
+    <!-- MASTHEAD: nombre del periódico, número de edición -->
+    <div class="mast">
+      <span>VOL. I</span>
+      <span class="center">El Builder</span>
+      <span>FMT 01</span>
+    </div>
+
+    <!-- META: fecha, sección, indicador -->
+    <div class="meta">
+      <span>FORMATO — DIARIO</span>
+      <span class="red">EDITORIAL · IMPRESO</span>
+      <span>USAR PARA: AUTORIDAD</span>
+    </div>
+
+    <!-- HEADLINE: el nombre del formato y para qué sirve -->
+    <div class="headline">
+      Formato<br>
+      <span class="red it">Diario.</span>
+    </div>
+
+    <!-- DECK: tagline / cuándo usarlo -->
+    <div class="deck">
+      Para cuando el contenido pesa más que el algoritmo. Editorial impreso, drop caps, dos columnas y rojo periodístico.
+    </div>
+
+    <div class="rule"></div>
+
+    <!-- TWO-COLUMN BODY: explicación del formato -->
+    <div class="twocol">
+      <p>Funciona cuando estás contando una historia con cuerpo. Análisis profundos, anuncios importantes, casos de estudio largos. La tipografía Caslon y el papel cream le dan al lector la sensación de estar leyendo algo que vale la pena guardar.</p>
+      <p>Reservalo para cuando querés que el post se sienta como una edición especial, donde la jerarquía del titular manda y el cuerpo aporta contexto. Para hooks rápidos o data dumps, mejor pasá a Punk o Esquemas.</p>
+    </div>
+
+    <!-- SPECS BOX: las "reglas" del formato -->
+    <div class="specs">
+      <div class="cell">
+        <div class="num">I.</div>
+        <div class="lbl">Bodoni / Caslon</div>
+      </div>
+      <div class="cell">
+        <div class="num">II.</div>
+        <div class="lbl">Papel cream + tinta</div>
+      </div>
+      <div class="cell">
+        <div class="num">III.</div>
+        <div class="lbl">Acento rojo periodístico</div>
+      </div>
+    </div>
+
+    <div class="byline">EZEQUIELLAMAS.COM · CONTINÚA EN PÁG. 02 →</div>
+  </div>
+</section>
+
+</body>
+</html>

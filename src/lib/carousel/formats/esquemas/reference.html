@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Formato Esquemas — Manifiesto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     FORMATO ESQUEMAS VISUALES — DESIGN TOKENS
+     Blueprint architect / diagrama técnico.
+     Grid de fondo + capas isométricas + flow de nodos.
+     ============================================================ */
+  :root{
+    --bg:#0F1414;
+    --text:#D4DCDC;
+    --muted:#888888;
+    --muted-soft:#666666;
+    --lime:#C8FF00;
+    --orange:#FF6A36;
+    --grid-major:rgba(200,255,0,0.08);
+    --grid-minor:rgba(200,255,0,0.04);
+    --node-bg:rgba(255,255,255,0.05);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000;font-family:'JetBrains Mono',monospace;-webkit-font-smoothing:antialiased}
+  body{display:flex;justify-content:center;padding:40px;color:var(--text)}
+
+  .slide{
+    width:1080px;height:1350px;
+    background:var(--bg);
+    color:var(--text);
+    position:relative;overflow:hidden;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* GRID MAJOR + MINOR — el fondo blueprint característico */
+  .slide::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px);
+    background-size:60px 60px;
+  }
+  .slide::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+    background-size:12px 12px;
+  }
+
+  .content{position:relative;z-index:2;padding:60px 80px;height:100%;
+    display:flex;flex-direction:column}
+
+  /* TITLE BLOCK arriba */
+  .titleblock{
+    padding:30px 0;
+    border-bottom:1px solid rgba(200,255,0,0.3);
+    display:flex;justify-content:space-between;align-items:flex-end;
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(200,255,0,0.7);
+  }
+  .titleblock .title{
+    font-family:'Inter',sans-serif;font-weight:700;font-size:18px;
+    color:var(--text);letter-spacing:1px;
+  }
+  .titleblock .meta{text-align:right;line-height:1.6;color:var(--muted-soft)}
+
+  /* MAIN BODY */
+  .main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0}
+
+  /* HEADLINE */
+  .headline{
+    font-family:'Inter',sans-serif;font-weight:300;font-size:96px;line-height:0.95;
+    letter-spacing:-3px;color:var(--text);margin-bottom:60px;
+  }
+  .headline .lime{color:var(--lime);font-weight:700}
+  .headline .it{
+    font-family:'Fraunces',serif;font-style:italic;
+    color:var(--orange);font-weight:400;
+  }
+
+  /* DIAGRAM con flow de 3 nodos — la firma del formato */
+  .diagram{
+    margin-top:40px;display:flex;align-items:center;justify-content:space-between;
+    padding:50px 0;
+    border-top:1px solid rgba(200,255,0,0.3);
+    border-bottom:1px solid rgba(200,255,0,0.3);
+  }
+  .node{display:flex;flex-direction:column;align-items:center;text-align:center}
+  .node .box{
+    width:140px;height:140px;
+    border:2px solid var(--lime);
+    background:rgba(200,255,0,0.05);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:36px;color:var(--lime);
+  }
+  .node .lbl{
+    margin-top:14px;font-size:13px;
+    color:var(--muted);letter-spacing:2px;text-transform:uppercase;
+  }
+  .node .sublbl{
+    margin-top:4px;font-size:10px;color:var(--muted-soft);
+    font-family:'Inter',sans-serif;text-transform:none;letter-spacing:0;font-weight:400;
+  }
+  .node.b .box{
+    border-color:var(--orange);background:rgba(255,106,54,0.05);color:var(--orange);
+  }
+  .node.c .box{
+    border-color:var(--text);background:rgba(255,255,255,0.05);color:var(--text);
+  }
+  .arrow{
+    font-family:'JetBrains Mono',monospace;font-size:36px;color:var(--lime);
+  }
+  .arrow.or{color:var(--orange)}
+
+  /* EXPLAIN debajo */
+  .explain{
+    margin-top:50px;
+    font-family:'Inter',sans-serif;font-weight:400;font-size:22px;
+    line-height:1.55;color:var(--muted);max-width:880px;
+  }
+  .explain strong{color:var(--text);font-weight:600}
+  .explain .lime{color:var(--lime);font-weight:600}
+
+  /* BOTTOM BAR */
+  .bottom{
+    padding:24px 0;border-top:1px solid rgba(200,255,0,0.3);
+    display:flex;justify-content:space-between;
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--muted-soft);
+  }
+  .bottom .lime{color:var(--lime)}
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="content">
+
+    <!-- TITLE BLOCK arriba: spec del formato -->
+    <div class="titleblock">
+      <span class="title">EZ.LAMAS / SCHEMATIC 05 — ESQUEMAS</span>
+      <span class="meta">FMT.TYPE / EDUCATIONAL<br>2026.04.28</span>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- HEADLINE -->
+      <div class="headline">
+        Formato <span class="lime">Esquemas.</span><br>
+        Para <span class="it">enseñar</span> conceptos.
+      </div>
+
+      <!-- DIAGRAM: flow de 3 nodos — IDEA → DIAGRAMA → ENTENDÉS -->
+      <div class="diagram">
+        <div class="node">
+          <div class="box">?</div>
+          <div class="lbl">CONCEPTO</div>
+          <div class="sublbl">algo abstracto</div>
+        </div>
+        <div class="arrow or">→</div>
+        <div class="node b">
+          <div class="box">▣</div>
+          <div class="lbl">DIAGRAMA</div>
+          <div class="sublbl">capas + flow</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c">
+          <div class="box">✓</div>
+          <div class="lbl">ENTENDISTE</div>
+          <div class="sublbl">en 3 segundos</div>
+        </div>
+      </div>
+
+      <!-- EXPLAIN -->
+      <div class="explain">
+        Cuando el concepto es difícil de explicar con palabras, <strong>el diagrama lo dice en tres segundos</strong>. Capas isométricas, flow con flechas, etiquetas técnicas. Vibe blueprint de arquitecto. <span class="lime">Para tutoriales y conceptos.</span>
+      </div>
+    </div>
+
+    <!-- BOTTOM -->
+    <div class="bottom">
+      <span>EZEQUIELLAMAS.COM</span>
+      <span><span class="lime">●</span> SCHEMATIC · FMT 05 →</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
