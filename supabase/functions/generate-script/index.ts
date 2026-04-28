@@ -234,11 +234,58 @@ interface FewShotScript {
   mental_model: string | null;
 }
 
+interface ReferenceBlockInput {
+  platform: string;
+  source_url: string;
+  title: string | null;
+  caption: string | null;
+  transcript: string;
+  mode: "structure_only" | "content_adapt";
+  hasUserConcept: boolean;
+}
+
+function buildReferenceBlock(ref: ReferenceBlockInput): string {
+  const transcript = (ref.transcript ?? "").slice(0, 8000);
+  const modeInstructions = ref.mode === "content_adapt"
+    ? [
+        "MODO: Adaptación de contenido.",
+        "- El video referencia es el punto de partida del CONTENIDO. Adaptá tema, ejemplos y estructura a tu voz.",
+        "- Usá el HOOK del video como inspiración directa: el formato del hook (tipo de apertura, gancho, gatillo emocional) debe ser análogo, pero re-escrito para tu avatar y realidad.",
+        ref.hasUserConcept
+          ? "- El texto/audio del usuario son AJUSTES sobre ese contenido (qué enfatizar, qué cambiar, qué agregar)."
+          : "- No hay concepto del usuario: traducí el video entero a la voz de Ezequiel (Argentina, dev, agencia UGC, IA). El TEMA puede ser similar pero la voz, ejemplos y POV son 100% Ezequiel.",
+        "- NUNCA copiar frases literales de la transcripción.",
+      ].join("\n")
+    : [
+        "MODO: Estructura solamente.",
+        "- El concepto del usuario MANDA. La referencia es solo andamiaje estructural.",
+        "- Tomá del video referencia: la lógica del hook (qué tipo de apertura usa) y la arquitectura narrativa (cómo desarrolla, cómo cierra).",
+        "- NO uses el contenido, ejemplos ni tema del video referencia. Solo su forma.",
+      ].join("\n");
+
+  return [
+    "=== REFERENCIA INSPIRACIONAL ===",
+    `Plataforma: ${ref.platform}`,
+    `URL: ${ref.source_url}`,
+    ref.title ? `Título: ${ref.title}` : "",
+    ref.caption ? `Caption: ${ref.caption}` : "",
+    "",
+    "Transcript del video:",
+    `"""\n${transcript}\n"""`,
+    "",
+    "INSTRUCCIONES SOBRE LA REFERENCIA:",
+    modeInstructions,
+    "- Mantené siempre el MANIFIESTO + REGLAS DE SCRIPTING + BANCO DE HOOKS.",
+    "- Si el video referencia no es argentino, traducí el tono al rioplatense casual técnico.",
+  ].filter(Boolean).join("\n");
+}
+
 function buildUserPrompt(args: {
   concept: string;
   formatName?: string;
   formatDescription?: string;
   fewShotScripts: FewShotScript[];
+  referenceBlock?: string;
 }): string {
   const formatLine = args.formatName
     ? `=== FORMATO ELEGIDO ===\n${args.formatName}: ${args.formatDescription ?? ""}`
@@ -259,12 +306,17 @@ function buildUserPrompt(args: {
           })
           .join("\n\n")}`;
 
+  const conceptBlock = args.concept.trim().length > 0
+    ? `=== CONCEPTO DEL USUARIO ===\n${args.concept.trim()}`
+    : "=== CONCEPTO DEL USUARIO ===\n(el usuario no aportó concepto propio — usá la referencia inspiracional como contenido base, adaptado a su voz)";
+
   return [
-    `=== CONCEPTO DEL USUARIO ===\n${args.concept.trim()}`,
+    conceptBlock,
+    args.referenceBlock ?? "",
     formatLine,
     fewShotBlock,
     `=== INSTRUCCIONES ===\nGenerá el guion completo en la voz de Ezequiel. Aplicá el manifiesto + las reglas + el banco de hooks. Llamá a la tool submit_script con el resultado estructurado. UNA SOLA invocación.`,
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 }
 
 function buildRetryUserMessage(reasons: string[]): string {
@@ -311,9 +363,14 @@ Deno.serve(async (req) => {
     const audio_upload_id = typeof body?.audio_upload_id === "string" ? body.audio_upload_id : null;
     const raw_concept_input = typeof body?.raw_concept === "string" ? body.raw_concept.trim() : "";
     const format_id = typeof body?.format_id === "string" ? body.format_id : null;
+    const idea_reference_id = typeof body?.idea_reference_id === "string" ? body.idea_reference_id : null;
+    const reference_mode_input =
+      body?.reference_mode === "structure_only" || body?.reference_mode === "content_adapt"
+        ? (body.reference_mode as "structure_only" | "content_adapt")
+        : null;
 
-    if (!audio_upload_id && !raw_concept_input) {
-      return json({ error: "audio_upload_id or raw_concept required" }, 400);
+    if (!audio_upload_id && !raw_concept_input && !idea_reference_id) {
+      return json({ error: "audio_upload_id, raw_concept or idea_reference_id required" }, 400);
     }
 
     // -- Audio → transcript ---------------------------------------------------
@@ -372,7 +429,44 @@ Deno.serve(async (req) => {
     }
 
     const concept = [transcript, raw_concept_input].filter(Boolean).join("\n\n").trim();
-    if (!concept) return json({ error: "Empty concept after transcription" }, 400);
+    if (!concept && !idea_reference_id) {
+      return json({ error: "Empty concept after transcription" }, 400);
+    }
+
+    // -- Idea reference -------------------------------------------------------
+    let referenceBlock: string | undefined;
+    if (idea_reference_id) {
+      const { data: ref, error: refErr } = await userClient
+        .from("idea_references")
+        .select(
+          "id, owner_id, source_url, platform, title, caption, transcript, transcript_status",
+        )
+        .eq("id", idea_reference_id)
+        .single();
+      if (refErr || !ref) {
+        return json({ error: refErr?.message ?? "idea_reference not found" }, 404);
+      }
+      if (ref.transcript_status !== "done" || !ref.transcript) {
+        return json(
+          { error: "La referencia aún se está procesando. Esperá a que termine de analizarse." },
+          422,
+        );
+      }
+      const hasUserConcept = concept.trim().length > 0;
+      // Si el usuario no eligió modo, default según haya concepto propio o no:
+      // - Sin concepto propio → content_adapt (la referencia ES el contenido).
+      // - Con concepto propio → content_adapt también (el texto manda como ajustes).
+      const reference_mode = reference_mode_input ?? "content_adapt";
+      referenceBlock = buildReferenceBlock({
+        platform: ref.platform,
+        source_url: ref.source_url,
+        title: ref.title,
+        caption: ref.caption,
+        transcript: ref.transcript,
+        mode: reference_mode,
+        hasUserConcept,
+      });
+    }
 
     // -- Format ---------------------------------------------------------------
     let formatName: string | undefined;
@@ -404,6 +498,7 @@ Deno.serve(async (req) => {
       formatName,
       formatDescription,
       fewShotScripts: priorScripts ?? [],
+      referenceBlock,
     });
 
     // -- Claude call (with one corrective retry on validation failure) -------
@@ -519,6 +614,8 @@ Deno.serve(async (req) => {
         _storytelling_conflict: isStoryPopulated ? story.conflict || null : null,
         _storytelling_resolution: isStoryPopulated ? story.resolution || null : null,
         _generation_warning: generationWarning,
+        _idea_reference_id: idea_reference_id,
+        _reference_mode: idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
       },
     );
     if (rpcErr) return json({ error: `RPC failed: ${rpcErr.message}` }, 500);

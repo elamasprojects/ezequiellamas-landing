@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Link2, Loader2, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -17,10 +18,26 @@ import { useFormats } from "@/hooks/useFormats";
 import { useSession } from "@/hooks/useSession";
 import { uploadAudio } from "@/lib/api/audio";
 import { generateScript } from "@/lib/api/generation";
+import { scrapeIdeaReference, type IdeaReference } from "@/lib/api/ideaReferences";
+import { parseVideoUrl } from "@/lib/parseVideoUrl";
 
 const NO_FORMAT = "__none__";
 
 type GenStep = "idle" | "uploading" | "generating" | "done" | "error";
+type VerifyStep = "idle" | "verifying" | "failed";
+type ReferenceMode = "structure_only" | "content_adapt";
+
+const PLATFORM_LABEL: Record<IdeaReference["platform"], string> = {
+  instagram: "Instagram",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  other: "Otro",
+};
+
+function transcriptWordCount(transcript: string | null): number {
+  if (!transcript) return 0;
+  return transcript.trim().split(/\s+/).filter(Boolean).length;
+}
 
 export default function NewIdea() {
   const navigate = useNavigate();
@@ -32,10 +49,50 @@ export default function NewIdea() {
   const [rawConcept, setRawConcept] = useState("");
   const [formatId, setFormatId] = useState<string>(NO_FORMAT);
 
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [reference, setReference] = useState<IdeaReference | null>(null);
+  const [verifyStep, setVerifyStep] = useState<VerifyStep>("idle");
+  const [verifyError, setVerifyError] = useState("");
+  const [referenceMode, setReferenceMode] = useState<ReferenceMode>("content_adapt");
+
   const [step, setStep] = useState<GenStep>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const canGenerate = (audioBlob !== null || rawConcept.trim().length > 0) && step === "idle";
+  const hasUserConcept = audioBlob !== null || rawConcept.trim().length > 0;
+  const hasReference = reference !== null && reference.transcript_status === "done";
+  const canGenerate = (hasUserConcept || hasReference) && step === "idle";
+
+  const parsedUrl = referenceUrl.trim().length > 0 ? parseVideoUrl(referenceUrl) : null;
+  const urlInvalid = referenceUrl.trim().length > 0 && parsedUrl === null;
+  const canVerify =
+    referenceUrl.trim().length > 0 &&
+    parsedUrl !== null &&
+    verifyStep !== "verifying";
+
+  async function onVerify(force = false) {
+    if (!parsedUrl) return;
+    setVerifyStep("verifying");
+    setVerifyError("");
+    try {
+      const { reference: ref } = await scrapeIdeaReference({
+        url: referenceUrl.trim(),
+        force,
+      });
+      setReference(ref);
+      setVerifyStep("idle");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setVerifyError(msg);
+      setVerifyStep("failed");
+    }
+  }
+
+  function onClearReference() {
+    setReference(null);
+    setReferenceUrl("");
+    setVerifyError("");
+    setVerifyStep("idle");
+  }
 
   async function onGenerate() {
     if (!user) return;
@@ -57,6 +114,8 @@ export default function NewIdea() {
         audio_upload_id,
         raw_concept: rawConcept.trim() || undefined,
         format_id: formatId === NO_FORMAT ? undefined : formatId,
+        idea_reference_id: reference?.id,
+        reference_mode: reference ? referenceMode : undefined,
       });
 
       setStep("done");
@@ -70,6 +129,7 @@ export default function NewIdea() {
   }
 
   const isWorking = step === "uploading" || step === "generating";
+  const showModePicker = hasReference && hasUserConcept;
 
   return (
     <div className="space-y-8">
@@ -95,12 +155,135 @@ export default function NewIdea() {
           Contale a la IA <em style={{ color: "var(--ll-warm)" }}>qué querés</em> grabar
         </h1>
         <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Grabá un audio diciendo la idea (es lo más rápido) y/o agregá texto. La IA va a transcribir el audio,
-          generar un guion en tu tono, y sugerir B-rolls.
+          Grabá un audio, escribí el concepto, o pegá un link de referencia (reel/short/TT). La IA va a transcribir,
+          generar un guion en tu tono y sugerir B-rolls.
         </p>
       </header>
 
       <div className="space-y-6">
+        <div className="space-y-2">
+          <Label style={{ color: "var(--ll-text-muted)" }}>Link de referencia (opcional)</Label>
+          <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+            Un reel de Instagram, YouTube short o TikTok que te haya gustado. La IA va a usar su hook y estructura.
+          </p>
+
+          {!reference && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
+                <Link2
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                  style={{ color: "var(--ll-text-dim)" }}
+                />
+                <Input
+                  value={referenceUrl}
+                  onChange={(e) => setReferenceUrl(e.target.value)}
+                  placeholder="https://www.instagram.com/reel/..."
+                  disabled={isWorking || verifyStep === "verifying"}
+                  className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] pl-9 text-[var(--ll-text)]"
+                />
+              </div>
+              <Button
+                onClick={() => onVerify(false)}
+                disabled={!canVerify || isWorking}
+                variant="secondary"
+                className="sm:w-32"
+              >
+                {verifyStep === "verifying" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analizando...
+                  </>
+                ) : (
+                  "Verificar"
+                )}
+              </Button>
+            </div>
+          )}
+
+          {urlInvalid && verifyStep !== "verifying" && (
+            <p className="text-xs text-red-400">Link no reconocido (IG/YT/TT).</p>
+          )}
+
+          {verifyStep === "verifying" && (
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Scrapeando + transcribiendo (puede tardar 15-30s)...
+            </p>
+          )}
+
+          {verifyStep === "failed" && verifyError && (
+            <div className="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2 text-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+              <div className="flex-1 text-red-300">{verifyError}</div>
+              <Button
+                onClick={() => onVerify(true)}
+                size="sm"
+                variant="ghost"
+                className="text-red-200 hover:text-red-100"
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
+
+          {reference && reference.transcript_status === "done" && (
+            <div className="flex gap-3 rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] p-3">
+              {reference.thumbnail_url ? (
+                <img
+                  src={reference.thumbnail_url}
+                  alt=""
+                  className="h-20 w-20 shrink-0 rounded object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="h-20 w-20 shrink-0 rounded bg-[var(--ll-surface)]" />
+              )}
+              <div className="flex flex-1 flex-col gap-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" style={{ color: "var(--ll-accent)" }} />
+                  <span
+                    className="text-[10px] uppercase tracking-[0.2em]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+                  >
+                    {PLATFORM_LABEL[reference.platform]}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+                    Transcripción lista ({transcriptWordCount(reference.transcript)} palabras)
+                  </span>
+                </div>
+                {reference.title && (
+                  <div className="truncate font-medium" style={{ color: "var(--ll-text)" }}>
+                    {reference.title}
+                  </div>
+                )}
+                {reference.caption && (
+                  <p className="line-clamp-2 text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                    {reference.caption}
+                  </p>
+                )}
+                <a
+                  href={reference.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs underline-offset-2 hover:underline"
+                  style={{ color: "var(--ll-text-dim)" }}
+                >
+                  Ver original
+                </a>
+              </div>
+              <Button
+                onClick={onClearReference}
+                disabled={isWorking}
+                size="icon"
+                variant="ghost"
+                className="shrink-0"
+                title="Quitar referencia"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="space-y-2">
           <Label style={{ color: "var(--ll-text-muted)" }}>Audio (opcional)</Label>
           <AudioRecorder
@@ -118,7 +301,7 @@ export default function NewIdea() {
 
         <div className="space-y-2">
           <Label htmlFor="concept" style={{ color: "var(--ll-text-muted)" }}>
-            Texto (opcional si subiste audio)
+            Texto (opcional)
           </Label>
           <Textarea
             id="concept"
@@ -130,6 +313,41 @@ export default function NewIdea() {
             className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
           />
         </div>
+
+        {showModePicker && (
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Modo de la referencia</Label>
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Elegí cómo quieres que la IA combine el link con tu audio/texto.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                onClick={() => setReferenceMode("content_adapt")}
+                disabled={isWorking}
+                variant={referenceMode === "content_adapt" ? "brand" : "outline"}
+                className="flex-1 justify-start text-left"
+              >
+                <div className="flex flex-col items-start gap-0.5 py-1">
+                  <span className="text-sm">Adaptar contenido del link</span>
+                  <span className="text-xs opacity-80">Tu texto/audio = ajustes encima</span>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setReferenceMode("structure_only")}
+                disabled={isWorking}
+                variant={referenceMode === "structure_only" ? "brand" : "outline"}
+                className="flex-1 justify-start text-left"
+              >
+                <div className="flex flex-col items-start gap-0.5 py-1">
+                  <span className="text-sm">Usar solo la estructura</span>
+                  <span className="text-xs opacity-80">Tu texto/audio = concepto real</span>
+                </div>
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2 max-w-sm">
           <Label style={{ color: "var(--ll-text-muted)" }}>Formato (opcional)</Label>

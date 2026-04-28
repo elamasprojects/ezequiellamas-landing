@@ -4,6 +4,8 @@ export interface GenerateScriptInput {
   audio_upload_id?: string;
   raw_concept?: string;
   format_id?: string;
+  idea_reference_id?: string;
+  reference_mode?: "structure_only" | "content_adapt";
 }
 
 export interface GenerateScriptResult {
