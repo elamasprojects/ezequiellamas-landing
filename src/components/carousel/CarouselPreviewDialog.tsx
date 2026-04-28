@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 
 const HANDLE = "@ezequiellamas";
 const SWIPE_THRESHOLD_PX = 50;
+const SLIDE_W = 1080;
+const SLIDE_H = 1350;
 
 interface Props {
   open: boolean;
@@ -31,10 +33,30 @@ export default function CarouselPreviewDialog({
   const [index, setIndex] = useState(0);
   const total = slides.length;
   const touchStartX = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Reset to slide 1 every time the dialog opens
   useEffect(() => {
     if (open) setIndex(0);
+  }, [open]);
+
+  // Measure the slide container width so we can scale the native 1080×1350
+  // HTML down to fit. Re-attach when the dialog re-opens (Radix unmounts the
+  // portal between opens, so the ref needs to be re-bound).
+  useEffect(() => {
+    if (!open) {
+      setContainerWidth(0);
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setContainerWidth(rect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [open]);
 
   // Keyboard ←/→ — only active while dialog is open
@@ -64,6 +86,9 @@ export default function CarouselPreviewDialog({
       outputMode: "static",
     },
   );
+
+  const scale =
+    containerWidth === 0 ? 0 : Math.min(1, containerWidth / SLIDE_W);
 
   const goPrev = () => setIndex((i) => Math.max(0, i - 1));
   const goNext = () => setIndex((i) => Math.min(total - 1, i + 1));
@@ -105,20 +130,35 @@ export default function CarouselPreviewDialog({
           </span>
         </div>
 
-        {/* Slide area — 4:5 native, scales to dialog width */}
+        {/* Slide area — 4:5 box that scales the native 1080×1350 iframe to fit.
+            Same trick as CarouselEditor's SlidePreview: outer keeps aspect-ratio
+            so it has a real width before RO fires; inner is the native-sized
+            iframe with CSS `transform: scale(W/1080)`. */}
         <div
+          ref={containerRef}
           className="relative overflow-hidden bg-black"
-          style={{ aspectRatio: "1080 / 1350" }}
+          style={{ aspectRatio: `${SLIDE_W} / ${SLIDE_H}` }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          <iframe
-            key={slide.id}
-            srcDoc={html}
-            title={`Slide ${safeIndex + 1}`}
-            className="absolute inset-0 h-full w-full border-0"
-            sandbox="allow-same-origin"
-          />
+          <div
+            style={{
+              width: SLIDE_W,
+              height: SLIDE_H,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <iframe
+              key={slide.id}
+              srcDoc={html}
+              title={`Slide ${safeIndex + 1}`}
+              width={SLIDE_W}
+              height={SLIDE_H}
+              style={{ border: 0, display: "block" }}
+              sandbox="allow-same-origin"
+            />
+          </div>
 
           {safeIndex > 0 && (
             <button
