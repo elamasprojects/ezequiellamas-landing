@@ -22,7 +22,7 @@ export default function Footer() {
           Twitter / X
         </a>
         <a
-          href="https://www.instagram.com/ezequiellamas.ia/"
+          href="https://www.instagram.com/ezequiellamass/"
           target="_blank"
           rel="noreferrer"
         >
