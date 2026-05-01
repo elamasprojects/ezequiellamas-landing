@@ -41,7 +41,7 @@ import { timelineT3Grid, DURATION_T3_GRID } from "./animations/t3_grid";
 import { timelineT4VS, DURATION_T4_VS } from "./animations/t4_vs";
 import { timelineT5CTA, DURATION_T5_CTA } from "./animations/t5_cta";
 
-const DEFAULT_HANDLE = "@ezequiellamas";
+const DEFAULT_HANDLE = "@ezequiellamass";
 
 /**
  * Returns the body HTML for a single slide based on its template.

@@ -22,16 +22,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { analyzeReferentVideo, type ReferentVideo } from "@/lib/api/referents";
 import ReferentVideoEmbedDialog from "@/components/referentes/ReferentVideoEmbedDialog";
+import AdaptToMyVoiceDialog from "@/pages/app/admin/referentes/AdaptToMyVoiceDialog";
 
 interface Props {
   video: ReferentVideo;
   readOnly?: boolean;
+  referentName?: string | null;
 }
 
-export default function ReferentVideoCard({ video, readOnly = false }: Props) {
+export default function ReferentVideoCard({ video, readOnly = false, referentName }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [tab, setTab] = useState<"concept" | "transcript">("concept");
   const [embedOpen, setEmbedOpen] = useState(false);
+  const [adaptOpen, setAdaptOpen] = useState(false);
   const qc = useQueryClient();
 
   const analyzeMutation = useMutation({
@@ -193,6 +196,18 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
           </div>
         )}
 
+        {isDone && !readOnly && (
+          <Button
+            variant="brand"
+            size="sm"
+            className="mt-1"
+            onClick={() => setAdaptOpen(true)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Adaptar a mi voz
+          </Button>
+        )}
+
         {isDone && (
           <Button
             variant="ghost"
@@ -257,6 +272,15 @@ export default function ReferentVideoCard({ video, readOnly = false }: Props) {
         onOpenChange={setEmbedOpen}
         video={video}
       />
+
+      {!readOnly && (
+        <AdaptToMyVoiceDialog
+          open={adaptOpen}
+          onOpenChange={setAdaptOpen}
+          video={video}
+          referentName={referentName}
+        />
+      )}
     </div>
   );
 }

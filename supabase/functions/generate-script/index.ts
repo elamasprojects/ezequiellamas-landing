@@ -272,10 +272,18 @@ interface ReferenceBlockInput {
   transcript: string;
   mode: "structure_only" | "content_adapt";
   hasUserConcept: boolean;
+  // Solo cuando la fuente es `referent_videos` (banco de virales analizados).
+  // El análisis IA de por qué el video performó (hook, formato, ángulo, CTA, summary).
+  conceptSummary?: string | null;
+  // Nombre del referente (creator original), si está disponible.
+  referentName?: string | null;
+  // Métricas del video, si están disponibles (helps Claude calibrate por qué funcionó).
+  views?: number | null;
 }
 
 function buildReferenceBlock(ref: ReferenceBlockInput): string {
   const transcript = (ref.transcript ?? "").slice(0, 8000);
+  const conceptSummary = (ref.conceptSummary ?? "").slice(0, 4000);
   const modeInstructions = ref.mode === "content_adapt"
     ? [
         "MODO: Adaptación de contenido.",
@@ -297,11 +305,20 @@ function buildReferenceBlock(ref: ReferenceBlockInput): string {
     "=== REFERENCIA INSPIRACIONAL ===",
     `Plataforma: ${ref.platform}`,
     `URL: ${ref.source_url}`,
+    ref.referentName ? `Creator original: ${ref.referentName}` : "",
+    ref.views != null ? `Views: ${ref.views.toLocaleString("es-AR")}` : "",
     ref.title ? `Título: ${ref.title}` : "",
     ref.caption ? `Caption: ${ref.caption}` : "",
     "",
     "Transcript del video:",
     `"""\n${transcript}\n"""`,
+    conceptSummary
+      ? [
+          "",
+          "ANÁLISIS PREVIO DE POR QUÉ ESTE VIDEO PERFORMÓ (úsalo como pista, no copies):",
+          `"""\n${conceptSummary}\n"""`,
+        ].join("\n")
+      : "",
     "",
     "INSTRUCCIONES SOBRE LA REFERENCIA:",
     modeInstructions,
@@ -310,16 +327,53 @@ function buildReferenceBlock(ref: ReferenceBlockInput): string {
   ].filter(Boolean).join("\n");
 }
 
+interface SeriesPriorScript {
+  part_number: number | null;
+  title: string | null;
+  hook: string | null;
+  ai_summary: string | null;
+}
+
 function buildUserPrompt(args: {
   concept: string;
   formatName?: string;
   formatDescription?: string;
+  shapeName?: string;
+  shapeDescription?: string;
+  seriesName?: string;
+  seriesDescription?: string;
+  partNumber?: number | null;
+  seriesPriorScripts?: SeriesPriorScript[];
   fewShotScripts: FewShotScript[];
   referenceBlock?: string;
 }): string {
   const formatLine = args.formatName
     ? `=== FORMATO ELEGIDO ===\n${args.formatName}: ${args.formatDescription ?? ""}`
     : "=== FORMATO ===\n(la IA elige el más apropiado)";
+
+  const shapeLine = args.shapeName
+    ? `=== SHAPE (estructura narrativa) ===\n${args.shapeName}: ${args.shapeDescription ?? ""}\n\nIMPORTANTE: Respetá los beats que define el shape. El hook, el desarrollo y el CTA deben seguir esa estructura, no improvisar otra.`
+    : "";
+
+  const seriesBlock = args.seriesName
+    ? [
+        "=== SERIE ===",
+        `${args.seriesName}: ${args.seriesDescription ?? ""}`,
+        args.partNumber ? `Este guion es la parte ${args.partNumber} de la serie.` : "",
+        args.seriesPriorScripts && args.seriesPriorScripts.length > 0
+          ? [
+              "",
+              "Ya están cubiertos en partes anteriores de la serie (NO los repitas, asumí que el espectador los conoce o son distintos):",
+              ...args.seriesPriorScripts.map((s) => {
+                const pn = s.part_number ? `Parte ${s.part_number}: ` : "- ";
+                return `${pn}${s.title ?? "(sin título)"} — ${s.ai_summary ?? s.hook ?? ""}`.slice(0, 300);
+              }),
+            ].join("\n")
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
 
   const fewShotBlock =
     args.fewShotScripts.length === 0
@@ -344,8 +398,10 @@ function buildUserPrompt(args: {
     conceptBlock,
     args.referenceBlock ?? "",
     formatLine,
+    shapeLine,
+    seriesBlock,
     fewShotBlock,
-    `=== INSTRUCCIONES ===\nGenerá el guion completo en la voz de Ezequiel. Aplicá el manifiesto + las reglas + el banco de hooks. Llamá a la tool submit_script con el resultado estructurado. UNA SOLA invocación.`,
+    `=== INSTRUCCIONES ===\nGenerá el guion completo en la voz de Ezequiel. Aplicá el manifiesto + las reglas + el banco de hooks${args.shapeName ? " + el shape elegido" : ""}${args.seriesName ? " + el contexto de la serie" : ""}. Llamá a la tool submit_script con el resultado estructurado. UNA SOLA invocación.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -393,14 +449,57 @@ Deno.serve(async (req) => {
     const audio_upload_id = typeof body?.audio_upload_id === "string" ? body.audio_upload_id : null;
     const raw_concept_input = typeof body?.raw_concept === "string" ? body.raw_concept.trim() : "";
     const format_id = typeof body?.format_id === "string" ? body.format_id : null;
+    const shape_id = typeof body?.shape_id === "string" ? body.shape_id : null;
+    const series_id = typeof body?.series_id === "string" ? body.series_id : null;
+    const part_number = typeof body?.part_number === "number" && Number.isInteger(body.part_number)
+      ? body.part_number
+      : null;
     const idea_reference_id = typeof body?.idea_reference_id === "string" ? body.idea_reference_id : null;
+    const referent_video_id = typeof body?.referent_video_id === "string" ? body.referent_video_id : null;
+    const target_script_id = typeof body?.target_script_id === "string" ? body.target_script_id : null;
     const reference_mode_input =
       body?.reference_mode === "structure_only" || body?.reference_mode === "content_adapt"
         ? (body.reference_mode as "structure_only" | "content_adapt")
         : null;
 
-    if (!audio_upload_id && !raw_concept_input && !idea_reference_id) {
-      return json({ error: "audio_upload_id, raw_concept or idea_reference_id required" }, 400);
+    // Si es regeneración in-place (target_script_id) y no llegó concept, fallback al
+    // raw_concept del script existente.
+    let regenerationFallbackConcept: string | null = null;
+    let regenerationFallback = {
+      format_id: null as string | null,
+      shape_id: null as string | null,
+      series_id: null as string | null,
+      part_number: null as number | null,
+    };
+    if (target_script_id) {
+      const { data: existingScript, error: existingErr } = await userClient
+        .from("scripts")
+        .select("id, owner_id, raw_concept, format_id, shape_id, series_id, part_number")
+        .eq("id", target_script_id)
+        .maybeSingle();
+      if (existingErr || !existingScript) {
+        return json({ error: existingErr?.message ?? "target_script_id not found or not owned" }, 404);
+      }
+      regenerationFallbackConcept = existingScript.raw_concept ?? null;
+      regenerationFallback = {
+        format_id: existingScript.format_id ?? null,
+        shape_id: existingScript.shape_id ?? null,
+        series_id: existingScript.series_id ?? null,
+        part_number: existingScript.part_number ?? null,
+      };
+    }
+
+    if (
+      !audio_upload_id &&
+      !raw_concept_input &&
+      !idea_reference_id &&
+      !referent_video_id &&
+      !regenerationFallbackConcept
+    ) {
+      return json(
+        { error: "audio_upload_id, raw_concept, idea_reference_id or referent_video_id required" },
+        400,
+      );
     }
 
     // -- Audio → transcript ---------------------------------------------------
@@ -458,10 +557,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    const concept = [transcript, raw_concept_input].filter(Boolean).join("\n\n").trim();
-    if (!concept && !idea_reference_id) {
+    let concept = [transcript, raw_concept_input].filter(Boolean).join("\n\n").trim();
+    if (!concept && regenerationFallbackConcept) {
+      concept = regenerationFallbackConcept.trim();
+    }
+    if (!concept && !idea_reference_id && !referent_video_id) {
       return json({ error: "Empty concept after transcription" }, 400);
     }
+
+    // Resolve effective ids: explicit body wins, sino los del script existente (en regeneración).
+    const effective_format_id = format_id ?? regenerationFallback.format_id;
+    const effective_shape_id = shape_id ?? regenerationFallback.shape_id;
+    const effective_series_id = series_id ?? regenerationFallback.series_id;
+    const effective_part_number = part_number ?? regenerationFallback.part_number;
 
     // -- Idea reference -------------------------------------------------------
     let referenceBlock: string | undefined;
@@ -498,19 +606,104 @@ Deno.serve(async (req) => {
       });
     }
 
+    // -- Referent video (banco de virales) ------------------------------------
+    if (referent_video_id) {
+      const { data: rv, error: rvErr } = await userClient
+        .from("referent_videos")
+        .select(
+          "id, referent_id, source_url, platform, title, caption, views_total, transcript, transcript_status, concept_summary, concept_status, referents(name)",
+        )
+        .eq("id", referent_video_id)
+        .single();
+      if (rvErr || !rv) {
+        return json({ error: rvErr?.message ?? "referent_video not found" }, 404);
+      }
+      if (rv.transcript_status !== "done" || !rv.transcript) {
+        return json(
+          {
+            error:
+              "El video del referente todavía no fue analizado. Tocá 'Analizar' en la card antes de adaptar.",
+          },
+          422,
+        );
+      }
+      const hasUserConcept = concept.trim().length > 0;
+      const reference_mode = reference_mode_input ?? "content_adapt";
+      // RV doesn't expose a referent name in the row by default — extract from join.
+      // Postgrest returns the related row as object or array depending on join cardinality.
+      // referent_videos.referent_id has many-to-one to referents, so it's an object.
+      const referentRow = rv.referents as { name?: string } | { name?: string }[] | null;
+      const referentName = Array.isArray(referentRow)
+        ? referentRow[0]?.name ?? null
+        : referentRow?.name ?? null;
+      referenceBlock = buildReferenceBlock({
+        platform: rv.platform,
+        source_url: rv.source_url,
+        title: rv.title,
+        caption: rv.caption,
+        transcript: rv.transcript,
+        mode: reference_mode,
+        hasUserConcept,
+        conceptSummary: rv.concept_status === "done" ? rv.concept_summary : null,
+        referentName,
+        views: rv.views_total,
+      });
+    }
+
     // -- Format ---------------------------------------------------------------
     let formatName: string | undefined;
     let formatDescription: string | undefined;
-    if (format_id) {
+    if (effective_format_id) {
       const { data: f } = await userClient
         .from("formats")
         .select("name, description")
-        .eq("id", format_id)
+        .eq("id", effective_format_id)
         .maybeSingle();
       if (f) {
         formatName = f.name;
         formatDescription = f.description ?? undefined;
       }
+    }
+
+    // -- Shape ----------------------------------------------------------------
+    let shapeName: string | undefined;
+    let shapeDescription: string | undefined;
+    if (effective_shape_id) {
+      const { data: sh } = await userClient
+        .from("shapes")
+        .select("name, description")
+        .eq("id", effective_shape_id)
+        .maybeSingle();
+      if (sh) {
+        shapeName = sh.name;
+        shapeDescription = sh.description ?? undefined;
+      }
+    }
+
+    // -- Series + parts already covered ---------------------------------------
+    let seriesName: string | undefined;
+    let seriesDescription: string | undefined;
+    let seriesPriorScripts: SeriesPriorScript[] = [];
+    if (effective_series_id) {
+      const { data: ser } = await userClient
+        .from("series")
+        .select("name, description")
+        .eq("id", effective_series_id)
+        .maybeSingle();
+      if (ser) {
+        seriesName = ser.name;
+        seriesDescription = ser.description ?? undefined;
+      }
+      const { data: priorParts } = await userClient
+        .from("scripts")
+        .select("id, part_number, title, hook, ai_summary")
+        .eq("series_id", effective_series_id)
+        .order("part_number", { ascending: true })
+        .limit(20);
+      seriesPriorScripts = (priorParts ?? [])
+        .filter((p) => (target_script_id ? p.id !== target_script_id : true))
+        .filter((p) => p.part_number !== effective_part_number)
+        .map(({ id: _id, ...rest }) => rest as SeriesPriorScript);
     }
 
     // -- Few-shot from prior scripts -----------------------------------------
@@ -527,6 +720,12 @@ Deno.serve(async (req) => {
       concept,
       formatName,
       formatDescription,
+      shapeName,
+      shapeDescription,
+      seriesName,
+      seriesDescription,
+      partNumber: effective_part_number,
+      seriesPriorScripts,
       fewShotScripts: priorScripts ?? [],
       referenceBlock,
     });
@@ -611,12 +810,82 @@ Deno.serve(async (req) => {
     const story = result.storytelling ?? { setup: "", conflict: "", resolution: "" };
     const isStoryPopulated = !!(story.setup?.trim() || story.conflict?.trim() || story.resolution?.trim());
 
-    // -- RPC insert -----------------------------------------------------------
+    // -- Persistencia: regeneración in-place o RPC insert --------------------
+    if (target_script_id) {
+      const updatePayload: Record<string, unknown> = {
+        audio_upload_id: audio_upload_id ?? null,
+        format_id: effective_format_id,
+        shape_id: effective_shape_id,
+        series_id: effective_series_id,
+        part_number: effective_part_number,
+        raw_concept: concept,
+        title: result.title,
+        generated_script,
+        hook: result.hook,
+        development: result.development,
+        cta: result.cta,
+        word_count,
+        estimated_wpm: result.estimated_wpm,
+        tone: result.tone,
+        ai_summary: result.ai_summary,
+        content_bucket: result.content_bucket ?? null,
+        avatar_target: result.avatar_target ?? null,
+        hook_reference: result.hook_reference ?? null,
+        hook_alternatives: result.hook_alternatives ?? [],
+        visual_hook_format: result.visual_hook_format ?? null,
+        on_screen_text: result.on_screen_text ?? null,
+        caption: result.caption ?? null,
+        hashtags: cleanHashtags,
+        seo_keywords: result.seo_keywords ?? [],
+        why_it_works: result.why_it_works ?? null,
+        mental_model: result.mental_model ?? null,
+        platform_codes: cleanPlatformCodes,
+        storytelling_setup: isStoryPopulated ? story.setup || null : null,
+        storytelling_conflict: isStoryPopulated ? story.conflict || null : null,
+        storytelling_resolution: isStoryPopulated ? story.resolution || null : null,
+        generation_warning: generationWarning,
+        idea_reference_id: idea_reference_id,
+        reference_mode: idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
+        referent_video_id: referent_video_id,
+      };
+
+      const { error: updErr } = await userClient
+        .from("scripts")
+        .update(updatePayload)
+        .eq("id", target_script_id);
+      if (updErr) return json({ error: `Update failed: ${updErr.message}` }, 500);
+
+      // Reemplazar brolls: borrar viejos + insertar nuevos.
+      const { error: delErr } = await userClient
+        .from("broll_suggestions")
+        .delete()
+        .eq("script_id", target_script_id);
+      if (delErr) return json({ error: `Brolls delete failed: ${delErr.message}` }, 500);
+
+      if (brolls.length > 0) {
+        const { error: insErr } = await userClient
+          .from("broll_suggestions")
+          .insert(brolls.map((b) => ({ ...b, script_id: target_script_id })));
+        if (insErr) return json({ error: `Brolls insert failed: ${insErr.message}` }, 500);
+      }
+
+      return json({
+        ok: true,
+        script_id: target_script_id,
+        regenerated: true,
+        cache: {
+          cache_creation_input_tokens: usage.cache_creation_input_tokens ?? 0,
+          cache_read_input_tokens: usage.cache_read_input_tokens ?? 0,
+        },
+        warning: generationWarning,
+      });
+    }
+
     const { data: scriptId, error: rpcErr } = await userClient.rpc(
       "create_script_with_brolls",
       {
         _audio_upload_id: audio_upload_id,
-        _format_id: format_id,
+        _format_id: effective_format_id,
         _raw_concept: concept,
         _title: result.title,
         _generated_script: generated_script,
@@ -646,6 +915,10 @@ Deno.serve(async (req) => {
         _generation_warning: generationWarning,
         _idea_reference_id: idea_reference_id,
         _reference_mode: idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
+        _shape_id: effective_shape_id,
+        _series_id: effective_series_id,
+        _part_number: effective_part_number,
+        _referent_video_id: referent_video_id,
       },
     );
     if (rpcErr) return json({ error: `RPC failed: ${rpcErr.message}` }, 500);

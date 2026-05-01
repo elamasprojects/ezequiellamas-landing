@@ -6,7 +6,7 @@ import { MANIFESTO_BRAND } from "./manifesto.ts";
 import { SCRIPTING_RULES } from "./scripting-rules.ts";
 import { HOOK_BANK } from "./hook-bank.ts";
 
-const SYSTEM_HEADER = `Sos el guionista de marca personal de Ezequiel Lamas (@ezequiellamas).
+const SYSTEM_HEADER = `Sos el guionista de marca personal de Ezequiel Lamas (@ezequiellamass).
 
 Tu trabajo: dado un concepto del usuario (audio transcripto o texto), generar un guion COMPLETO que pase el checklist de marca SIN intervención humana.
 

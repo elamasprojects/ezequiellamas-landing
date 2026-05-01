@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import AudioRecorder from "@/components/app/AudioRecorder";
 import { useFormats } from "@/hooks/useFormats";
+import { useShapes } from "@/hooks/useShapes";
+import { useSeries } from "@/hooks/useSeries";
 import { useSession } from "@/hooks/useSession";
 import { uploadAudio } from "@/lib/api/audio";
 import { generateScript } from "@/lib/api/generation";
@@ -22,6 +24,8 @@ import { scrapeIdeaReference, type IdeaReference } from "@/lib/api/ideaReference
 import { parseVideoUrl } from "@/lib/parseVideoUrl";
 
 const NO_FORMAT = "__none__";
+const NO_SHAPE = "__none__";
+const NO_SERIES = "__none__";
 
 type GenStep = "idle" | "uploading" | "generating" | "done" | "error";
 type VerifyStep = "idle" | "verifying" | "failed";
@@ -43,11 +47,16 @@ export default function NewIdea() {
   const navigate = useNavigate();
   const { user } = useSession();
   const { data: formats } = useFormats();
+  const { data: shapes } = useShapes();
+  const { data: series } = useSeries();
 
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
   const [rawConcept, setRawConcept] = useState("");
   const [formatId, setFormatId] = useState<string>(NO_FORMAT);
+  const [shapeId, setShapeId] = useState<string>(NO_SHAPE);
+  const [seriesId, setSeriesId] = useState<string>(NO_SERIES);
+  const [partNumber, setPartNumber] = useState<string>("");
 
   const [referenceUrl, setReferenceUrl] = useState("");
   const [reference, setReference] = useState<IdeaReference | null>(null);
@@ -110,10 +119,14 @@ export default function NewIdea() {
       }
 
       setStep("generating");
+      const partNum = partNumber.trim() ? parseInt(partNumber.trim(), 10) : NaN;
       const result = await generateScript({
         audio_upload_id,
         raw_concept: rawConcept.trim() || undefined,
         format_id: formatId === NO_FORMAT ? undefined : formatId,
+        shape_id: shapeId === NO_SHAPE ? undefined : shapeId,
+        series_id: seriesId === NO_SERIES ? undefined : seriesId,
+        part_number: Number.isInteger(partNum) && partNum > 0 ? partNum : undefined,
         idea_reference_id: reference?.id,
         reference_mode: reference ? referenceMode : undefined,
       });
@@ -349,21 +362,73 @@ export default function NewIdea() {
           </div>
         )}
 
-        <div className="space-y-2 max-w-sm">
-          <Label style={{ color: "var(--ll-text-muted)" }}>Formato (opcional)</Label>
-          <Select value={formatId} onValueChange={setFormatId} disabled={isWorking}>
-            <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
-              <SelectValue placeholder="La IA elige" />
-            </SelectTrigger>
-            <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
-              <SelectItem value={NO_FORMAT}>La IA elige por mí</SelectItem>
-              {formats?.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Formato (opcional)</Label>
+            <Select value={formatId} onValueChange={setFormatId} disabled={isWorking}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="La IA elige" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_FORMAT}>La IA elige por mí</SelectItem>
+                {formats?.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Shape (opcional)</Label>
+            <Select value={shapeId} onValueChange={setShapeId} disabled={isWorking}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="La IA elige" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_SHAPE}>La IA elige por mí</SelectItem>
+                {shapes?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Serie (opcional)</Label>
+            <Select value={seriesId} onValueChange={setSeriesId} disabled={isWorking}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Sin serie" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_SERIES}>Sin serie</SelectItem>
+                {series?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="part-number" style={{ color: "var(--ll-text-muted)" }}>
+              Parte # (opcional)
+            </Label>
+            <Input
+              id="part-number"
+              type="number"
+              min={1}
+              placeholder="1"
+              value={partNumber}
+              onChange={(e) => setPartNumber(e.target.value)}
+              disabled={isWorking || seriesId === NO_SERIES}
+              className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4 pt-2">

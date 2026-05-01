@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +29,10 @@ import {
   deleteAssignment,
   markPaid,
   transitionStatus,
+  updateAssignment,
+  EDITING_STYLE_PRESETS,
+  paymentForEditingStyle,
+  type EditingStyle,
 } from "@/lib/api/assignments";
 import {
   createCorrection,
@@ -44,6 +57,24 @@ export default function AssignmentDetail() {
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionFor, setCorrectionFor] = useState<string | null>(null);
   const [correctionNotes, setCorrectionNotes] = useState("");
+
+  // Editing style + payment editor (inline en la sección "Estilo & pago").
+  const NO_STYLE = "__none__";
+  const [editingStyle, setEditingStyle] = useState<string>(NO_STYLE);
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+
+  useEffect(() => {
+    if (!assignment) return;
+    setEditingStyle(assignment.editing_style ?? NO_STYLE);
+    setPaymentAmount(
+      assignment.payment_amount != null ? String(assignment.payment_amount) : "",
+    );
+  }, [assignment?.id, assignment?.editing_style, assignment?.payment_amount]);
+
+  const styleDirty =
+    !!assignment &&
+    (editingStyle !== (assignment.editing_style ?? NO_STYLE) ||
+      paymentAmount !== (assignment.payment_amount != null ? String(assignment.payment_amount) : ""));
 
   function appUrl(path: string) {
     return `${window.location.origin}${path}`;
@@ -124,6 +155,44 @@ export default function AssignmentDetail() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const saveStyleMutation = useMutation({
+    mutationFn: () => {
+      if (!id) throw new Error("no assignment id");
+      const parsed = paymentAmount.trim() ? Number(paymentAmount) : null;
+      return updateAssignment(id, {
+        editing_style: editingStyle === NO_STYLE ? null : (editingStyle as EditingStyle),
+        payment_amount: parsed != null && !Number.isNaN(parsed) ? parsed : null,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assignment", id] });
+      qc.invalidateQueries({ queryKey: ["assignments"] });
+      toast.success("Estilo y pago actualizados");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  function onChangeEditingStyle(value: string) {
+    setEditingStyle(value);
+    if (value === NO_STYLE) return;
+    const preset = paymentForEditingStyle(value as EditingStyle);
+    // Si el monto está vacío o coincide con el preset anterior, lo refrescamos.
+    const previousPreset =
+      assignment?.editing_style != null ? paymentForEditingStyle(assignment.editing_style) : null;
+    const currentNumeric = paymentAmount.trim() ? Number(paymentAmount) : null;
+    const matchesPreviousPreset =
+      previousPreset != null && currentNumeric === previousPreset;
+    if (preset != null && (paymentAmount.trim() === "" || matchesPreviousPreset)) {
+      setPaymentAmount(String(preset));
+    }
+  }
+
+  function onApplyPresetPayment() {
+    if (editingStyle === NO_STYLE) return;
+    const preset = paymentForEditingStyle(editingStyle as EditingStyle);
+    if (preset != null) setPaymentAmount(String(preset));
+  }
+
   if (isLoading) return <Skeleton className="h-96 w-full bg-[var(--ll-surface)]" />;
   if (!assignment) {
     return (
@@ -198,9 +267,109 @@ export default function AssignmentDetail() {
           value={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString("es-AR") : null}
         />
         <Info
-          label="Pago"
-          value={assignment.payment_amount ? `USD ${assignment.payment_amount}` : null}
+          label="Estilo de edición"
+          value={
+            assignment.editing_style
+              ? (() => {
+                  const preset = EDITING_STYLE_PRESETS.find(
+                    (p) => p.value === assignment.editing_style,
+                  );
+                  return preset ? `${preset.label} · USD ${preset.paymentUsd}` : null;
+                })()
+              : null
+          }
         />
+      </section>
+
+      <section className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-5">
+        <div
+          className="mb-3 text-[10px] uppercase tracking-[0.2em]"
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-muted)" }}
+        >
+          Estilo & pago
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Estilo de edición</Label>
+            <Select value={editingStyle} onValueChange={onChangeEditingStyle}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Sin definir" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_STYLE}>Sin definir</SelectItem>
+                {EDITING_STYLE_PRESETS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label} — USD {p.paymentUsd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {editingStyle !== NO_STYLE && (
+              <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+                {EDITING_STYLE_PRESETS.find((p) => p.value === editingStyle)?.description}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Pago (USD)</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                inputMode="decimal"
+                placeholder="50"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+              />
+              {editingStyle !== NO_STYLE &&
+                paymentAmount !== String(paymentForEditingStyle(editingStyle as EditingStyle) ?? "") && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onApplyPresetPayment}
+                    className="shrink-0 text-xs text-[var(--ll-text-muted)] hover:text-[var(--ll-text)]"
+                    title="Reaplicar el preset del estilo elegido"
+                  >
+                    Usar preset
+                  </Button>
+                )}
+            </div>
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Se autocompleta al elegir un estilo. Editable como override.
+            </p>
+          </div>
+        </div>
+
+        {styleDirty && (
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditingStyle(assignment.editing_style ?? NO_STYLE);
+                setPaymentAmount(
+                  assignment.payment_amount != null ? String(assignment.payment_amount) : "",
+                );
+              }}
+              disabled={saveStyleMutation.isPending}
+            >
+              Descartar
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="sm"
+              onClick={() => saveStyleMutation.mutate()}
+              disabled={saveStyleMutation.isPending}
+            >
+              <Check className="h-4 w-4" />
+              {saveStyleMutation.isPending ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        )}
       </section>
 
       {assignment.instructions && (

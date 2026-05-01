@@ -10,6 +10,17 @@ export type ScriptStatus = "draft" | "scheduled" | "recorded" | "posted" | "arch
 export interface ScriptWithBrolls extends Script {
   broll_suggestions: BrollSuggestion[];
   formats: { id: string; name: string } | null;
+  /** Inspiración: viral del banco de referentes que originó este script (M19). */
+  referent_videos: {
+    id: string;
+    source_url: string;
+    platform: string;
+    title: string | null;
+    caption: string | null;
+    thumbnail_url: string | null;
+    views_total: number | null;
+    referents: { id: string; name: string } | null;
+  } | null;
 }
 
 export async function fetchScripts(opts?: { status?: ScriptStatus }): Promise<Script[]> {
@@ -23,7 +34,9 @@ export async function fetchScripts(opts?: { status?: ScriptStatus }): Promise<Sc
 export async function fetchScript(id: string): Promise<ScriptWithBrolls | null> {
   const { data, error } = await supabase
     .from("scripts")
-    .select("*, broll_suggestions(*), formats(id, name)")
+    .select(
+      "*, broll_suggestions(*), formats(id, name), referent_videos(id, source_url, platform, title, caption, thumbnail_url, views_total, referents(id, name))",
+    )
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;

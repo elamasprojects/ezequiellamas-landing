@@ -138,7 +138,7 @@ export const SAMPLE_SLIDES: Slide[] = [
         "Te paso el flow exacto: el agente, los templates, la estructura de DB, y como armo el feedback loop. **Todo gratis.**",
       keyword: "SISTEMA",
       tags: ["AGENT", "DATABASE", "TEMPLATES", "FEEDBACK"],
-      signatureText: "**@ezequiellamas** — sistemas UGC que escalan",
+      signatureText: "**@ezequiellamass** — sistemas UGC que escalan",
     },
   },
 ];

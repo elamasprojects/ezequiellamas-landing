@@ -127,5 +127,5 @@ export interface Slide {
 export interface RenderOpts {
   totalSlides: number;
   mode: CarouselMode;
-  handle?: string;              // defaults to "@ezequiellamas"
+  handle?: string;              // defaults to "@ezequiellamass"
 }

@@ -7,9 +7,11 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  Loader2,
   Plus,
   Save,
   Settings2,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -37,12 +39,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BrollList from "@/components/app/BrollList";
 import { useScript } from "@/hooks/useScript";
 import { useFormats } from "@/hooks/useFormats";
+import { useShapes } from "@/hooks/useShapes";
+import { useSeries } from "@/hooks/useSeries";
 import {
   deleteScript,
   updateScript,
   type ScriptStatus,
   type ScriptUpdate,
 } from "@/lib/api/scripts";
+import { generateScript } from "@/lib/api/generation";
 
 const STATUSES: { value: ScriptStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -53,6 +58,8 @@ const STATUSES: { value: ScriptStatus; label: string }[] = [
 ];
 
 const NO_FORMAT = "__none__";
+const NO_SHAPE = "__none__";
+const NO_SERIES = "__none__";
 
 const BUCKET_LABELS: Record<string, { label: string; className: string }> = {
   negocios: { label: "Negocios", className: "bg-[var(--ll-accent)]/15 text-[var(--ll-accent)] border-[var(--ll-accent)]/30" },
@@ -121,6 +128,8 @@ export default function ScriptEditor() {
   const qc = useQueryClient();
   const { data: script, isLoading } = useScript(id);
   const { data: formats } = useFormats();
+  const { data: shapes } = useShapes();
+  const { data: series } = useSeries();
 
   // Columna principal
   const [title, setTitle] = useState("");
@@ -136,6 +145,9 @@ export default function ScriptEditor() {
   const [status, setStatus] = useState<ScriptStatus>("draft");
   const [scheduledAt, setScheduledAt] = useState("");
   const [formatId, setFormatId] = useState<string>(NO_FORMAT);
+  const [shapeId, setShapeId] = useState<string>(NO_SHAPE);
+  const [seriesId, setSeriesId] = useState<string>(NO_SERIES);
+  const [partNumber, setPartNumber] = useState<string>("");
 
   // Drawer (Producción & Distribución)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -163,6 +175,9 @@ export default function ScriptEditor() {
       script.scheduled_at ? new Date(script.scheduled_at).toISOString().slice(0, 16) : "",
     );
     setFormatId(script.format_id ?? NO_FORMAT);
+    setShapeId(script.shape_id ?? NO_SHAPE);
+    setSeriesId(script.series_id ?? NO_SERIES);
+    setPartNumber(script.part_number != null ? String(script.part_number) : "");
     setOnScreenText(script.on_screen_text ?? "");
     setCaption(script.caption ?? "");
     setHashtags(script.hashtags ?? []);
@@ -185,6 +200,12 @@ export default function ScriptEditor() {
         status,
         scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         format_id: formatId === NO_FORMAT ? null : formatId,
+        shape_id: shapeId === NO_SHAPE ? null : shapeId,
+        series_id: seriesId === NO_SERIES ? null : seriesId,
+        part_number: (() => {
+          const n = parseInt(partNumber.trim(), 10);
+          return Number.isInteger(n) && n > 0 ? n : null;
+        })(),
         on_screen_text: onScreenText.trim() || null,
         caption: caption.trim() || null,
         hashtags,
@@ -210,6 +231,19 @@ export default function ScriptEditor() {
       qc.invalidateQueries({ queryKey: ["scripts"] });
       toast.success("Guion eliminado");
       navigate("/app/admin/ideas", { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("no script id");
+      return generateScript({ target_script_id: id });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["script", id] });
+      qc.invalidateQueries({ queryKey: ["scripts"] });
+      toast.success("Guion regenerado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -262,17 +296,47 @@ export default function ScriptEditor() {
             <ArrowLeft className="h-4 w-4" /> Volver
           </Link>
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            if (confirm("¿Eliminar este guion?")) deleteMutation.mutate();
-          }}
-          disabled={deleteMutation.isPending}
-          className="text-[var(--ll-text-muted)] hover:text-red-400"
-        >
-          <Trash2 className="h-4 w-4" /> Eliminar
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (
+                confirm(
+                  "¿Regenerar con IA? Se reescribe hook, desarrollo, CTA, brolls, hashtags y producción a partir del concepto original. El formato, shape, serie y parte # se mantienen. Las ediciones manuales del cuerpo se pierden.",
+                )
+              ) {
+                regenerateMutation.mutate();
+              }
+            }}
+            disabled={regenerateMutation.isPending}
+            className="text-[var(--ll-text-muted)] hover:text-[var(--ll-accent)]"
+            title="Regenerar el guion con IA usando el mismo concepto"
+          >
+            {regenerateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Regenerando...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Regenerar con IA
+              </>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm("¿Eliminar este guion?")) deleteMutation.mutate();
+            }}
+            disabled={deleteMutation.isPending}
+            className="text-[var(--ll-text-muted)] hover:text-red-400"
+          >
+            <Trash2 className="h-4 w-4" /> Eliminar
+          </Button>
+        </div>
       </div>
 
       <header className="space-y-2">
@@ -341,6 +405,48 @@ export default function ScriptEditor() {
             <span>{script.generation_warning}</span>
           </div>
         )}
+
+        {script.referent_videos && (
+          <div className="mt-3 flex items-center gap-3 rounded-md border border-[var(--ll-accent)]/30 bg-[var(--ll-accent)]/5 p-3">
+            {script.referent_videos.thumbnail_url ? (
+              <img
+                src={script.referent_videos.thumbnail_url}
+                alt=""
+                className="h-12 w-12 shrink-0 rounded object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="h-12 w-12 shrink-0 rounded bg-[var(--ll-surface-2)]" />
+            )}
+            <div className="flex flex-1 flex-col gap-0.5 text-sm min-w-0">
+              <span
+                className="text-[10px] uppercase tracking-[0.2em]"
+                style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+              >
+                Inspirado en{" "}
+                {script.referent_videos.referents?.name ?? "un viral"} ·{" "}
+                {script.referent_videos.platform}
+                {script.referent_videos.views_total
+                  ? ` · ${formatViews(script.referent_videos.views_total)}`
+                  : ""}
+              </span>
+              <span className="truncate text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                {script.referent_videos.title ?? script.referent_videos.caption ?? "(sin título)"}
+              </span>
+            </div>
+            <a
+              href={script.referent_videos.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-xs underline-offset-2 hover:underline"
+              style={{ color: "var(--ll-text-dim)" }}
+              title="Abrir el video original"
+            >
+              Ver original →
+            </a>
+          </div>
+        )}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -352,6 +458,7 @@ export default function ScriptEditor() {
             value={hook}
             onChange={setHook}
             rows={2}
+            isDirty={hook !== (script.hook ?? "")}
           />
 
           {hookAlternatives.length > 0 && (
@@ -414,6 +521,7 @@ export default function ScriptEditor() {
             value={development}
             onChange={setDevelopment}
             rows={6}
+            isDirty={development !== (script.development ?? "")}
           />
           <Section
             label="CTA"
@@ -422,6 +530,7 @@ export default function ScriptEditor() {
             value={cta}
             onChange={setCta}
             rows={2}
+            isDirty={cta !== (script.cta ?? "")}
           />
 
           {hasStorytelling && (
@@ -493,6 +602,57 @@ export default function ScriptEditor() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Shape</Label>
+            <Select value={shapeId} onValueChange={setShapeId}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Sin shape" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_SHAPE}>Sin shape</SelectItem>
+                {shapes?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Serie</Label>
+            <Select value={seriesId} onValueChange={setSeriesId}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Sin serie" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_SERIES}>Sin serie</SelectItem>
+                {series?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {seriesId !== NO_SERIES && (
+            <div className="space-y-2">
+              <Label htmlFor="part-number-editor" style={{ color: "var(--ll-text-muted)" }}>
+                Parte #
+              </Label>
+              <Input
+                id="part-number-editor"
+                type="number"
+                min={1}
+                placeholder="1"
+                value={partNumber}
+                onChange={(e) => setPartNumber(e.target.value)}
+                className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="scheduled" style={{ color: "var(--ll-text-muted)" }}>
@@ -640,6 +800,7 @@ function Section({
   value,
   onChange,
   rows,
+  isDirty = false,
 }: {
   label: string;
   hint: string;
@@ -647,16 +808,35 @@ function Section({
   value: string;
   onChange: (v: string) => void;
   rows: number;
+  isDirty?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-5">
+    <div
+      className={`group rounded-lg border bg-[var(--ll-surface)] p-5 transition-colors ${
+        isDirty
+          ? "border-[var(--ll-warm)]/40"
+          : "border-[var(--ll-border)] hover:border-[var(--ll-border-hover)] focus-within:border-[var(--ll-accent)]/60"
+      }`}
+    >
       <div className="mb-2 flex items-center justify-between">
-        <span
-          className="text-[10px] uppercase tracking-[0.2em]"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: accent }}
-        >
-          {label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[10px] uppercase tracking-[0.2em]"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: accent }}
+          >
+            {label}
+          </span>
+          {isDirty && (
+            <span
+              className="flex items-center gap-1 text-[10px] uppercase tracking-[0.15em]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-warm)" }}
+              title="Tenés cambios sin guardar"
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--ll-warm)]" />
+              sin guardar
+            </span>
+          )}
+        </div>
         <span
           className="text-[10px] uppercase tracking-[0.15em]"
           style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
@@ -668,11 +848,18 @@ function Section({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="resize-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
+        spellCheck={false}
+        className="resize-y cursor-text border-0 bg-transparent px-0 text-base leading-relaxed shadow-none transition-colors focus-visible:ring-0"
         style={{ color: "var(--ll-text)" }}
       />
     </div>
   );
+}
+
+function formatViews(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M views`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K views`;
+  return `${n} views`;
 }
 
 function Meta({ label, value }: { label: string; value: string }) {

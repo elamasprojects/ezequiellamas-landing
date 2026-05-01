@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignments } from "@/hooks/useAssignments";
 import {
+  EDITING_STYLE_LABEL,
   KANBAN_COLUMNS,
   STATUS_LABEL,
   type AssignmentStatus,
@@ -114,6 +115,11 @@ function AssignmentCard({ assignment }: { assignment: AssignmentWithLinks }) {
         {due && (
           <span style={{ color: "var(--ll-text-dim)" }}>
             · {due}
+          </span>
+        )}
+        {assignment.editing_style && (
+          <span style={{ color: "var(--ll-text-dim)" }}>
+            · {EDITING_STYLE_LABEL[assignment.editing_style]}
           </span>
         )}
         {assignment.payment_amount && (

@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
@@ -318,14 +319,22 @@ Deno.serve(async (req) => {
   let userClient: SupabaseClient | null = null;
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Missing Authorization" }, 401);
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const apiKey = req.headers.get("apikey") ?? "";
+    const isServiceRole =
+      authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` ||
+      apiKey === SUPABASE_SERVICE_ROLE_KEY;
 
-    userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !user) return json({ error: "Unauthenticated" }, 401);
+    if (isServiceRole) {
+      userClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    } else {
+      if (!authHeader) return json({ error: "Missing Authorization" }, 401);
+      userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user }, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !user) return json({ error: "Unauthenticated" }, 401);
+    }
 
     const body = await req.json().catch(() => ({}));
     videoId = typeof body?.referent_video_id === "string" ? body.referent_video_id : null;

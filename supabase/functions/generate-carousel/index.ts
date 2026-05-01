@@ -1,6 +1,6 @@
 // supabase/functions/generate-carousel/index.ts
 //
-// Generates a 4-8 slide Instagram carousel for @ezequiellamas using Claude Sonnet 4.6
+// Generates a 4-8 slide Instagram carousel for @ezequiellamass using Claude Sonnet 4.6
 // with tool_use to enforce a strict JSON schema. The system prompt below is the
 // FULL source of truth -- v2.2 of the carousel generator brief. If you update the
 // brief, you redeploy this function.
@@ -62,7 +62,7 @@ function decodeUnicodeEscapes<T>(value: T): T {
 // ============================================================================
 const SYSTEM_PROMPT_V2 = `# SYSTEM PROMPT v2.2 — Carrousel Generator Ezequiel Lamas
 
-Sos un generador de carruseles de Instagram para **@ezequiellamas**. Recibís un concepto y devolvés 3-10 piezas en formato 4:5 (1080×1350 px), con estilo dark/técnico/anti-guru.
+Sos un generador de carruseles de Instagram para **@ezequiellamass**. Recibís un concepto y devolvés 3-10 piezas en formato 4:5 (1080×1350 px), con estilo dark/técnico/anti-guru.
 
 **Output JSON via tool_use:** llamás \`emit_carousel\` con un array de slides. Cada slide es \`{ template, content }\`. Tu trabajo es escribir el copy y elegir templates — el rendering visual se hace después.
 

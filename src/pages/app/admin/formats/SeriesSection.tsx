@@ -21,49 +21,47 @@ import { CSS } from "@dnd-kit/utilities";
 import { ExternalLink, GripVertical, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  deleteFormat,
-  reorderFormats,
-  seedDefaultFormats,
-  SUGGESTED_FORMATS,
-  type Format,
-} from "@/lib/api/formats";
-import { useFormats } from "@/hooks/useFormats";
+  deleteSeries,
+  reorderSeries,
+  seedDefaultSeries,
+  SUGGESTED_SERIES,
+  type Series,
+} from "@/lib/api/series";
+import { useSeries } from "@/hooks/useSeries";
 import { useSession } from "@/hooks/useSession";
-import FormatDialog from "@/pages/app/admin/formats/FormatDialog";
-import ShapesSection from "@/pages/app/admin/formats/ShapesSection";
-import SeriesSection from "@/pages/app/admin/formats/SeriesSection";
+import SeriesDialog from "@/pages/app/admin/formats/SeriesDialog";
 
-export default function FormatsList() {
+export default function SeriesSection() {
   const { user } = useSession();
-  const { data: formats, isLoading } = useFormats();
+  const { data: series, isLoading } = useSeries();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Format | null>(null);
+  const [editing, setEditing] = useState<Series | null>(null);
 
   const qc = useQueryClient();
 
   const seedMutation = useMutation({
     mutationFn: () => {
       if (!user) throw new Error("not authenticated");
-      return seedDefaultFormats(user.id);
+      return seedDefaultSeries(user.id);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["formats"] });
-      toast.success("Cargué los 5 formatos sugeridos. Editá los que quieras.");
+      qc.invalidateQueries({ queryKey: ["series"] });
+      toast.success("Cargué las series sugeridas. Editá las que quieras.");
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const reorderMutation = useMutation({
-    mutationFn: reorderFormats,
+    mutationFn: reorderSeries,
     onError: (err: Error) => toast.error(err.message),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["formats"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["series"] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteFormat,
+    mutationFn: deleteSeries,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["formats"] });
-      toast.success("Formato eliminado");
+      qc.invalidateQueries({ queryKey: ["series"] });
+      toast.success("Serie eliminada");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -74,15 +72,15 @@ export default function FormatsList() {
   );
 
   function onDragEnd(e: DragEndEvent) {
-    if (!formats) return;
+    if (!series) return;
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = formats.findIndex((f) => f.id === active.id);
-    const newIndex = formats.findIndex((f) => f.id === over.id);
+    const oldIndex = series.findIndex((s) => s.id === active.id);
+    const newIndex = series.findIndex((s) => s.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(formats, oldIndex, newIndex);
-    qc.setQueryData(["formats"], next);
-    reorderMutation.mutate(next.map((f) => f.id));
+    const next = arrayMove(series, oldIndex, newIndex);
+    qc.setQueryData(["series"], next);
+    reorderMutation.mutate(next.map((s) => s.id));
   }
 
   function openCreate() {
@@ -90,68 +88,49 @@ export default function FormatsList() {
     setDialogOpen(true);
   }
 
-  function openEdit(format: Format) {
-    setEditing(format);
+  function openEdit(s: Series) {
+    setEditing(s);
     setDialogOpen(true);
   }
 
   return (
-    <div className="space-y-12">
-      <header className="space-y-2">
-        <div
-          className="text-[10px] uppercase tracking-[0.25em]"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-        >
-          Catálogo creativo
-        </div>
-        <h1
-          className="text-3xl"
-          style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
-        >
-          Formatos, shapes & <em style={{ color: "var(--ll-warm)" }}>series</em>
-        </h1>
-        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Tres catálogos que la IA usa cuando genera guiones: <strong>formatos</strong> (cómo grabás:
-          talking head, pizarrón, pantalla...), <strong>shapes</strong> (cómo estructurás el guion:
-          hook, beats, CTA) y <strong>series</strong> (narrativas multi-parte que agrupan videos).
-          Los tres son ortogonales — un mismo shape se puede grabar con cualquier formato dentro de
-          cualquier serie.
-        </p>
-      </header>
-
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div className="space-y-2">
-            <div
-              className="text-[10px] uppercase tracking-[0.25em]"
-              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-            >
-              Formatos
-            </div>
-            <h2
-              className="text-2xl"
-              style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
-            >
-              Cómo <em style={{ color: "var(--ll-warm)" }}>grabás</em>
-            </h2>
-            <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              Cada formato describe un tipo de grabación: el envase visual del video.
-            </p>
+    <section className="space-y-4">
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div
+            className="text-[10px] uppercase tracking-[0.25em]"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+          >
+            Series
           </div>
-          {formats && formats.length > 0 && (
-            <Button variant="brand" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> Nuevo formato
-            </Button>
-          )}
+          <h2
+            className="text-2xl"
+            style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
+          >
+            Cómo <em style={{ color: "var(--ll-warm)" }}>agrupás</em> los videos
+          </h2>
+          <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            Una serie agrupa varios videos en una narrativa multi-parte (parte 1, 2, 3...).
+            Cada guion/video se asocia a una serie y a un número de parte.
+          </p>
         </div>
+        {series && series.length > 0 && (
+          <Button variant="brand" onClick={openCreate}>
+            <Plus className="h-4 w-4" /> Nueva serie
+          </Button>
+        )}
+      </div>
 
       {isLoading && (
-        <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center text-sm" style={{ color: "var(--ll-text-muted)" }}>
+        <div
+          className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center text-sm"
+          style={{ color: "var(--ll-text-muted)" }}
+        >
           Cargando...
         </div>
       )}
 
-      {!isLoading && (!formats || formats.length === 0) && (
+      {!isLoading && (!series || series.length === 0) && (
         <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
@@ -163,11 +142,11 @@ export default function FormatsList() {
             className="text-xl"
             style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}
           >
-            Empezá con los formatos sugeridos
+            Empezá con las series sugeridas
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Te cargamos {SUGGESTED_FORMATS.length} formatos típicos para creators (pantalla+rostro, calle, entrevista,
-            pregunta+respuesta, talking head). Editás los que quieras después.
+            Te cargamos {SUGGESTED_SERIES.length} series para arrancar (Aplicando Claude a negocios,
+            Funciones de Claude que no conocías). Editalas cuando quieras.
           </p>
           <div className="mt-6 flex justify-center gap-2">
             <Button
@@ -176,7 +155,7 @@ export default function FormatsList() {
               disabled={seedMutation.isPending}
             >
               <Sparkles className="h-4 w-4" />
-              {seedMutation.isPending ? "Cargando..." : "Cargar formatos sugeridos"}
+              {seedMutation.isPending ? "Cargando..." : "Cargar series sugeridas"}
             </Button>
             <Button variant="outline" onClick={openCreate}>
               <Plus className="h-4 w-4" /> Crear de cero
@@ -185,17 +164,17 @@ export default function FormatsList() {
         </div>
       )}
 
-      {formats && formats.length > 0 && (
+      {series && series.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={formats.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={series.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             <ul className="space-y-2">
-              {formats.map((format) => (
-                <FormatItem
-                  key={format.id}
-                  format={format}
-                  onEdit={() => openEdit(format)}
+              {series.map((s) => (
+                <SeriesItem
+                  key={s.id}
+                  series={s}
+                  onEdit={() => openEdit(s)}
                   onDelete={() => {
-                    if (confirm(`¿Borrar "${format.name}"?`)) deleteMutation.mutate(format.id);
+                    if (confirm(`¿Borrar "${s.name}"?`)) deleteMutation.mutate(s.id);
                   }}
                 />
               ))}
@@ -203,33 +182,28 @@ export default function FormatsList() {
           </SortableContext>
         </DndContext>
       )}
-      </section>
 
-      <ShapesSection />
-
-      <SeriesSection />
-
-      <FormatDialog
+      <SeriesDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        format={editing}
-        nextPosition={formats?.length ?? 0}
+        series={editing}
+        nextPosition={series?.length ?? 0}
       />
-    </div>
+    </section>
   );
 }
 
-function FormatItem({
-  format,
+function SeriesItem({
+  series,
   onEdit,
   onDelete,
 }: {
-  format: Format;
+  series: Series;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: format.id,
+    id: series.id,
   });
 
   const style = {
@@ -258,11 +232,11 @@ function FormatItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="font-medium" style={{ color: "var(--ll-text)" }}>
-            {format.name}
+            {series.name}
           </h3>
-          {format.example_url && (
+          {series.example_url && (
             <a
-              href={format.example_url}
+              href={series.example_url}
               target="_blank"
               rel="noreferrer"
               className="text-xs"
@@ -273,9 +247,9 @@ function FormatItem({
             </a>
           )}
         </div>
-        {format.description && (
+        {series.description && (
           <p className="mt-1 text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            {format.description}
+            {series.description}
           </p>
         )}
       </div>

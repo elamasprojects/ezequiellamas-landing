@@ -8,7 +8,7 @@ import type { FormatSlug } from "@/lib/carousel/formats";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { cn } from "@/lib/utils";
 
-const HANDLE = "@ezequiellamas";
+const HANDLE = "@ezequiellamass";
 const SWIPE_THRESHOLD_PX = 50;
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;

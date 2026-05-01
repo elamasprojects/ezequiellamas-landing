@@ -21,49 +21,47 @@ import { CSS } from "@dnd-kit/utilities";
 import { ExternalLink, GripVertical, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  deleteFormat,
-  reorderFormats,
-  seedDefaultFormats,
-  SUGGESTED_FORMATS,
-  type Format,
-} from "@/lib/api/formats";
-import { useFormats } from "@/hooks/useFormats";
+  deleteShape,
+  reorderShapes,
+  seedDefaultShapes,
+  SUGGESTED_SHAPES,
+  type Shape,
+} from "@/lib/api/shapes";
+import { useShapes } from "@/hooks/useShapes";
 import { useSession } from "@/hooks/useSession";
-import FormatDialog from "@/pages/app/admin/formats/FormatDialog";
-import ShapesSection from "@/pages/app/admin/formats/ShapesSection";
-import SeriesSection from "@/pages/app/admin/formats/SeriesSection";
+import ShapeDialog from "@/pages/app/admin/formats/ShapeDialog";
 
-export default function FormatsList() {
+export default function ShapesSection() {
   const { user } = useSession();
-  const { data: formats, isLoading } = useFormats();
+  const { data: shapes, isLoading } = useShapes();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Format | null>(null);
+  const [editing, setEditing] = useState<Shape | null>(null);
 
   const qc = useQueryClient();
 
   const seedMutation = useMutation({
     mutationFn: () => {
       if (!user) throw new Error("not authenticated");
-      return seedDefaultFormats(user.id);
+      return seedDefaultShapes(user.id);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["formats"] });
-      toast.success("Cargué los 5 formatos sugeridos. Editá los que quieras.");
+      qc.invalidateQueries({ queryKey: ["shapes"] });
+      toast.success("Cargué los 3 shapes sugeridos. Editalos cuando quieras.");
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const reorderMutation = useMutation({
-    mutationFn: reorderFormats,
+    mutationFn: reorderShapes,
     onError: (err: Error) => toast.error(err.message),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["formats"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["shapes"] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteFormat,
+    mutationFn: deleteShape,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["formats"] });
-      toast.success("Formato eliminado");
+      qc.invalidateQueries({ queryKey: ["shapes"] });
+      toast.success("Shape eliminado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -74,15 +72,15 @@ export default function FormatsList() {
   );
 
   function onDragEnd(e: DragEndEvent) {
-    if (!formats) return;
+    if (!shapes) return;
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = formats.findIndex((f) => f.id === active.id);
-    const newIndex = formats.findIndex((f) => f.id === over.id);
+    const oldIndex = shapes.findIndex((s) => s.id === active.id);
+    const newIndex = shapes.findIndex((s) => s.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(formats, oldIndex, newIndex);
-    qc.setQueryData(["formats"], next);
-    reorderMutation.mutate(next.map((f) => f.id));
+    const next = arrayMove(shapes, oldIndex, newIndex);
+    qc.setQueryData(["shapes"], next);
+    reorderMutation.mutate(next.map((s) => s.id));
   }
 
   function openCreate() {
@@ -90,68 +88,49 @@ export default function FormatsList() {
     setDialogOpen(true);
   }
 
-  function openEdit(format: Format) {
-    setEditing(format);
+  function openEdit(shape: Shape) {
+    setEditing(shape);
     setDialogOpen(true);
   }
 
   return (
-    <div className="space-y-12">
-      <header className="space-y-2">
-        <div
-          className="text-[10px] uppercase tracking-[0.25em]"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-        >
-          Catálogo creativo
-        </div>
-        <h1
-          className="text-3xl"
-          style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
-        >
-          Formatos, shapes & <em style={{ color: "var(--ll-warm)" }}>series</em>
-        </h1>
-        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Tres catálogos que la IA usa cuando genera guiones: <strong>formatos</strong> (cómo grabás:
-          talking head, pizarrón, pantalla...), <strong>shapes</strong> (cómo estructurás el guion:
-          hook, beats, CTA) y <strong>series</strong> (narrativas multi-parte que agrupan videos).
-          Los tres son ortogonales — un mismo shape se puede grabar con cualquier formato dentro de
-          cualquier serie.
-        </p>
-      </header>
-
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div className="space-y-2">
-            <div
-              className="text-[10px] uppercase tracking-[0.25em]"
-              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-            >
-              Formatos
-            </div>
-            <h2
-              className="text-2xl"
-              style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
-            >
-              Cómo <em style={{ color: "var(--ll-warm)" }}>grabás</em>
-            </h2>
-            <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              Cada formato describe un tipo de grabación: el envase visual del video.
-            </p>
+    <section className="space-y-4">
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-2">
+          <div
+            className="text-[10px] uppercase tracking-[0.25em]"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+          >
+            Shapes
           </div>
-          {formats && formats.length > 0 && (
-            <Button variant="brand" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> Nuevo formato
-            </Button>
-          )}
+          <h2
+            className="text-2xl"
+            style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
+          >
+            Cómo <em style={{ color: "var(--ll-warm)" }}>estructurás</em> el guion
+          </h2>
+          <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            La estructura narrativa del video (hook → beats → CTA). Es ortogonal al formato:
+            un mismo shape se puede grabar talking head, con pizarrón, o sobre pantalla.
+          </p>
         </div>
+        {shapes && shapes.length > 0 && (
+          <Button variant="brand" onClick={openCreate}>
+            <Plus className="h-4 w-4" /> Nuevo shape
+          </Button>
+        )}
+      </div>
 
       {isLoading && (
-        <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center text-sm" style={{ color: "var(--ll-text-muted)" }}>
+        <div
+          className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center text-sm"
+          style={{ color: "var(--ll-text-muted)" }}
+        >
           Cargando...
         </div>
       )}
 
-      {!isLoading && (!formats || formats.length === 0) && (
+      {!isLoading && (!shapes || shapes.length === 0) && (
         <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
@@ -163,11 +142,11 @@ export default function FormatsList() {
             className="text-xl"
             style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}
           >
-            Empezá con los formatos sugeridos
+            Empezá con los shapes sugeridos
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Te cargamos {SUGGESTED_FORMATS.length} formatos típicos para creators (pantalla+rostro, calle, entrevista,
-            pregunta+respuesta, talking head). Editás los que quieras después.
+            Te cargamos {SUGGESTED_SHAPES.length} estructuras narrativas para testear (Antes/Después,
+            Stack tour, Hot take + demo). Editá las que quieras.
           </p>
           <div className="mt-6 flex justify-center gap-2">
             <Button
@@ -176,7 +155,7 @@ export default function FormatsList() {
               disabled={seedMutation.isPending}
             >
               <Sparkles className="h-4 w-4" />
-              {seedMutation.isPending ? "Cargando..." : "Cargar formatos sugeridos"}
+              {seedMutation.isPending ? "Cargando..." : "Cargar shapes sugeridos"}
             </Button>
             <Button variant="outline" onClick={openCreate}>
               <Plus className="h-4 w-4" /> Crear de cero
@@ -185,17 +164,17 @@ export default function FormatsList() {
         </div>
       )}
 
-      {formats && formats.length > 0 && (
+      {shapes && shapes.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={formats.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={shapes.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             <ul className="space-y-2">
-              {formats.map((format) => (
-                <FormatItem
-                  key={format.id}
-                  format={format}
-                  onEdit={() => openEdit(format)}
+              {shapes.map((shape) => (
+                <ShapeItem
+                  key={shape.id}
+                  shape={shape}
+                  onEdit={() => openEdit(shape)}
                   onDelete={() => {
-                    if (confirm(`¿Borrar "${format.name}"?`)) deleteMutation.mutate(format.id);
+                    if (confirm(`¿Borrar "${shape.name}"?`)) deleteMutation.mutate(shape.id);
                   }}
                 />
               ))}
@@ -203,33 +182,28 @@ export default function FormatsList() {
           </SortableContext>
         </DndContext>
       )}
-      </section>
 
-      <ShapesSection />
-
-      <SeriesSection />
-
-      <FormatDialog
+      <ShapeDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        format={editing}
-        nextPosition={formats?.length ?? 0}
+        shape={editing}
+        nextPosition={shapes?.length ?? 0}
       />
-    </div>
+    </section>
   );
 }
 
-function FormatItem({
-  format,
+function ShapeItem({
+  shape,
   onEdit,
   onDelete,
 }: {
-  format: Format;
+  shape: Shape;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: format.id,
+    id: shape.id,
   });
 
   const style = {
@@ -258,11 +232,11 @@ function FormatItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="font-medium" style={{ color: "var(--ll-text)" }}>
-            {format.name}
+            {shape.name}
           </h3>
-          {format.example_url && (
+          {shape.example_url && (
             <a
-              href={format.example_url}
+              href={shape.example_url}
               target="_blank"
               rel="noreferrer"
               className="text-xs"
@@ -273,9 +247,9 @@ function FormatItem({
             </a>
           )}
         </div>
-        {format.description && (
+        {shape.description && (
           <p className="mt-1 text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            {format.description}
+            {shape.description}
           </p>
         )}
       </div>

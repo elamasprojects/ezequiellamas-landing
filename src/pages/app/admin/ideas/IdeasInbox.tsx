@@ -133,8 +133,18 @@ function ScriptRow({
                 {script.hook}
               </p>
             )}
-            {(script.content_bucket || script.avatar_target) && (
+            {(script.content_bucket || script.avatar_target || script.referent_video_id) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {script.referent_video_id && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-md border border-[var(--ll-accent)]/40 bg-[var(--ll-accent)]/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+                    title="Adaptado de un viral del banco de referentes"
+                  >
+                    <Sparkles className="h-2.5 w-2.5" />
+                    Adaptado
+                  </span>
+                )}
                 {script.content_bucket && (
                   <span
                     className="rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em]"

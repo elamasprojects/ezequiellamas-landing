@@ -14,6 +14,50 @@ export type AssignmentStatus =
   | "approved"
   | "archived";
 
+export type EditingStyle = "basic" | "intermediate" | "advanced";
+
+export interface EditingStylePreset {
+  value: EditingStyle;
+  label: string;
+  description: string;
+  paymentUsd: number;
+}
+
+/**
+ * Source of truth para el preset de pago por estilo de edición.
+ * El selector en `NewAssignment` / `AssignmentDetail` popula el monto al elegir
+ * un estilo, pero `payment_amount` queda editable manualmente como override.
+ */
+export const EDITING_STYLE_PRESETS: EditingStylePreset[] = [
+  {
+    value: "basic",
+    label: "Básico",
+    description: "Cortes simples, captions, sin efectos. Talking head plano.",
+    paymentUsd: 7,
+  },
+  {
+    value: "intermediate",
+    label: "Intermedio",
+    description: "B-rolls, transiciones, sound design liviano. Mix pantalla + cara.",
+    paymentUsd: 10,
+  },
+  {
+    value: "advanced",
+    label: "Avanzado",
+    description: "Animaciones, motion graphics, mixed media, color grading.",
+    paymentUsd: 15,
+  },
+];
+
+export const EDITING_STYLE_LABEL: Record<EditingStyle, string> = Object.fromEntries(
+  EDITING_STYLE_PRESETS.map((p) => [p.value, p.label]),
+) as Record<EditingStyle, string>;
+
+export function paymentForEditingStyle(style: EditingStyle | null | undefined): number | null {
+  if (!style) return null;
+  return EDITING_STYLE_PRESETS.find((p) => p.value === style)?.paymentUsd ?? null;
+}
+
 export const STATUS_LABEL: Record<AssignmentStatus, string> = {
   open: "Abierta",
   in_progress: "En curso",

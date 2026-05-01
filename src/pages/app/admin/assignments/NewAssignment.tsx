@@ -17,7 +17,12 @@ import {
 import { useScripts } from "@/hooks/useScripts";
 import { useSession } from "@/hooks/useSession";
 import { fetchTeamMembers } from "@/lib/api/roles";
-import { createAssignment } from "@/lib/api/assignments";
+import {
+  createAssignment,
+  EDITING_STYLE_PRESETS,
+  paymentForEditingStyle,
+  type EditingStyle,
+} from "@/lib/api/assignments";
 import { sendNotification } from "@/lib/api/notifications";
 import type { AssignmentInsert } from "@/lib/api/assignments";
 
@@ -40,7 +45,26 @@ export default function NewAssignment() {
   const [brollsDriveUrl, setBrollsDriveUrl] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [editingStyle, setEditingStyle] = useState<string>(NO_VALUE);
   const [submitting, setSubmitting] = useState(false);
+
+  // Auto-popular el monto cuando se elige un estilo. Si el user ya escribió
+  // un monto manualmente, lo respeta (override). Para sobrescribir con el
+  // preset, el user puede vaciar el campo y volver a elegir el estilo.
+  function onEditingStyleChange(value: string) {
+    setEditingStyle(value);
+    if (value === NO_VALUE) return;
+    const preset = paymentForEditingStyle(value as EditingStyle);
+    if (preset != null && paymentAmount.trim() === "") {
+      setPaymentAmount(String(preset));
+    }
+  }
+
+  function onApplyPresetPayment() {
+    if (editingStyle === NO_VALUE) return;
+    const preset = paymentForEditingStyle(editingStyle as EditingStyle);
+    if (preset != null) setPaymentAmount(String(preset));
+  }
 
   // Auto-populate title when script chosen
   useEffect(() => {
@@ -68,6 +92,7 @@ export default function NewAssignment() {
         brolls_drive_url: brollsDriveUrl.trim() || null,
         due_date: dueDate || null,
         payment_amount: paymentAmount ? Number(paymentAmount) : null,
+        editing_style: editingStyle === NO_VALUE ? null : (editingStyle as EditingStyle),
       };
       const created = await createAssignment(insert);
       toast.success("Asignación creada");
@@ -196,15 +221,54 @@ export default function NewAssignment() {
             />
           </Field>
 
+          <Field label="Estilo de edición">
+            <Select value={editingStyle} onValueChange={onEditingStyleChange}>
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Sin definir" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectItem value={NO_VALUE}>Sin definir</SelectItem>
+                {EDITING_STYLE_PRESETS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label} — USD {p.paymentUsd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {editingStyle !== NO_VALUE && (
+              <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+                {EDITING_STYLE_PRESETS.find((p) => p.value === editingStyle)?.description}
+              </p>
+            )}
+          </Field>
+
           <Field label="Pago (USD)">
-            <Input
-              type="number"
-              inputMode="decimal"
-              placeholder="50"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
-            />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                inputMode="decimal"
+                placeholder="50"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
+              />
+              {editingStyle !== NO_VALUE &&
+                paymentAmount !== String(paymentForEditingStyle(editingStyle as EditingStyle) ?? "") && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onApplyPresetPayment}
+                    className="shrink-0 text-xs text-[var(--ll-text-muted)] hover:text-[var(--ll-text)]"
+                    title="Reaplicar el preset del estilo elegido"
+                  >
+                    Usar preset
+                  </Button>
+                )}
+            </div>
+            <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              Se autocompleta al elegir un estilo. Editable manualmente como override.
+            </p>
           </Field>
 
           <Field label="Instrucciones" full>

@@ -194,7 +194,12 @@ function VideoGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {videos.map((v) => (
-        <ReferentVideoCard key={v.id} video={v} readOnly={readOnly} />
+        <ReferentVideoCard
+          key={v.id}
+          video={v}
+          readOnly={readOnly}
+          referentName={referent.name}
+        />
       ))}
     </div>
   );
