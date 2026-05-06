@@ -46,6 +46,7 @@ const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/Referent
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
+const BrollsPage = lazy(() => import("@/pages/app/admin/brolls/BrollsPage"));
 const PublishingDashboard = lazy(() => import("@/pages/app/admin/publishing/PublishingDashboard"));
 const NewScheduledPost = lazy(() => import("@/pages/app/admin/publishing/NewScheduledPost"));
 const ScheduledPostDetail = lazy(() => import("@/pages/app/admin/publishing/ScheduledPostDetail"));
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
+                <Route path="brolls" element={<BrollsPage />} />
                 <Route path="publishing" element={<PublishingDashboard />} />
                 <Route path="publishing/new" element={<NewScheduledPost />} />
                 <Route path="publishing/calendar" element={<PublishingCalendar />} />

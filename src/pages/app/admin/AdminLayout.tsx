@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Megaphone,
   Compass,
+  Film,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/app/DashboardShell";
 
@@ -25,6 +26,7 @@ const NAV: NavItem[] = [
   { to: "/app/admin/resources", label: "Recursos", icon: <BookOpen className="h-4 w-4" /> },
   { to: "/app/admin/referentes", label: "Referentes", icon: <Compass className="h-4 w-4" /> },
   { to: "/app/admin/carousels", label: "Carruseles", icon: <LayoutGrid className="h-4 w-4" /> },
+  { to: "/app/admin/brolls", label: "B-rolls", icon: <Film className="h-4 w-4" /> },
   { to: "/app/admin/team", label: "Equipo", icon: <Users className="h-4 w-4" /> },
 ];
 

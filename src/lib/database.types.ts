@@ -157,30 +157,105 @@ export type Database = {
         }
         Relationships: []
       }
-      broll_suggestions: {
+      broll_styles: {
         Row: {
+          animation_prompt: string | null
           created_at: string
-          cue_text: string | null
           id: string
+          image_prompt: string | null
+          name: string
+          owner_id: string
           position: number
-          script_id: string
-          suggestion: string
+          template_code: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          variant: string
         }
         Insert: {
+          animation_prompt?: string | null
           created_at?: string
-          cue_text?: string | null
           id?: string
+          image_prompt?: string | null
+          name: string
+          owner_id: string
           position?: number
-          script_id: string
-          suggestion: string
+          template_code?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          variant: string
         }
         Update: {
+          animation_prompt?: string | null
+          created_at?: string
+          id?: string
+          image_prompt?: string | null
+          name?: string
+          owner_id?: string
+          position?: number
+          template_code?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          variant?: string
+        }
+        Relationships: []
+      }
+      broll_suggestions: {
+        Row: {
+          animation_description: string | null
+          created_at: string
+          cue_text: string | null
+          generation_status: string
+          id: string
+          image_description: string | null
+          is_manual: boolean
+          output_type: string | null
+          output_url: string | null
+          position: number
+          requested: boolean
+          script_id: string
+          selected_words: string[] | null
+          style_id: string | null
+          suggestion: string
+          updated_at: string
+          variant: string | null
+        }
+        Insert: {
+          animation_description?: string | null
           created_at?: string
           cue_text?: string | null
+          generation_status?: string
           id?: string
+          image_description?: string | null
+          is_manual?: boolean
+          output_type?: string | null
+          output_url?: string | null
           position?: number
+          requested?: boolean
+          script_id: string
+          selected_words?: string[] | null
+          style_id?: string | null
+          suggestion: string
+          updated_at?: string
+          variant?: string | null
+        }
+        Update: {
+          animation_description?: string | null
+          created_at?: string
+          cue_text?: string | null
+          generation_status?: string
+          id?: string
+          image_description?: string | null
+          is_manual?: boolean
+          output_type?: string | null
+          output_url?: string | null
+          position?: number
+          requested?: boolean
           script_id?: string
+          selected_words?: string[] | null
+          style_id?: string | null
           suggestion?: string
+          updated_at?: string
+          variant?: string | null
         }
         Relationships: [
           {
@@ -188,6 +263,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broll_suggestions_style_id_fkey"
+            columns: ["style_id"]
+            isOneToOne: false
+            referencedRelation: "broll_styles"
             referencedColumns: ["id"]
           },
         ]
@@ -1049,6 +1131,7 @@ export type Database = {
           captions: Json
           carousel_id: string | null
           created_at: string
+          cta: string | null
           format_id: string | null
           hashtags: string[]
           id: string
@@ -1076,6 +1159,7 @@ export type Database = {
           captions?: Json
           carousel_id?: string | null
           created_at?: string
+          cta?: string | null
           format_id?: string | null
           hashtags?: string[]
           id?: string
@@ -1103,6 +1187,7 @@ export type Database = {
           captions?: Json
           carousel_id?: string | null
           created_at?: string
+          cta?: string | null
           format_id?: string | null
           hashtags?: string[]
           id?: string
@@ -1887,122 +1972,46 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
-      create_script_with_brolls:
-        | {
-            Args: {
-              _ai_summary: string
-              _audio_upload_id: string
-              _avatar_target?: string
-              _brolls: Json
-              _caption?: string
-              _content_bucket?: string
-              _cta: string
-              _development: string
-              _estimated_wpm: number
-              _format_id: string
-              _generated_script: string
-              _generation_warning?: string
-              _hashtags?: string[]
-              _hook: string
-              _hook_alternatives?: string[]
-              _hook_reference?: string
-              _idea_reference_id?: string
-              _mental_model?: string
-              _on_screen_text?: string
-              _platform_codes?: string[]
-              _raw_concept: string
-              _reference_mode?: string
-              _seo_keywords?: string[]
-              _storytelling_conflict?: string
-              _storytelling_resolution?: string
-              _storytelling_setup?: string
-              _title: string
-              _tone: string
-              _visual_hook_format?: number
-              _why_it_works?: string
-              _word_count: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _ai_summary: string
-              _audio_upload_id: string
-              _avatar_target?: string
-              _brolls: Json
-              _caption?: string
-              _content_bucket?: string
-              _cta: string
-              _development: string
-              _estimated_wpm: number
-              _format_id: string
-              _generated_script: string
-              _generation_warning?: string
-              _hashtags?: string[]
-              _hook: string
-              _hook_alternatives?: string[]
-              _hook_reference?: string
-              _idea_reference_id?: string
-              _mental_model?: string
-              _on_screen_text?: string
-              _part_number?: number
-              _platform_codes?: string[]
-              _raw_concept: string
-              _reference_mode?: string
-              _seo_keywords?: string[]
-              _series_id?: string
-              _shape_id?: string
-              _storytelling_conflict?: string
-              _storytelling_resolution?: string
-              _storytelling_setup?: string
-              _title: string
-              _tone: string
-              _visual_hook_format?: number
-              _why_it_works?: string
-              _word_count: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _ai_summary: string
-              _audio_upload_id: string
-              _avatar_target?: string
-              _brolls: Json
-              _caption?: string
-              _content_bucket?: string
-              _cta: string
-              _development: string
-              _estimated_wpm: number
-              _format_id: string
-              _generated_script: string
-              _generation_warning?: string
-              _hashtags?: string[]
-              _hook: string
-              _hook_alternatives?: string[]
-              _hook_reference?: string
-              _idea_reference_id?: string
-              _mental_model?: string
-              _on_screen_text?: string
-              _part_number?: number
-              _platform_codes?: string[]
-              _raw_concept: string
-              _reference_mode?: string
-              _referent_video_id?: string
-              _seo_keywords?: string[]
-              _series_id?: string
-              _shape_id?: string
-              _storytelling_conflict?: string
-              _storytelling_resolution?: string
-              _storytelling_setup?: string
-              _title: string
-              _tone: string
-              _visual_hook_format?: number
-              _why_it_works?: string
-              _word_count: number
-            }
-            Returns: string
-          }
+      create_script_with_brolls: {
+        Args: {
+          _ai_summary: string
+          _audio_upload_id: string
+          _avatar_target?: string
+          _brolls: Json
+          _caption?: string
+          _content_bucket?: string
+          _cta: string
+          _development: string
+          _estimated_wpm: number
+          _format_id: string
+          _generated_script: string
+          _generation_warning?: string
+          _hashtags?: string[]
+          _hook: string
+          _hook_alternatives?: string[]
+          _hook_reference?: string
+          _idea_reference_id?: string
+          _mental_model?: string
+          _on_screen_text?: string
+          _part_number?: number
+          _platform_codes?: string[]
+          _raw_concept: string
+          _reference_mode?: string
+          _referent_video_id?: string
+          _seo_keywords?: string[]
+          _series_id?: string
+          _shape_id?: string
+          _storytelling_conflict?: string
+          _storytelling_resolution?: string
+          _storytelling_setup?: string
+          _title: string
+          _tone: string
+          _visual_hook_format?: number
+          _why_it_works?: string
+          _word_count: number
+        }
+        Returns: string
+      }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {
@@ -2183,3 +2192,4 @@ export const Constants = {
     },
   },
 } as const
+
