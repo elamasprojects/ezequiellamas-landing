@@ -60,7 +60,6 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
   const { user } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const tusUploadRef = useRef<tus.Upload | null>(null);
-  const supabaseAbortRef = useRef<AbortController | null>(null);
   const [provider, setProvider] = useState<Provider>("bunny");
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,43 +159,83 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     const ext = (file.name.split(".").pop() ?? "mp4").toLowerCase();
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
 
-    // Show indeterminate progress — Supabase JS doesn't expose chunk-level
-    // progress, so we just sit on a spinner until upload resolves.
+    // Use Supabase Storage's resumable upload endpoint (TUS protocol).
+    // The simple `supabase.storage.upload()` POST is capped at ~50MB by the
+    // global project max-payload setting; the resumable endpoint bypasses
+    // that and supports large files up to the bucket's `file_size_limit`
+    // (500MB for `videos-final`). Auth is the user's JWT — RLS on
+    // storage.objects enforces folder ownership.
     setProgress(0);
-    const ac = new AbortController();
-    supabaseAbortRef.current = ac;
 
-    try {
-      const { error: upErr } = await supabase.storage
-        .from(SUPABASE_BUCKET)
-        .upload(path, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-      if (upErr) throw upErr;
-
-      const { data: signed, error: signErr } = await supabase.storage
-        .from(SUPABASE_BUCKET)
-        .createSignedUrl(path, SUPABASE_SIGNED_TTL_SECONDS);
-      if (signErr || !signed) throw signErr ?? new Error("sign_url_failed");
-
-      setProgress(100);
-      supabaseAbortRef.current = null;
-      onUploaded({
-        provider: "supabase",
-        video_storage_path: path,
-        signed_url: signed.signedUrl,
-        duration_seconds: duration,
-        mime_type: file.type,
-      });
-      toast.success("Video subido a Supabase");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!supabaseUrl || !accessToken) {
+      const msg = "missing_supabase_session_or_url";
       setError(msg);
       setProgress(null);
-      supabaseAbortRef.current = null;
       toast.error(`Upload falló: ${msg}`);
+      return;
     }
+
+    const upload = new tus.Upload(file, {
+      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        // Don't overwrite if the (random) path already exists — should never
+        // happen, but keeps semantics identical to the previous upsert:false.
+        "x-upsert": "false",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: SUPABASE_BUCKET,
+        objectName: path,
+        contentType: file.type,
+        cacheControl: "3600",
+      },
+      // Supabase Storage requires a fixed 6MB chunk size for resumable uploads.
+      chunkSize: 6 * 1024 * 1024,
+      onError: (err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg);
+        setProgress(null);
+        tusUploadRef.current = null;
+        toast.error(`Upload falló: ${msg}`);
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const pct = (bytesUploaded / bytesTotal) * 100;
+        setProgress(pct);
+      },
+      onSuccess: async () => {
+        try {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from(SUPABASE_BUCKET)
+            .createSignedUrl(path, SUPABASE_SIGNED_TTL_SECONDS);
+          if (signErr || !signed) throw signErr ?? new Error("sign_url_failed");
+          setProgress(100);
+          tusUploadRef.current = null;
+          onUploaded({
+            provider: "supabase",
+            video_storage_path: path,
+            signed_url: signed.signedUrl,
+            duration_seconds: duration,
+            mime_type: file.type,
+          });
+          toast.success("Video subido a Supabase");
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setError(msg);
+          setProgress(null);
+          tusUploadRef.current = null;
+          toast.error(`Sign URL falló: ${msg}`);
+        }
+      },
+    });
+
+    tusUploadRef.current = upload;
+    upload.start();
   }
 
   async function handleFile(file: File) {
@@ -226,10 +265,6 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     if (tusUploadRef.current) {
       tusUploadRef.current.abort();
       tusUploadRef.current = null;
-    }
-    if (supabaseAbortRef.current) {
-      supabaseAbortRef.current.abort();
-      supabaseAbortRef.current = null;
     }
     setProgress(null);
     setError(null);
@@ -294,21 +329,19 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
 
   // In-progress upload -------------------------------------------------------
   if (progress != null) {
-    const indeterminate = provider === "supabase" && progress < 100;
     return (
       <div className="rounded-lg border-2 border-dashed border-[var(--ll-border)] bg-[var(--ll-surface)] p-6 text-center space-y-3">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--ll-accent)" }} />
           <p className="text-sm" style={{ color: "var(--ll-text)" }}>
-            Subiendo a {provider === "bunny" ? "Bunny" : "Supabase"}…{" "}
-            {!indeterminate && `${progress.toFixed(0)}%`}
+            Subiendo a {provider === "bunny" ? "Bunny" : "Supabase"}… {progress.toFixed(0)}%
           </p>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ll-surface-2)]">
           <div
-            className={`h-full ${indeterminate ? "animate-pulse" : "transition-all"}`}
+            className="h-full transition-all"
             style={{
-              width: indeterminate ? "40%" : `${progress}%`,
+              width: `${progress}%`,
               background: "var(--ll-accent)",
             }}
           />
