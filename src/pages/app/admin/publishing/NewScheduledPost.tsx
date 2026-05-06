@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Mic, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -66,12 +66,12 @@ export default function NewScheduledPost() {
   // AI caption generation
   const [transcribing, setTranscribing] = useState(false);
   const [generatingCaptions, setGeneratingCaptions] = useState(false);
-  const [aiSource, setAiSource] = useState<"auto" | "manual" | null>(null);
+  const [captionsGenerated, setCaptionsGenerated] = useState(false);
   const [cachedTranscript, setCachedTranscript] = useState<string | null>(null);
   const [cachedTranscriptLang, setCachedTranscriptLang] = useState<string | null>(null);
-  // Provider-agnostic identifier for the currently uploaded video — used for
-  // dedup of the auto-fill effect. Either bunny_video_id or video_storage_path.
-  const autoFillTriedFor = useRef<string | null>(null);
+  const [transcriptSource, setTranscriptSource] = useState<"whisper" | "manual" | null>(null);
+  const [showManualTranscript, setShowManualTranscript] = useState(false);
+  const [manualTranscriptDraft, setManualTranscriptDraft] = useState("");
 
   const hashtags = useMemo(
     () =>
@@ -87,10 +87,12 @@ export default function NewScheduledPost() {
     setAssetKind(k);
     setCarouselId(null);
     setVideoState(null);
-    setAiSource(null);
+    setCaptionsGenerated(false);
     setCachedTranscript(null);
     setCachedTranscriptLang(null);
-    autoFillTriedFor.current = null;
+    setTranscriptSource(null);
+    setShowManualTranscript(false);
+    setManualTranscriptDraft("");
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
     }
@@ -117,37 +119,30 @@ export default function NewScheduledPost() {
       : { video_storage_path: videoState.video_storage_path };
   }
 
-  async function runAiGeneration({ source }: { source: "auto" | "manual" }) {
-    if (!videoState || transcribing || generatingCaptions) return;
-
-    // Step 1: Transcribe (use cache if available)
-    let transcript = cachedTranscript;
-    let language = cachedTranscriptLang;
-    if (!transcript) {
-      setTranscribing(true);
-      try {
-        const r = await transcribeBunnyVideo(videoSourceParams());
-        transcript = r.transcript;
-        language = r.language;
-        setCachedTranscript(transcript);
-        setCachedTranscriptLang(language);
-      } catch (e) {
-        setTranscribing(false);
-        if (e instanceof TranscribeError && e.code === "video_too_large_for_whisper") {
-          toast.error(
-            "El video es muy largo para transcripción automática (>25MB). Escribí los captions manualmente.",
-          );
-        } else {
-          toast.error(
-            `Transcripción falló: ${e instanceof Error ? e.message : "error"}`,
-          );
-        }
-        return;
+  async function runTranscribe() {
+    if (!videoState || transcribing) return;
+    setTranscribing(true);
+    try {
+      const r = await transcribeBunnyVideo(videoSourceParams());
+      setCachedTranscript(r.transcript);
+      setCachedTranscriptLang(r.language);
+      setTranscriptSource("whisper");
+    } catch (e) {
+      if (e instanceof TranscribeError && e.code === "video_too_large_for_whisper") {
+        toast.error(
+          "El video es muy largo para transcripción automática (>25MB). Pegá la transcripción manualmente.",
+        );
+        setShowManualTranscript(true);
+      } else {
+        toast.error(`Transcripción falló: ${e instanceof Error ? e.message : "error"}`);
       }
+    } finally {
       setTranscribing(false);
     }
+  }
 
-    // Step 2: Generate captions
+  async function runGenerateCaptions() {
+    if (!cachedTranscript || generatingCaptions) return;
     setGeneratingCaptions(true);
     try {
       const targetPlatforms =
@@ -156,7 +151,7 @@ export default function NewScheduledPost() {
         ...videoSourceParams(),
         platforms: targetPlatforms,
         format_id: formatId,
-        transcript,
+        transcript: cachedTranscript,
       });
       setDefaultCaption(result.caption_default);
       setCaptionsByPlatform(result.captions as Record<string, string>);
@@ -164,32 +159,14 @@ export default function NewScheduledPost() {
         setTitle(result.youtube_title);
       }
       setHashtagsRaw(result.hashtags.join(" "));
-      setAiSource(source);
-      toast.success(source === "auto" ? "Captions generadas" : "Regenerado con IA");
+      setCaptionsGenerated(true);
+      toast.success("Captions generadas con IA");
     } catch (e) {
-      toast.error(
-        `Generación falló: ${e instanceof Error ? e.message : "error"}`,
-      );
+      toast.error(`Generación falló: ${e instanceof Error ? e.message : "error"}`);
     } finally {
       setGeneratingCaptions(false);
     }
   }
-
-  // Hybrid auto-trigger: when upload completes AND fields are empty AND we
-  // haven't tried for this video yet, auto-fill captions.
-  useEffect(() => {
-    if (!videoState) return;
-    if (assetKind !== "video") return;
-    const sourceKey =
-      videoState.provider === "bunny"
-        ? videoState.bunny_video_id
-        : videoState.video_storage_path;
-    if (autoFillTriedFor.current === sourceKey) return;
-    if (!fieldsAreEmpty()) return;
-    autoFillTriedFor.current = sourceKey;
-    void runAiGeneration({ source: "auto" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoState]);
 
   const validation = useMemo(
     () =>
@@ -337,20 +314,170 @@ export default function NewScheduledPost() {
 
       {/* Step 3: content */}
       <Section step="3" title="Contenido">
-        {/* AI caption status / actions */}
+        {/* Transcript + AI caption flow */}
         {assetKind === "video" && videoState && (
-          <>
-            {(transcribing || generatingCaptions) && (
-              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ll-warm)" }}>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>
-                  {transcribing
-                    ? "Transcribiendo video con Whisper…"
-                    : "Generando captions con Claude…"}
-                </span>
+          <div className="space-y-2">
+            {/* Opciones de transcripción — solo visibles si aún no hay transcript */}
+            {!cachedTranscript && !transcribing && !showManualTranscript && (
+              <div
+                className="rounded-md border p-3 space-y-2"
+                style={{ borderColor: "var(--ll-border)", background: "var(--ll-surface)" }}
+              >
+                <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                  Para generar captions con IA, necesitás una transcripción del video.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void runTranscribe()}
+                    className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors hover:border-[var(--ll-accent)]"
+                    style={{ borderColor: "var(--ll-border)", color: "var(--ll-text)" }}
+                  >
+                    <Mic className="h-3.5 w-3.5" />
+                    Transcribir video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualTranscript(true)}
+                    className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs transition-colors hover:border-[var(--ll-accent)]"
+                    style={{ borderColor: "var(--ll-border)", color: "var(--ll-text)" }}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Subir transcripción
+                  </button>
+                </div>
               </div>
             )}
-            {!transcribing && !generatingCaptions && aiSource && (
+
+            {/* Ingreso manual de transcripción */}
+            {showManualTranscript && !cachedTranscript && (
+              <div className="space-y-2">
+                <label
+                  className="text-[10px] uppercase tracking-[0.15em]"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: "var(--ll-text-muted)",
+                  }}
+                >
+                  Transcripción
+                </label>
+                <textarea
+                  value={manualTranscriptDraft}
+                  onChange={(e) => setManualTranscriptDraft(e.target.value)}
+                  placeholder="Pegá o escribí la transcripción del video acá…"
+                  rows={6}
+                  className="w-full rounded-md border bg-[var(--ll-surface)] px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1"
+                  style={{
+                    borderColor: "var(--ll-border)",
+                    color: "var(--ll-text)",
+                    focusRingColor: "var(--ll-accent)",
+                  }}
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowManualTranscript(false);
+                      setManualTranscriptDraft("");
+                    }}
+                    className="text-xs"
+                    style={{ color: "var(--ll-text-muted)" }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!manualTranscriptDraft.trim()}
+                    onClick={() => {
+                      setCachedTranscript(manualTranscriptDraft.trim());
+                      setCachedTranscriptLang(null);
+                      setTranscriptSource("manual");
+                      setShowManualTranscript(false);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs disabled:opacity-40"
+                    style={{ borderColor: "var(--ll-accent)", color: "var(--ll-accent)" }}
+                  >
+                    Usar esta transcripción
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Estado: transcribiendo */}
+            {transcribing && (
+              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ll-warm)" }}>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Transcribiendo video con Whisper…</span>
+              </div>
+            )}
+
+            {/* Transcript disponible */}
+            {cachedTranscript && !transcribing && (
+              <div
+                className="rounded-md border px-3 py-2 space-y-1"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--ll-accent) 25%, transparent)",
+                  background: "color-mix(in srgb, var(--ll-accent) 5%, transparent)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className="text-[10px] uppercase tracking-[0.15em]"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      color: "var(--ll-accent)",
+                    }}
+                  >
+                    Transcripción{" "}
+                    {transcriptSource === "manual"
+                      ? "manual"
+                      : `(${cachedTranscriptLang ?? "auto"})`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCachedTranscript(null);
+                      setCachedTranscriptLang(null);
+                      setTranscriptSource(null);
+                      setManualTranscriptDraft("");
+                      setCaptionsGenerated(false);
+                    }}
+                    className="text-[10px] hover:underline"
+                    style={{ color: "var(--ll-text-muted)" }}
+                  >
+                    Cambiar
+                  </button>
+                </div>
+                <p className="text-xs line-clamp-2" style={{ color: "var(--ll-text-muted)" }}>
+                  {cachedTranscript.slice(0, 200)}
+                  {cachedTranscript.length > 200 ? "…" : ""}
+                </p>
+              </div>
+            )}
+
+            {/* Botón generar captions */}
+            {cachedTranscript && !transcribing && !generatingCaptions && !captionsGenerated && (
+              <button
+                type="button"
+                onClick={() => void runGenerateCaptions()}
+                className="inline-flex items-center gap-1.5 text-xs hover:underline"
+                style={{ color: "var(--ll-accent)" }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Generar captions con IA
+              </button>
+            )}
+
+            {/* Estado: generando captions */}
+            {generatingCaptions && (
+              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ll-warm)" }}>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Generando captions con Claude…</span>
+              </div>
+            )}
+
+            {/* Captions ya generados */}
+            {!transcribing && !generatingCaptions && captionsGenerated && (
               <div
                 className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs"
                 style={{
@@ -367,15 +494,12 @@ export default function NewScheduledPost() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!fieldsAreEmpty()) {
-                      if (
-                        !confirm(
-                          "Esto va a sobreescribir lo que tenés escrito. ¿Seguir?",
-                        )
-                      )
-                        return;
-                    }
-                    void runAiGeneration({ source: "manual" });
+                    if (
+                      !fieldsAreEmpty() &&
+                      !confirm("Esto va a sobreescribir lo que tenés escrito. ¿Seguir?")
+                    )
+                      return;
+                    void runGenerateCaptions();
                   }}
                   className="hover:underline"
                   style={{ color: "var(--ll-accent)" }}
@@ -384,18 +508,7 @@ export default function NewScheduledPost() {
                 </button>
               </div>
             )}
-            {!transcribing && !generatingCaptions && !aiSource && (
-              <button
-                type="button"
-                onClick={() => void runAiGeneration({ source: "manual" })}
-                className="inline-flex items-center gap-1.5 text-xs hover:underline"
-                style={{ color: "var(--ll-accent)" }}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Generar captions con IA
-              </button>
-            )}
-          </>
+          </div>
         )}
 
         <Field label="Título interno (opcional)">
