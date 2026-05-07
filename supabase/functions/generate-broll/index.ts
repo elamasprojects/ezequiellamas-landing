@@ -23,7 +23,11 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 // para firmar HS256. Endpoint global por default; override con KLING_API_BASE.
 const KLING_API_KEY = Deno.env.get("KLING_API_KEY");
 const KLING_SECRET_KEY = Deno.env.get("KLING_SECRET_KEY");
-const KLING_API_BASE = Deno.env.get("KLING_API_BASE") ?? "https://api.klingai.com";
+// Default a la region Global (Singapore) — la docs oficial de Kling para
+// cuentas globales (app.klingai.com/global/dev) usa este endpoint. Override
+// con KLING_API_BASE si la cuenta es China.
+const KLING_API_BASE =
+  Deno.env.get("KLING_API_BASE") ?? "https://api-singapore.klingai.com";
 
 // Variante 2 — Railway render worker (compartido con carruseles)
 const RENDER_WORKER_URL = Deno.env.get("RENDER_WORKER_URL");
@@ -31,8 +35,11 @@ const RENDER_WORKER_SECRET = Deno.env.get("RENDER_WORKER_SECRET");
 
 // Modelo de imagen — mismo patrón validado que `generate-cover`.
 const GEMINI_FLASH = "gemini-3.1-flash-image-preview"; // Nano Banana 2
-// Modelo de video — kling-v2-1 es el default oficial para image2video y soporta `mode`.
-const KLING_MODEL = "kling-v2-1";
+// Modelo de video — kling-v2-6 es el último estable de la línea v2 con soporte
+// para image2video en modos std/pro a 5s y 10s. Anteriormente usábamos v2-1
+// pero v2-6 mejora la calidad de animación y es el actual default sugerido
+// por Kling.
+const KLING_MODEL = "kling-v2-6";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
