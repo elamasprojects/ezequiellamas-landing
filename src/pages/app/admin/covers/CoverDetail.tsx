@@ -33,7 +33,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { useCover } from "@/hooks/useCovers";
 import { useCoverStyles } from "@/hooks/useCoverStyles";
-import { generateCover, editCover, updateCover, type CoverStatus } from "@/lib/api/covers";
+import {
+  generateCover,
+  editCover,
+  updateCover,
+  type CoverStatus,
+  type CoverQuality,
+} from "@/lib/api/covers";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<CoverStatus, string> = {
@@ -63,6 +69,7 @@ export default function CoverDetail() {
   const [editInstruction, setEditInstruction] = useState("");
   const [styleDialogOpen, setStyleDialogOpen] = useState(false);
   const [newStyleId, setNewStyleId] = useState("");
+  const [quality, setQuality] = useState<CoverQuality>("standard");
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["cover", id] });
@@ -70,7 +77,7 @@ export default function CoverDetail() {
   }
 
   const retryMutation = useMutation({
-    mutationFn: () => generateCover(id!, { force: true }),
+    mutationFn: () => generateCover(id!, { force: true, quality }),
     onSuccess: () => {
       toast.success("Portada regenerada");
       invalidate();
@@ -79,7 +86,7 @@ export default function CoverDetail() {
   });
 
   const editMutation = useMutation({
-    mutationFn: () => editCover(id!, editInstruction),
+    mutationFn: () => editCover(id!, editInstruction, { quality }),
     onSuccess: () => {
       toast.success("Portada editada");
       setEditDialogOpen(false);
@@ -93,7 +100,7 @@ export default function CoverDetail() {
     mutationFn: async () => {
       if (!newStyleId) throw new Error("Seleccioná un estilo");
       await updateCover(id!, { cover_style_id: newStyleId });
-      return generateCover(id!, { force: true });
+      return generateCover(id!, { force: true, quality });
     },
     onSuccess: () => {
       toast.success("Estilo cambiado y portada regenerada");
@@ -258,6 +265,42 @@ export default function CoverDetail() {
               <MetaRow label="Serie" value={cover.series.name} />
             )}
             <MetaRow label="Ratio" value={cover.aspect_ratio} mono />
+          </div>
+
+          {/* Calidad */}
+          <div className="space-y-2">
+            <div
+              className="text-[10px] uppercase tracking-[0.15em]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-muted)" }}
+            >
+              Calidad
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setQuality("standard")}
+                disabled={isProcessing}
+                className={`rounded-md border px-3 py-2 text-xs transition-colors disabled:opacity-50 ${
+                  quality === "standard"
+                    ? "border-[var(--ll-accent)] bg-[var(--ll-accent)]/10 text-[var(--ll-accent)]"
+                    : "border-[var(--ll-border)] bg-[var(--ll-bg)] text-[var(--ll-text-muted)] hover:border-[var(--ll-border-hover)]"
+                }`}
+              >
+                Standard
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuality("premium")}
+                disabled={isProcessing}
+                className={`rounded-md border px-3 py-2 text-xs transition-colors disabled:opacity-50 ${
+                  quality === "premium"
+                    ? "border-[var(--ll-accent)] bg-[var(--ll-accent)]/10 text-[var(--ll-accent)]"
+                    : "border-[var(--ll-border)] bg-[var(--ll-bg)] text-[var(--ll-text-muted)] hover:border-[var(--ll-border-hover)]"
+                }`}
+              >
+                Premium
+              </button>
+            </div>
           </div>
 
           {/* Acciones */}

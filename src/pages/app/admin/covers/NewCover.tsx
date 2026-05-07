@@ -18,7 +18,14 @@ import { useVideos } from "@/hooks/useVideos";
 import { useCoverStyles } from "@/hooks/useCoverStyles";
 import { useSeries } from "@/hooks/useSeries";
 import { useSession } from "@/hooks/useSession";
-import { createCover, deleteCover, generateCover, suggestCoverStyle, type CoverAspectRatio } from "@/lib/api/covers";
+import {
+  createCover,
+  deleteCover,
+  generateCover,
+  suggestCoverStyle,
+  type CoverAspectRatio,
+  type CoverQuality,
+} from "@/lib/api/covers";
 
 type SourceType = "script" | "video";
 
@@ -43,6 +50,7 @@ export default function NewCover() {
   const [videoId, setVideoId] = useState<string>("");
   const [styleId, setStyleId] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<CoverAspectRatio>("9:16");
+  const [quality, setQuality] = useState<CoverQuality>("standard");
   const [seriesId, setSeriesId] = useState<string>("");
   const [suggestedStyleId, setSuggestedStyleId] = useState<string>("");
   const [suggestReasoning, setSuggestReasoning] = useState<string>("");
@@ -96,7 +104,7 @@ export default function NewCover() {
       );
 
       // Dispara la generación (no-await — navega inmediatamente al detail)
-      generateCover(cover.id).then(() => {
+      generateCover(cover.id, { quality }).then(() => {
         qc.invalidateQueries({ queryKey: ["cover", cover.id] });
         qc.invalidateQueries({ queryKey: ["covers"] });
       });
@@ -313,6 +321,56 @@ export default function NewCover() {
                 </div>
               </button>
             ))}
+          </div>
+        </fieldset>
+
+        {/* Calidad */}
+        <fieldset className="space-y-3">
+          <legend
+            className="text-[10px] uppercase tracking-[0.2em] mb-2"
+            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+          >
+            Calidad
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setQuality("standard")}
+              className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                quality === "standard"
+                  ? "border-[var(--ll-accent)] bg-[var(--ll-accent)]/10"
+                  : "border-[var(--ll-border)] bg-[var(--ll-bg)] hover:border-[var(--ll-border-hover)]"
+              }`}
+            >
+              <div
+                className="text-sm font-medium"
+                style={{ color: quality === "standard" ? "var(--ll-accent)" : "var(--ll-text)" }}
+              >
+                Standard
+              </div>
+              <div className="mt-0.5 text-xs" style={{ color: "var(--ll-text-dim)" }}>
+                Nano Banana 2 · ~$0.05/img
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuality("premium")}
+              className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                quality === "premium"
+                  ? "border-[var(--ll-accent)] bg-[var(--ll-accent)]/10"
+                  : "border-[var(--ll-border)] bg-[var(--ll-bg)] hover:border-[var(--ll-border-hover)]"
+              }`}
+            >
+              <div
+                className="text-sm font-medium"
+                style={{ color: quality === "premium" ? "var(--ll-accent)" : "var(--ll-text)" }}
+              >
+                Premium
+              </div>
+              <div className="mt-0.5 text-xs" style={{ color: "var(--ll-text-dim)" }}>
+                Nano Banana Pro · ~$0.15/img
+              </div>
+            </button>
           </div>
         </fieldset>
 
