@@ -42,8 +42,14 @@ export function timelineFor(
     case "WordStack": {
       const ws = content as WordStackContent;
       const wordCount = Math.min(8, (ws.words ?? []).filter(Boolean).length);
+      const hasCue = !!(ws.cueText && ws.cueText.trim());
       return {
-        js: timelineWordStack({ wordCount, stagger: styleConfig.stagger, ease: styleConfig.ease }),
+        js: timelineWordStack({
+          wordCount,
+          stagger: styleConfig.stagger,
+          ease: styleConfig.ease,
+          hasCue,
+        }),
         duration: durationWordStack(wordCount, styleConfig.stagger),
       };
     }

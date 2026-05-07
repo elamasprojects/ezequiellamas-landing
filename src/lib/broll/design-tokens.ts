@@ -70,7 +70,8 @@ html, body {
   letter-spacing: -0.02em;
   line-height: 1;
   white-space: nowrap;
-  text-shadow: 0 0 30px color-mix(in srgb, var(--accent) 25%, transparent);
+  /* Glow simple — evitamos color-mix() para máxima compatibilidad de Chromium */
+  text-shadow: 0 0 30px rgba(200, 255, 0, 0.25);
 }
 .ws-word[data-words="1"] { font-size: 320px; }
 .ws-word[data-words="2"] { font-size: 280px; }
@@ -88,7 +89,7 @@ html, body {
   text-align: center;
   font-family: var(--font-body);
   font-size: 36px;
-  color: color-mix(in srgb, var(--text) 70%, transparent);
+  color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.02em;
   line-height: 1.3;
 }
