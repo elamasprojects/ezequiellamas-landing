@@ -208,32 +208,50 @@ function runHyperframes(cwd: string): Promise<void> {
       PRODUCER_FORCE_SCREENSHOT: "true",
     };
     // Spawn the locked hyperframes binary directly (avoid npx auto-install).
+    // Drop --quiet so we get verbose output for debugging hangs.
     const proc = spawn(
       bin,
-      ["render", "--quality", "high", "--quiet"],
+      ["render", "--quality", "high"],
       { cwd, env, stdio: ["ignore", "pipe", "pipe"] },
     );
+    const tag = `[hyperframes pid=${proc.pid}]`;
+    console.log(`${tag} spawned`);
     let stderr = "";
-    proc.stdout?.on("data", () => {}); // discard
-    proc.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
+    let stdout = "";
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stdout += s;
+      // Stream live so we can see progress in Railway logs.
+      process.stdout.write(`${tag} stdout: ${s}`);
+    });
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      const s = chunk.toString();
+      stderr += s;
+      process.stderr.write(`${tag} stderr: ${s}`);
     });
     const timer = setTimeout(() => {
+      console.error(`${tag} TIMEOUT after ${HYPERFRAMES_TIMEOUT_MS}ms — killing`);
+      console.error(`${tag} last stdout (last 800 chars): ${stdout.slice(-800)}`);
+      console.error(`${tag} last stderr (last 800 chars): ${stderr.slice(-800)}`);
       proc.kill("SIGKILL");
       rej(new Error(`hyperframes_timeout_after_${HYPERFRAMES_TIMEOUT_MS}ms`));
     }, HYPERFRAMES_TIMEOUT_MS);
     proc.on("close", (code) => {
       clearTimeout(timer);
-      if (code === 0) res();
-      else
+      console.log(`${tag} closed code=${code}`);
+      if (code === 0) {
+        res();
+      } else {
         rej(
           new Error(
-            `hyperframes_exit_${code}: ${stderr.slice(0, 500) || "no_stderr"}`,
+            `hyperframes_exit_${code}: stderr=${stderr.slice(-400) || "(empty)"} stdout=${stdout.slice(-400) || "(empty)"}`,
           ),
         );
+      }
     });
     proc.on("error", (err) => {
       clearTimeout(timer);
+      console.error(`${tag} spawn error:`, err);
       rej(err);
     });
   });
