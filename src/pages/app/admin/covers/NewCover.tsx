@@ -20,7 +20,6 @@ import { useSeries } from "@/hooks/useSeries";
 import { useSession } from "@/hooks/useSession";
 import {
   createCover,
-  deleteCover,
   generateCover,
   suggestCoverStyle,
   type CoverAspectRatio,
@@ -40,10 +39,18 @@ export default function NewCover() {
   const qc = useQueryClient();
   const { user } = useSession();
 
-  const { data: scripts, isLoading: loadingScripts } = useScripts();
-  const { data: videos, isLoading: loadingVideos } = useVideos();
-  const { data: styles } = useCoverStyles();
-  const { data: series } = useSeries();
+  const {
+    data: scripts,
+    isLoading: loadingScripts,
+    isError: scriptsError,
+  } = useScripts();
+  const {
+    data: videos,
+    isLoading: loadingVideos,
+    isError: videosError,
+  } = useVideos();
+  const { data: styles, isError: stylesError } = useCoverStyles();
+  const { data: series, isError: seriesError } = useSeries();
 
   const [sourceType, setSourceType] = useState<SourceType>("script");
   const [scriptId, setScriptId] = useState<string>("");
@@ -60,25 +67,12 @@ export default function NewCover() {
       if (!user) throw new Error("not authenticated");
       const sourceId = sourceType === "script" ? scriptId : videoId;
       if (!sourceId) throw new Error("Seleccioná un guión o video primero");
-      // Create a temp cover row to run suggestion against
-      const cover = await createCover(
-        {
-          title: null,
-          script_id: sourceType === "script" ? sourceId : null,
-          video_id: sourceType === "video" ? sourceId : null,
-          cover_style_id: null,
-          series_id: seriesId || null,
-          aspect_ratio: aspectRatio,
-        },
-        user.id,
+      const result = await suggestCoverStyle(
+        sourceType === "script" ? { script_id: sourceId } : { video_id: sourceId },
       );
-      const result = await suggestCoverStyle(cover.id);
-      // Keep the cover row for later generation
       setSuggestedStyleId(result.suggested_style_id);
       setSuggestReasoning(result.reasoning);
       if (!styleId) setStyleId(result.suggested_style_id);
-      // Remove temp cover since we'll create a fresh one on submit
-      await deleteCover(cover.id);
       return result;
     },
     onError: (err: Error) => toast.error(err.message),
@@ -103,11 +97,29 @@ export default function NewCover() {
         user.id,
       );
 
-      // Dispara la generación (no-await — navega inmediatamente al detail)
-      generateCover(cover.id, { quality }).then(() => {
-        qc.invalidateQueries({ queryKey: ["cover", cover.id] });
-        qc.invalidateQueries({ queryKey: ["covers"] });
+      // Pre-llenamos la cache del detalle con status='generating' para que la
+      // página de destino arranque polling inmediatamente, sin esperar a que el
+      // edge function complete el CAS (idle → generating).
+      qc.setQueryData(["cover", cover.id], {
+        ...cover,
+        status: "generating",
+        cover_styles: null,
+        scripts: null,
+        videos: null,
+        series: null,
       });
+
+      generateCover(cover.id, { quality })
+        .then(() => {
+          qc.invalidateQueries({ queryKey: ["cover", cover.id] });
+          qc.invalidateQueries({ queryKey: ["covers"] });
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          toast.error(`Falló la generación: ${msg}`);
+          qc.invalidateQueries({ queryKey: ["cover", cover.id] });
+          qc.invalidateQueries({ queryKey: ["covers"] });
+        });
 
       return cover;
     },
@@ -197,6 +209,11 @@ export default function NewCover() {
                   ))}
                 </SelectContent>
               </Select>
+              {scriptsError && (
+                <p className="text-xs text-red-400">
+                  No pudimos cargar tus guiones. Refrescá la página.
+                </p>
+              )}
             </div>
           )}
 
@@ -215,6 +232,11 @@ export default function NewCover() {
                   ))}
                 </SelectContent>
               </Select>
+              {videosError && (
+                <p className="text-xs text-red-400">
+                  No pudimos cargar tus videos. Refrescá la página.
+                </p>
+              )}
             </div>
           )}
         </fieldset>
@@ -283,11 +305,15 @@ export default function NewCover() {
               ))}
             </SelectContent>
           </Select>
-          {(!styles || styles.length === 0) && (
+          {stylesError ? (
+            <p className="text-xs text-red-400">
+              No pudimos cargar los estilos. Refrescá la página.
+            </p>
+          ) : (!styles || styles.length === 0) ? (
             <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
               Primero creá al menos un estilo en la pestaña Estilos.
             </p>
-          )}
+          ) : null}
         </fieldset>
 
         {/* Aspect ratio */}
@@ -398,6 +424,11 @@ export default function NewCover() {
               ))}
             </SelectContent>
           </Select>
+          {seriesError && (
+            <p className="text-xs text-red-400">
+              No pudimos cargar las series. Refrescá la página.
+            </p>
+          )}
         </fieldset>
 
         <Button

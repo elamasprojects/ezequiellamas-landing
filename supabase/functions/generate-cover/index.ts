@@ -391,16 +391,17 @@ ${
       .upload(storagePath, imgBytes, { contentType: imageMime, upsert: true });
     if (uploadErr) throw new Error(`upload_failed: ${uploadErr.message}`);
 
-    // Signed URL (4h — el frontend la refresca)
+    // Signed URL solo para devolver al cliente (preview inmediato).
+    // No la persistimos: el cliente firma on-demand desde generated_image_path
+    // para evitar URLs stale después del TTL de 4h.
     const { data: signedData } = await admin.storage
       .from("cover-renders")
       .createSignedUrl(storagePath, 4 * 3600);
     const finalUrl = signedData?.signedUrl ?? "";
 
-    // Actualizar fila — limpiamos generation_error explicitamente.
     await admin.from("covers").update({
       status: "done",
-      generated_image_url: finalUrl,
+      generated_image_url: null,
       generated_image_path: storagePath,
       prompt_used: imagePrompt,
       idea_fuerza: ideaFuerza || null,

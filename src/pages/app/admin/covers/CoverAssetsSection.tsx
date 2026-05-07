@@ -30,10 +30,11 @@ import {
 } from "@/lib/api/coverAssets";
 import { useCoverAssets } from "@/hooks/useCoverAssets";
 import { useSession } from "@/hooks/useSession";
+import QueryErrorState from "@/components/app/QueryErrorState";
 
 export default function CoverAssetsSection() {
   const { user } = useSession();
-  const { data: assets, isLoading } = useCoverAssets();
+  const { data: assets, isLoading, isError, error, refetch } = useCoverAssets();
   const [dialogOpen, setDialogOpen] = useState(false);
   const qc = useQueryClient();
 
@@ -81,7 +82,15 @@ export default function CoverAssetsSection() {
         </div>
       )}
 
-      {!isLoading && (!assets || assets.length === 0) && (
+      {!isLoading && isError && (
+        <QueryErrorState
+          title="No pudimos cargar los assets"
+          detail={error instanceof Error ? error.message : String(error)}
+          onRetry={() => refetch()}
+        />
+      )}
+
+      {!isLoading && !isError && (!assets || assets.length === 0) && (
         <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"

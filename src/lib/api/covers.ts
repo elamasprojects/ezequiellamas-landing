@@ -16,21 +16,41 @@ export interface CoverWithRelations extends Cover {
   series: { id: string; name: string } | null;
 }
 
+// Defensa contra promesas colgadas: el cliente Supabase a veces deja una
+// request en pending indefinidamente (SW intercepta, refresh de token en
+// deadlock, etc). Cortamos a los 15s para que React Query pueda retry/error.
+function withTimeout<T>(p: Promise<T>, ms = 15_000, label = "supabase"): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}_timeout_${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 export async function fetchCovers(): Promise<CoverWithRelations[]> {
-  const { data, error } = await supabase
-    .from("covers")
-    .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
-    .order("created_at", { ascending: false });
+  const { data, error } = await withTimeout(
+    supabase
+      .from("covers")
+      .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
+      .order("created_at", { ascending: false }),
+    15_000,
+    "fetch_covers",
+  );
   if (error) throw error;
   return (data ?? []) as CoverWithRelations[];
 }
 
 export async function fetchCover(id: string): Promise<CoverWithRelations | null> {
-  const { data, error } = await supabase
-    .from("covers")
-    .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await withTimeout(
+    supabase
+      .from("covers")
+      .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
+      .eq("id", id)
+      .maybeSingle(),
+    15_000,
+    "fetch_cover",
+  );
   if (error) throw error;
   return data as CoverWithRelations | null;
 }
@@ -122,12 +142,12 @@ export async function editCover(
 }
 
 export async function suggestCoverStyle(
-  coverId: string,
+  source: { cover_id: string } | { script_id?: string; video_id?: string },
 ): Promise<{ suggested_style_id: string; reasoning: string }> {
   const { data, error } = await supabase.functions.invoke<{
     suggested_style_id: string;
     reasoning: string;
-  }>("suggest-cover-style", { body: { cover_id: coverId } });
+  }>("suggest-cover-style", { body: source });
   if (error) throw new Error(error.message ?? "suggest_style_failed");
   if (!data?.suggested_style_id) throw new Error("no_suggestion_returned");
   return data;

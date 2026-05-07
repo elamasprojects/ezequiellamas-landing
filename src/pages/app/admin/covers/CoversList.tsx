@@ -17,9 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCovers } from "@/hooks/useCovers";
+import { useCovers, useCoverImageUrl } from "@/hooks/useCovers";
 import { deleteCover, type CoverStatus, type CoverWithRelations } from "@/lib/api/covers";
 import { cn } from "@/lib/utils";
+import QueryErrorState from "@/components/app/QueryErrorState";
 import CoverStylesSection from "./CoverStylesSection";
 import CoverAssetsSection from "./CoverAssetsSection";
 
@@ -42,7 +43,7 @@ const STATUS_CLASS: Record<CoverStatus, string> = {
 export default function CoversList() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: covers, isLoading } = useCovers();
+  const { data: covers, isLoading, isError, error, refetch } = useCovers();
   const [pendingDelete, setPendingDelete] = useState<CoverWithRelations | null>(null);
 
   const deleteMutation = useMutation({
@@ -104,6 +105,12 @@ export default function CoversList() {
                 <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg bg-[var(--ll-surface)]" />
               ))}
             </div>
+          ) : isError ? (
+            <QueryErrorState
+              title="No pudimos cargar las portadas"
+              detail={error instanceof Error ? error.message : String(error)}
+              onRetry={() => refetch()}
+            />
           ) : !covers || covers.length === 0 ? (
             <EmptyPortadas />
           ) : (
@@ -182,6 +189,8 @@ function CoverCard({
 }) {
   const status = cover.status as CoverStatus;
   const label = cover.title || cover.scripts?.hook?.slice(0, 40) || cover.videos?.title || "Sin título";
+  const { data: signedUrl } = useCoverImageUrl(cover.generated_image_path);
+  const imageSrc = signedUrl ?? cover.generated_image_url ?? null;
 
   return (
     <li
@@ -190,9 +199,9 @@ function CoverCard({
     >
       {/* Thumbnail area */}
       <div className="relative aspect-[9/16] w-full overflow-hidden bg-[var(--ll-bg)]">
-        {cover.generated_image_url ? (
+        {imageSrc ? (
           <img
-            src={cover.generated_image_url}
+            src={imageSrc}
             alt={label}
             className="h-full w-full object-cover"
           />

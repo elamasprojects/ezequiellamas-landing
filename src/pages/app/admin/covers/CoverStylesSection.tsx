@@ -29,11 +29,12 @@ import {
 } from "@/lib/api/coverStyles";
 import { useCoverStyles } from "@/hooks/useCoverStyles";
 import { useSession } from "@/hooks/useSession";
+import QueryErrorState from "@/components/app/QueryErrorState";
 import CoverStyleDialog from "./CoverStyleDialog";
 
 export default function CoverStylesSection() {
   const { user } = useSession();
-  const { data: styles, isLoading } = useCoverStyles();
+  const { data: styles, isLoading, isError, error, refetch } = useCoverStyles();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CoverStyle | null>(null);
   const qc = useQueryClient();
@@ -126,7 +127,15 @@ export default function CoverStylesSection() {
         </div>
       )}
 
-      {!isLoading && (!styles || styles.length === 0) && (
+      {!isLoading && isError && (
+        <QueryErrorState
+          title="No pudimos cargar los estilos"
+          detail={error instanceof Error ? error.message : String(error)}
+          onRetry={() => refetch()}
+        />
+      )}
+
+      {!isLoading && !isError && (!styles || styles.length === 0) && (
         <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"

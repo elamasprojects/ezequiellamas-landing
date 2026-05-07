@@ -31,8 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useCover } from "@/hooks/useCovers";
+import { useCover, useCoverImageUrl } from "@/hooks/useCovers";
 import { useCoverStyles } from "@/hooks/useCoverStyles";
+import QueryErrorState from "@/components/app/QueryErrorState";
 import {
   generateCover,
   editCover,
@@ -62,8 +63,9 @@ export default function CoverDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: cover, isLoading } = useCover(id);
+  const { data: cover, isLoading, isError, error, refetch } = useCover(id);
   const { data: styles } = useCoverStyles();
+  const { data: signedImageUrl } = useCoverImageUrl(cover?.generated_image_path);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editInstruction, setEditInstruction] = useState("");
@@ -126,6 +128,16 @@ export default function CoverDetail() {
     );
   }
 
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="No pudimos cargar esta portada"
+        detail={error instanceof Error ? error.message : String(error)}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
   if (!cover) {
     return (
       <div className="text-center py-20" style={{ color: "var(--ll-text-muted)" }}>
@@ -148,6 +160,8 @@ export default function CoverDetail() {
       : cover.aspect_ratio === "1:1"
         ? "aspect-square"
         : "aspect-[9/16]";
+
+  const imageSrc = signedImageUrl ?? cover.generated_image_url ?? null;
 
   return (
     <div className="space-y-6">
@@ -197,9 +211,9 @@ export default function CoverDetail() {
             aspectClass,
           )}
         >
-          {cover.generated_image_url ? (
+          {imageSrc ? (
             <img
-              src={cover.generated_image_url}
+              src={imageSrc}
               alt={label}
               className="h-full w-full object-cover"
             />
@@ -318,7 +332,7 @@ export default function CoverDetail() {
             <Button
               variant="outline"
               className="w-full border-[var(--ll-border)] text-[var(--ll-text)]"
-              disabled={isProcessing || !cover.generated_image_url}
+              disabled={isProcessing || !cover.generated_image_path}
               onClick={() => setEditDialogOpen(true)}
             >
               <Pencil className="h-4 w-4" />
@@ -338,13 +352,13 @@ export default function CoverDetail() {
               Cambiar estilo
             </Button>
 
-            {cover.generated_image_url && (
+            {imageSrc && (
               <Button
                 variant="ghost"
                 className="w-full text-[var(--ll-text-muted)]"
                 asChild
               >
-                <a href={cover.generated_image_url} download={`portada-${id}.png`} target="_blank" rel="noreferrer">
+                <a href={imageSrc} download={`portada-${id}.png`} target="_blank" rel="noreferrer">
                   <Download className="h-4 w-4" />
                   Descargar
                 </a>

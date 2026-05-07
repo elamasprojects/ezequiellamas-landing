@@ -1,9 +1,12 @@
 // supabase/functions/suggest-cover-style/index.ts
 //
-// Analiza la transcripción/guión de una portada y sugiere qué estilo aplicar.
-// Usa Claude para matchear el contenido contra los estilos disponibles del admin.
+// Analiza la transcripción/guión y sugiere qué estilo de portada aplicar.
+// Usa Claude Haiku para matchear el contenido contra los estilos del admin.
 //
-// Body: { cover_id: string }
+// Body (cualquiera de las dos variantes):
+//   { cover_id: string }                       — back-compat: lee script/video del cover y persiste suggested_style_id
+//   { script_id?: string, video_id?: string }  — pre-create: no toca la DB, solo devuelve sugerencia
+//
 // Returns: { suggested_style_id: string, reasoning: string }
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -18,6 +21,12 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+interface RequestBody {
+  cover_id?: string;
+  script_id?: string;
+  video_id?: string;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -36,31 +45,39 @@ Deno.serve(async (req: Request) => {
   if (userErr || !userResult.user) return json({ error: "unauthorized" }, 401);
   const userId = userResult.user.id;
 
-  let body: { cover_id: string };
+  let body: RequestBody;
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const { cover_id } = body;
-  if (!cover_id) return json({ error: "cover_id_required" }, 400);
+  const { cover_id, script_id: bodyScriptId, video_id: bodyVideoId } = body;
+  if (!cover_id && !bodyScriptId && !bodyVideoId) {
+    return json({ error: "missing_source" }, 400);
+  }
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
 
-  // Cargar cover con script/video
-  const { data: cover } = await admin
-    .from("covers")
-    .select("script_id, video_id, title")
-    .eq("id", cover_id)
-    .eq("owner_id", userId)
-    .single();
+  // Resolver script_id / video_id
+  let scriptId: string | null = bodyScriptId ?? null;
+  let videoId: string | null = bodyVideoId ?? null;
 
-  if (!cover) return json({ error: "cover_not_found" }, 404);
+  if (cover_id) {
+    const { data: cover } = await admin
+      .from("covers")
+      .select("script_id, video_id")
+      .eq("id", cover_id)
+      .eq("owner_id", userId)
+      .single();
+    if (!cover) return json({ error: "cover_not_found" }, 404);
+    scriptId = scriptId ?? cover.script_id;
+    videoId = videoId ?? cover.video_id;
+  }
 
-  // Cargar estilos disponibles
+  // Cargar estilos disponibles del user
   const { data: styles } = await admin
     .from("cover_styles")
     .select("id, name, description, when_to_use")
@@ -69,25 +86,29 @@ Deno.serve(async (req: Request) => {
 
   if (!styles || styles.length === 0) return json({ error: "no_styles_available" }, 400);
 
-  // Cargar contenido
+  // Cargar contenido — siempre validando ownership
   let content = "";
-  if (cover.script_id) {
+  if (scriptId) {
     const { data: script } = await admin
       .from("scripts")
-      .select("hook, generated_script")
-      .eq("id", cover.script_id)
+      .select("hook, generated_script, owner_id")
+      .eq("id", scriptId)
       .single();
-    if (script) {
-      content = [script.hook, script.generated_script].filter(Boolean).join("\n\n");
+    if (!script || script.owner_id !== userId) {
+      return json({ error: "script_not_found" }, 404);
     }
+    content = [script.hook, script.generated_script].filter(Boolean).join("\n\n");
   }
-  if (!content && cover.video_id) {
+  if (!content && videoId) {
     const { data: video } = await admin
       .from("videos")
-      .select("transcript")
-      .eq("id", cover.video_id)
+      .select("transcript, owner_id")
+      .eq("id", videoId)
       .single();
-    if (video?.transcript) content = video.transcript;
+    if (!video || video.owner_id !== userId) {
+      return json({ error: "video_not_found" }, 404);
+    }
+    if (video.transcript) content = video.transcript;
   }
   if (!content) return json({ error: "no_content_to_analyze" }, 400);
 
@@ -143,7 +164,6 @@ ${stylesDesc}
       reasoning = parsed.reasoning ?? "";
     }
   } catch {
-    // fallback: primer estilo
     suggestedStyleId = styles[0].id;
     reasoning = "Selección por defecto.";
   }
@@ -155,8 +175,10 @@ ${stylesDesc}
     reasoning = "Selección por defecto.";
   }
 
-  // Guardar sugerencia en la fila
-  await admin.from("covers").update({ suggested_style_id: suggestedStyleId }).eq("id", cover_id);
+  // Solo persistir si vino con cover_id (back-compat)
+  if (cover_id) {
+    await admin.from("covers").update({ suggested_style_id: suggestedStyleId }).eq("id", cover_id);
+  }
 
   return json({ suggested_style_id: suggestedStyleId, reasoning });
 });

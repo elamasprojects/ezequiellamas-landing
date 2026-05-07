@@ -12,6 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      selfDestroying: true,
       includeAssets: ["icon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "Ezequiel Lamas",
