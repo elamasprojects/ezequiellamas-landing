@@ -2,7 +2,7 @@
 //
 // Dispatches B-roll generation for a single broll_suggestion row.
 //
-// Variant 1 (v1): NanoBanana 2 → image → Kling → animated video
+// Variant 1 (v1): Claude refines prompt → Gemini Imagen generates image → Kling animates
 // Variant 2 (v2): Remotion + Hypermotion via Railway render worker (same infra as carousels)
 //
 // Body: { broll_suggestion_id: string }
@@ -11,13 +11,15 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.37.0";
 import { createHmac } from "node:crypto";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Variant 1 — NanoBanana 2 + Kling
-const NANO_BANANA_API_KEY = Deno.env.get("NANO_BANANA_API_KEY");
+// Variant 1 — Claude + Gemini Imagen + Kling
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const KLING_API_KEY = Deno.env.get("KLING_API_KEY");
 
 // Variant 2 — Railway render worker (shared with carousels)
@@ -109,7 +111,7 @@ Deno.serve(async (req: Request) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Variant 1: NanoBanana 2 → Kling
+// Variant 1: Claude refines prompt → Gemini Imagen → Kling animates
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function generateV1(
@@ -118,94 +120,117 @@ async function generateV1(
   // deno-lint-ignore no-explicit-any
   admin: any,
 ): Promise<Response> {
-  if (!NANO_BANANA_API_KEY || !KLING_API_KEY) {
+  if (!ANTHROPIC_API_KEY || !GEMINI_API_KEY || !KLING_API_KEY) {
+    const missing = [
+      !ANTHROPIC_API_KEY && "ANTHROPIC_API_KEY",
+      !GEMINI_API_KEY && "GEMINI_API_KEY",
+      !KLING_API_KEY && "KLING_API_KEY",
+    ]
+      .filter(Boolean)
+      .join(", ");
     await admin
       .from("broll_suggestions")
       .update({ generation_status: "failed" })
       .eq("id", broll.id);
     return json(
-      {
-        error: "v1_not_configured",
-        detail:
-          "NANO_BANANA_API_KEY and KLING_API_KEY must be set in Edge Function secrets.",
-      },
+      { error: "v1_not_configured", detail: `Missing secrets: ${missing}` },
       503,
     );
   }
-
-  const style = broll.broll_styles;
-  const imagePrompt = [
-    style?.image_prompt,
-    broll.image_description,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const animationPrompt = [
-    style?.animation_prompt,
-    broll.animation_description,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
 
   await admin
     .from("broll_suggestions")
     .update({ generation_status: "processing" })
     .eq("id", broll.id);
 
-  // ── Step 1: Generate image with NanoBanana 2 ──────────────────────────────
-  // TODO: Replace with actual NanoBanana 2 API call once credentials + docs available.
-  // Expected: POST https://api.nanobanana.ai/v2/generate
-  //   { prompt: imagePrompt, width: 1920, height: 1080, ... }
-  //   → { image_url: string }
-  console.log("[generate-broll] NanoBanana 2 imagePrompt:", imagePrompt.slice(0, 200));
+  const style = broll.broll_styles;
 
-  const nbRes = await fetch("https://api.nanobanana.ai/v2/generate", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${NANO_BANANA_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt: imagePrompt,
-      width: 1920,
-      height: 1080,
-    }),
+  // ── Step 1: Claude refines the image prompt ───────────────────────────────
+  const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+  const systemPrompt = style?.image_prompt
+    ? `Eres un director de arte especializado en motion graphics.\n\n${style.image_prompt}`
+    : "Eres un director de arte especializado en motion graphics para contenido de redes sociales.";
+
+  const userPrompt = [
+    `Generá un prompt detallado y preciso para Gemini Imagen que cree esta imagen de B-roll:`,
+    ``,
+    `Descripción del B-roll: ${broll.suggestion}`,
+    broll.image_description ? `Descripción de imagen: ${broll.image_description}` : null,
+    broll.selected_words?.length
+      ? `Se usa en el momento donde se dice: "${broll.selected_words.join(" ")}"`
+      : null,
+    ``,
+    `El prompt debe:`,
+    `- Ser en inglés`,
+    `- Describir composición, iluminación, estilo visual, paleta de colores`,
+    `- Especificar que es para un motion graphic (base para animación posterior)`,
+    `- Ser máximo 300 palabras`,
+    ``,
+    `Respondé SOLO con el prompt, sin explicaciones adicionales.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const claudeRes = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 400,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
   });
 
-  if (!nbRes.ok) {
-    const txt = await nbRes.text();
-    throw new Error(`NanoBanana 2 error ${nbRes.status}: ${txt.slice(0, 300)}`);
-  }
+  const refinedPrompt =
+    claudeRes.content[0].type === "text" ? claudeRes.content[0].text.trim() : broll.image_description ?? broll.suggestion;
 
-  const nbData = await nbRes.json();
-  const imageUrl: string = nbData.image_url;
-  if (!imageUrl) throw new Error("NanoBanana 2 returned no image_url");
-
-  // ── Step 2: Animate with Kling ────────────────────────────────────────────
-  // TODO: Replace with actual Kling API call once credentials + docs available.
-  // Expected: POST https://api.klingai.com/v1/videos/image2video
-  //   { image_url: imageUrl, prompt: animationPrompt, model_name: "kling-v2-master", ... }
-  //   → { task_id: string } then poll GET /v1/videos/image2video/{task_id}
-  console.log("[generate-broll] Kling animationPrompt:", animationPrompt.slice(0, 200));
-
-  const klingRes = await fetch(
-    "https://api.klingai.com/v1/videos/image2video",
+  // ── Step 2: Gemini Imagen generates the image ─────────────────────────────
+  const imagenRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${KLING_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        image_url: imageUrl,
-        prompt: animationPrompt,
-        model_name: "kling-v2-master",
-        duration: "5",
-        mode: "pro",
+        instances: [{ prompt: refinedPrompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: "16:9",
+          safetyFilterLevel: "block_only_high",
+        },
       }),
     },
   );
+
+  if (!imagenRes.ok) {
+    const txt = await imagenRes.text();
+    throw new Error(`Gemini Imagen error ${imagenRes.status}: ${txt.slice(0, 400)}`);
+  }
+
+  const imagenData = await imagenRes.json();
+  const b64 = imagenData.predictions?.[0]?.bytesBase64Encoded;
+  const mimeType = imagenData.predictions?.[0]?.mimeType ?? "image/png";
+  if (!b64) throw new Error("Gemini Imagen returned no image data");
+
+  // Convert base64 → data URL (Kling accepts image_url; upload to storage for permanence)
+  const imageDataUrl = `data:${mimeType};base64,${b64}`;
+
+  // ── Step 3: Kling animates the image ─────────────────────────────────────
+  const animationPrompt = [style?.animation_prompt, broll.animation_description]
+    .filter(Boolean)
+    .join("\n\n") || `Animate this motion graphic with smooth, professional movement`;
+
+  const klingRes = await fetch("https://api.klingai.com/v1/videos/image2video", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${KLING_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      image: imageDataUrl,
+      prompt: animationPrompt,
+      model_name: "kling-v2-master",
+      duration: "5",
+      mode: "pro",
+    }),
+  });
 
   if (!klingRes.ok) {
     const txt = await klingRes.text();
@@ -236,14 +261,9 @@ async function generateV1(
 
   if (!videoUrl) throw new Error("Kling timed out — task not completed in 90s");
 
-  // Persist result
   await admin
     .from("broll_suggestions")
-    .update({
-      generation_status: "done",
-      output_url: videoUrl,
-      output_type: "video",
-    })
+    .update({ generation_status: "done", output_url: videoUrl, output_type: "video" })
     .eq("id", broll.id);
 
   return json({ ok: true, output_url: videoUrl });
@@ -274,7 +294,6 @@ async function generateV2(
   }
 
   const style = broll.broll_styles;
-
   const payload = {
     type: "broll",
     broll_suggestion_id: broll.id,
@@ -287,7 +306,6 @@ async function generateV2(
       styleName: style?.name ?? null,
     },
     output_format: "mp4",
-    // Callback so the worker can write output_url back
     callback_url: `${SUPABASE_URL}/functions/v1/complete-broll-render`,
   };
 
@@ -312,7 +330,5 @@ async function generateV2(
   }
 
   const workerData = await workerRes.json();
-
-  // Worker processes async and calls complete-broll-render when done
   return json({ ok: true, job_id: workerData.job_id });
 }

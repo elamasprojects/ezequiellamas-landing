@@ -445,7 +445,7 @@ function BrollItem({ broll, scriptId, scriptText, index }: BrollItemProps) {
               </SelectTrigger>
               <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
                 <SelectItem value={NO_STYLE}>Sin variante</SelectItem>
-                <SelectItem value="v1">V1 — NanoBanana + Kling</SelectItem>
+                <SelectItem value="v1">V1 — Gemini Imagen + Kling</SelectItem>
                 <SelectItem value="v2">V2 — Remotion + Hypermotion</SelectItem>
               </SelectContent>
             </Select>

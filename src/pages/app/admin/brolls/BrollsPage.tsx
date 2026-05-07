@@ -75,7 +75,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 const VARIANT_LABEL: Record<string, string> = {
-  v1: "NanoBanana + Kling",
+  v1: "Gemini Imagen + Kling",
   v2: "Remotion + Hypermotion",
 };
 
@@ -400,7 +400,7 @@ function StyleForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
-            <SelectItem value="v1">V1 — NanoBanana + Kling</SelectItem>
+            <SelectItem value="v1">V1 — Gemini Imagen + Kling</SelectItem>
             <SelectItem value="v2">V2 — Remotion + Hypermotion</SelectItem>
           </SelectContent>
         </Select>
@@ -410,7 +410,7 @@ function StyleForm({
         <>
           <div className="space-y-1">
             <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
-              Prompt de imagen (NanoBanana 2)
+              Prompt de imagen (Gemini Imagen)
             </Label>
             <Textarea
               value={form.image_prompt ?? ""}
@@ -538,7 +538,7 @@ function StyleCard({
                 variant="outline"
                 className="border-[var(--ll-border)] text-[var(--ll-text-muted)] text-[10px]"
               >
-                {style.variant === "v1" ? "NanaBanana+Kling" : "Remotion"}
+                {style.variant === "v1" ? "Gemini+Kling" : "Remotion"}
               </Badge>
             </div>
             <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--ll-text-muted)" }}>
@@ -647,7 +647,7 @@ function StylesSubTab({ variant }: { variant: "v1" | "v2" }) {
       {filtered.length === 0 && !creating ? (
         <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-6 text-center">
           <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Sin estilos {variant === "v1" ? "V1 (NanoBanana+Kling)" : "V2 (Remotion)"}. Creá el
+            Sin estilos {variant === "v1" ? "V1 (Gemini+Kling)" : "V2 (Remotion)"}. Creá el
             primero.
           </p>
           <Button
@@ -718,7 +718,7 @@ function StylesTab() {
   return (
     <Tabs defaultValue="v1" className="mt-2">
       <TabsList className="bg-[var(--ll-surface-2)]">
-        <TabsTrigger value="v1">V1 — NanoBanana + Kling</TabsTrigger>
+        <TabsTrigger value="v1">V1 — Gemini Imagen + Kling</TabsTrigger>
         <TabsTrigger value="v2">V2 — Remotion</TabsTrigger>
       </TabsList>
       <TabsContent value="v1">
@@ -759,7 +759,7 @@ export default function BrollsPage() {
           Generador de <em style={{ color: "var(--ll-warm)" }}>B-rolls</em>
         </h1>
         <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Cola de B-rolls marcados para crear. Elegí la variante (NanoBanana+Kling o
+          Cola de B-rolls marcados para crear. Elegí la variante (Gemini+Kling o
           Remotion+Hypermotion) desde el guion y generá desde acá.
         </p>
       </header>
