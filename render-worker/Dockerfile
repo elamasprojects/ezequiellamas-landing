@@ -35,10 +35,11 @@ RUN cd render-worker && \
     node -e "import('playwright').then(p => console.log(p.chromium.executablePath()))" \
     > /tmp/chromium.path
 
-# Copy worker source + shared carousel templates from repo root
+# Copy worker source + shared carousel/broll templates from repo root
 COPY render-worker/src ./render-worker/src
 COPY render-worker/tsconfig.json ./render-worker/tsconfig.json
 COPY src/lib/carousel ./src/lib/carousel
+COPY src/lib/broll ./src/lib/broll
 
 # Hyperframes critical-path env vars (per system prompt v2.2 §7):
 # - HYPERFRAMES_BROWSER_PATH: tell Hyperframes to use the Chromium we already installed

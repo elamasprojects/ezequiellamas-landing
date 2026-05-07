@@ -156,7 +156,10 @@ Deno.serve(async (req: Request) => {
   if (!variant) {
     await admin
       .from("broll_suggestions")
-      .update({ generation_status: "failed" })
+      .update({
+        generation_status: "failed",
+        generation_error: "no_variant_selected",
+      })
       .eq("id", broll_suggestion_id);
     return json({ error: "no_variant_selected" }, 400);
   }
@@ -165,13 +168,16 @@ Deno.serve(async (req: Request) => {
     if (variant === "v1") {
       return await generateV1(broll, ownerId, admin);
     } else {
-      return await generateV2(broll, admin);
+      return await generateV2(broll, ownerId, admin);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await admin
       .from("broll_suggestions")
-      .update({ generation_status: "failed" })
+      .update({
+        generation_status: "failed",
+        generation_error: msg.slice(0, 1000),
+      })
       .eq("id", broll_suggestion_id);
     return json({ error: "generation_failed", detail: msg }, 500);
   }
@@ -347,19 +353,31 @@ async function generateV1(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Variante 2: Remotion + Hypermotion via Railway worker (sin cambios)
+// Variante 2: Hyperframes (WordStack template) via Railway worker
 // ──────────────────────────────────────────────────────────────────────────────
+//
+// Payload shape exacto que el worker valida con zod (ver render-worker/src/index.ts):
+//   { kind:"broll", broll_suggestion_id, owner_id, template:"WordStack",
+//     content:{ words[], cueText, caption }, style_id, style_template_code,
+//     output_format:"mp4" }
+//
+// El worker responde 202 inmediato; procesa async y notifica via HMAC al edge
+// `complete-broll-render` que actualiza generation_status='done'/'failed'.
 
 async function generateV2(
   // deno-lint-ignore no-explicit-any
   broll: any,
+  ownerId: string,
   // deno-lint-ignore no-explicit-any
   admin: any,
 ): Promise<Response> {
   if (!RENDER_WORKER_URL || !RENDER_WORKER_SECRET) {
     await admin
       .from("broll_suggestions")
-      .update({ generation_status: "failed" })
+      .update({
+        generation_status: "failed",
+        generation_error: "v2_not_configured: RENDER_WORKER_URL/RENDER_WORKER_SECRET missing",
+      })
       .eq("id", broll.id);
     return json(
       {
@@ -370,22 +388,47 @@ async function generateV2(
     );
   }
 
+  // Validar selected_words (WordStack requiere 1..8 palabras)
+  const rawWords: string[] = Array.isArray(broll.selected_words)
+    ? broll.selected_words.filter((w: unknown): w is string => typeof w === "string" && w.trim().length > 0)
+    : [];
+  if (rawWords.length === 0) {
+    await admin
+      .from("broll_suggestions")
+      .update({
+        generation_status: "failed",
+        generation_error:
+          "wordstack_requires_selected_words: marcá palabras del guion para este B-roll antes de generar",
+      })
+      .eq("id", broll.id);
+    return json({ error: "wordstack_requires_selected_words" }, 400);
+  }
+  if (rawWords.length > 8) {
+    await admin
+      .from("broll_suggestions")
+      .update({
+        generation_status: "failed",
+        generation_error: `too_many_words: max 8 (got ${rawWords.length})`,
+      })
+      .eq("id", broll.id);
+    return json({ error: "too_many_words" }, 400);
+  }
+
   const style = broll.broll_styles;
 
   const payload = {
-    type: "broll",
-    broll_suggestion_id: broll.id,
-    composition: "BrollComposition",
-    props: {
-      imageDescription: broll.image_description ?? broll.suggestion,
-      animationDescription: broll.animation_description ?? "",
-      selectedWords: broll.selected_words ?? [],
-      templateCode: style?.template_code ?? null,
-      styleName: style?.name ?? null,
+    kind: "broll" as const,
+    broll_suggestion_id: broll.id as string,
+    owner_id: ownerId,
+    template: "WordStack" as const,
+    content: {
+      words: rawWords,
+      cueText: (broll.cue_text as string | null) ?? null,
+      caption: (broll.suggestion as string | null) ?? null,
     },
-    output_format: "mp4",
-    // Callback para que el worker escriba output_url al terminar
-    callback_url: `${SUPABASE_URL}/functions/v1/complete-broll-render`,
+    style_id: (style?.id as string | undefined) ?? null,
+    style_template_code: (style?.template_code as string | null) ?? null,
+    output_format: "mp4" as const,
   };
 
   const timestamp = Date.now().toString();
@@ -405,13 +448,18 @@ async function generateV2(
 
   if (!workerRes.ok) {
     const txt = await workerRes.text();
-    throw new Error(
-      `Railway worker error ${workerRes.status}: ${txt.slice(0, 300)}`,
-    );
+    const detail = `worker_${workerRes.status}: ${txt.slice(0, 600)}`;
+    await admin
+      .from("broll_suggestions")
+      .update({ generation_status: "failed", generation_error: detail })
+      .eq("id", broll.id);
+    throw new Error(detail);
   }
 
   const workerData = await workerRes.json();
-
-  // Worker procesa async y llama a complete-broll-render al terminar
-  return json({ ok: true, job_id: workerData.job_id });
+  // Worker procesa async; el callback complete-broll-render actualiza la fila.
+  return json({
+    ok: true,
+    broll_suggestion_id: workerData.broll_suggestion_id ?? broll.id,
+  });
 }

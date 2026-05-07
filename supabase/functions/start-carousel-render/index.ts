@@ -120,6 +120,7 @@ Deno.serve(async (req: Request) => {
         : "png",
   }));
   const workerBody = {
+    kind: "carousel" as const,
     job_id,
     carousel_id,
     owner_id: carousel.owner_id,
