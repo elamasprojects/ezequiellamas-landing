@@ -7,6 +7,7 @@ export type CoverUpdate = TablesUpdate<"covers">;
 
 export type CoverStatus = "idle" | "generating" | "done" | "failed" | "editing";
 export type CoverAspectRatio = "9:16" | "16:9" | "1:1";
+export type CoverQuality = "standard" | "premium";
 
 export interface CoverWithRelations extends Cover {
   cover_styles: { id: string; name: string } | null;
@@ -73,14 +74,27 @@ export async function getSignedCoverUrl(storagePath: string): Promise<string> {
 
 // Edge function calls
 
+export interface GenerateCoverResult {
+  generated_image_url: string;
+  idea_fuerza: string;
+  model?: string;
+  image_to_image?: boolean;
+}
+
 export async function generateCover(
   coverId: string,
-  opts?: { force?: boolean },
-): Promise<{ generated_image_url: string; idea_fuerza: string }> {
-  const { data, error } = await supabase.functions.invoke<{
-    generated_image_url: string;
-    idea_fuerza: string;
-  }>("generate-cover", { body: { cover_id: coverId, force: opts?.force ?? false } });
+  opts?: { force?: boolean; quality?: CoverQuality },
+): Promise<GenerateCoverResult> {
+  const { data, error } = await supabase.functions.invoke<GenerateCoverResult>(
+    "generate-cover",
+    {
+      body: {
+        cover_id: coverId,
+        force: opts?.force ?? false,
+        quality: opts?.quality ?? "standard",
+      },
+    },
+  );
   if (error) throw new Error(error.message ?? "generate_cover_failed");
   if (!data?.generated_image_url) throw new Error("no_image_url_returned");
   return data;
@@ -89,11 +103,19 @@ export async function generateCover(
 export async function editCover(
   coverId: string,
   instruction: string,
-): Promise<{ generated_image_url: string; idea_fuerza: string }> {
-  const { data, error } = await supabase.functions.invoke<{
-    generated_image_url: string;
-    idea_fuerza: string;
-  }>("generate-cover", { body: { cover_id: coverId, instruction, force: true } });
+  opts?: { quality?: CoverQuality },
+): Promise<GenerateCoverResult> {
+  const { data, error } = await supabase.functions.invoke<GenerateCoverResult>(
+    "generate-cover",
+    {
+      body: {
+        cover_id: coverId,
+        instruction,
+        force: true,
+        quality: opts?.quality ?? "standard",
+      },
+    },
+  );
   if (error) throw new Error(error.message ?? "edit_cover_failed");
   if (!data?.generated_image_url) throw new Error("no_image_url_returned");
   return data;

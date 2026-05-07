@@ -1,20 +1,23 @@
 // supabase/functions/generate-cover/index.ts
 //
-// Genera una portada de video usando arquitectura de prompts en 3 capas:
+// Genera una portada de video con arquitectura de prompts en 3 capas:
 //   Capa 1: System prompt maestro (metodología invariante de marca)
 //   Capa 2: Estilo de portada seleccionado (system_prompt del cover_style)
 //   Capa 3: Serie de contenido (cover_system_prompt de la serie, si aplica)
 //
-// Flujo: Claude extrae la idea fuerza + construye el prompt de imagen → OpenAI DALL-E 3 genera → se sube a cover-renders
+// Flujo: Claude extrae idea fuerza + arma image_prompt → Gemini Nano Banana 2/Pro
+// genera la imagen → se sube a `cover-renders`. Si viene `instruction` y la portada
+// ya tiene `generated_image_path`, hace image-to-image (pasa la imagen previa como
+// inlineData) para preservar continuidad visual.
 //
-// Body: { cover_id: string, force?: boolean, instruction?: string }
-// Returns: { ok: true, generated_image_url: string, idea_fuerza: string }
+// Body: { cover_id: string, force?: boolean, instruction?: string, quality?: "standard" | "premium" }
+// Returns: { ok: true, generated_image_url: string, idea_fuerza: string, model: string }
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -24,12 +27,15 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const GEMINI_FLASH = "gemini-3.1-flash-image-preview";
+const GEMINI_PRO = "gemini-3-pro-image-preview";
+
 // ============================================================================
 // CAPA 1 — System prompt maestro (invariante de marca)
 // ============================================================================
 const MASTER_SYSTEM_PROMPT = `Sos un generador de portadas para videos cortos de @ezequiellamass.
 
-Tu tarea: analizar el contenido del video y producir un prompt detallado en inglés para generar una portada de video profesional con DALL-E 3.
+Tu tarea: analizar el contenido del video y producir un prompt detallado en inglés para generar una portada de video profesional con un modelo de imagen de Google (Gemini Nano Banana).
 
 ## METODOLOGÍA
 
@@ -55,10 +61,10 @@ Destilá el contenido a 2-4 palabras de máximo impacto. Es la promesa o insight
 Respondé SOLO con JSON sin ningún otro texto:
 {
   "idea_fuerza": "2-4 palabras de impacto",
-  "image_prompt": "prompt detallado en inglés para DALL-E 3 que incluya: sujeto y composición, fondo y atmósfera, texto visible (la idea fuerza en Poppins bold), estilo y mood, specs técnicos (sharp, high contrast, professional thumbnail quality)"
+  "image_prompt": "prompt detallado en inglés para el modelo de imagen, que incluya: sujeto y composición, fondo y atmósfera, texto visible (la idea fuerza en Poppins bold), estilo y mood, specs técnicos (sharp, high contrast, professional thumbnail quality). Incluí explícitamente las palabras exactas que deben aparecer en pantalla entre comillas."
 }
 
-El image_prompt debe ser auto-suficiente para que DALL-E 3 pueda generar la imagen sin contexto adicional.`;
+El image_prompt debe ser auto-suficiente para que el modelo genere la imagen sin contexto adicional.`;
 
 // ============================================================================
 // Tipos
@@ -67,6 +73,7 @@ interface RequestBody {
   cover_id: string;
   force?: boolean;
   instruction?: string;
+  quality?: "standard" | "premium";
 }
 
 interface CoverRow {
@@ -83,6 +90,44 @@ interface CoverRow {
   series_id: string | null;
 }
 
+interface GeminiPart {
+  text?: string;
+  inlineData?: { mimeType: string; data: string };
+  thought?: boolean;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS },
+  });
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(i, Math.min(i + chunk, bytes.length)),
+    );
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function isValidAspectRatio(r: string): boolean {
+  return ["1:1", "9:16", "16:9", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4"].includes(r);
+}
+
 // ============================================================================
 // Main handler
 // ============================================================================
@@ -91,7 +136,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   if (!ANTHROPIC_API_KEY) return json({ error: "missing_anthropic_key" }, 500);
-  if (!OPENAI_API_KEY) return json({ error: "missing_openai_key" }, 500);
+  if (!GEMINI_API_KEY) return json({ error: "missing_gemini_key" }, 500);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "unauthorized" }, 401);
@@ -111,7 +156,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const { cover_id, force = false, instruction } = body;
+  const { cover_id, force = false, instruction, quality = "standard" } = body;
   if (!cover_id) return json({ error: "cover_id_required" }, 400);
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -127,14 +172,29 @@ Deno.serve(async (req: Request) => {
     `)
     .eq("id", cover_id)
     .eq("owner_id", userId)
-    .single() as { data: CoverRow | null; error: unknown };
+    .single<CoverRow>();
 
   if (coverErr || !cover) return json({ error: "cover_not_found" }, 404);
-  if (cover.status === "done" && !force) return json({ error: "already_generated_use_force" }, 409);
+  if (cover.status === "done" && !force) {
+    return json({ error: "already_generated_use_force" }, 409);
+  }
 
-  // Marcar como generando
+  // CAS: solo arrancamos si nadie más está generando esta portada.
+  // Permitimos disparar desde idle/done/failed/editing (con force) — y bloqueamos
+  // si otra request ya está in-flight (status in_progress / generating / editing
+  // sin haber pasado por done).
   const newStatus = instruction ? "editing" : "generating";
-  await admin.from("covers").update({ status: newStatus, generation_error: null }).eq("id", cover_id);
+  const { data: claimed, error: claimErr } = await admin
+    .from("covers")
+    .update({ status: newStatus, generation_error: null })
+    .eq("id", cover_id)
+    .in("status", ["idle", "done", "failed"])
+    .select("id")
+    .maybeSingle();
+  if (claimErr) return json({ error: "claim_failed", detail: claimErr.message }, 500);
+  if (!claimed) {
+    return json({ error: "already_in_progress" }, 409);
+  }
 
   try {
     // Cargar script/video content
@@ -203,16 +263,18 @@ Deno.serve(async (req: Request) => {
 
     const systemPrompt = MASTER_SYSTEM_PROMPT + styleLayer + seriesLayer;
 
-    // Mensaje de usuario
+    // Mensaje de usuario para Claude
     const instructionLine = instruction ? `\nInstrucción de edición: ${instruction}` : "";
     const userMessage = `Título del video: ${contentTitle || "(sin título)"}
 Aspect ratio de la portada: ${cover.aspect_ratio}${instructionLine}
 
 ${content}
 
-${instruction
-  ? `La portada ya existe. Aplicá la instrucción de edición manteniendo el estilo y branding invariante. Generá un nuevo prompt para DALL-E 3 que incorpore el cambio pedido.`
-  : "Analizá el contenido, extraé la idea fuerza y construí el prompt para DALL-E 3."}`;
+${
+  instruction
+    ? "La portada ya existe (te van a pasar la imagen previa como referencia). Aplicá la instrucción de edición manteniendo el estilo y branding invariante. Generá un prompt nuevo que describa los cambios y todo lo que debe preservarse."
+    : "Analizá el contenido, extraé la idea fuerza y construí el image_prompt."
+}`;
 
     // Claude extrae idea_fuerza + genera image_prompt
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -251,76 +313,113 @@ ${instruction
     }
     if (!imagePrompt) throw new Error("no_image_prompt_from_claude");
 
-    // Tamaño según aspect ratio
-    const sizeMap: Record<string, string> = {
-      "9:16": "1024x1792",
-      "16:9": "1792x1024",
-      "1:1": "1024x1024",
-    };
-    const size = sizeMap[cover.aspect_ratio] ?? "1024x1792";
+    // ─── Gemini ────────────────────────────────────────────────────────────
+    const aspectRatio = isValidAspectRatio(cover.aspect_ratio)
+      ? cover.aspect_ratio
+      : "9:16";
+    const imageSize = "2K";
 
-    // Llamada a OpenAI DALL-E 3
-    const dalleRes = await fetch("https://api.openai.com/v1/images/generations", {
+    // Si es edit y hay imagen previa, pasarla como inlineData (image-to-image).
+    const parts: Array<Record<string, unknown>> = [];
+    let usedImageToImage = false;
+    if (instruction && cover.generated_image_path) {
+      const { data: prevBlob, error: dlErr } = await admin.storage
+        .from("cover-renders")
+        .download(cover.generated_image_path);
+      if (!dlErr && prevBlob) {
+        const buf = new Uint8Array(await prevBlob.arrayBuffer());
+        parts.push({
+          inlineData: {
+            mimeType: prevBlob.type || "image/png",
+            data: bytesToBase64(buf),
+          },
+        });
+        usedImageToImage = true;
+      }
+    }
+    parts.push({ text: imagePrompt });
+
+    const geminiModel = quality === "premium" ? GEMINI_PRO : GEMINI_FLASH;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+
+    const geminiRes = await fetch(geminiUrl, {
       method: "POST",
       headers: {
+        "x-goog-api-key": GEMINI_API_KEY,
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "dall-e-3",
-        prompt: imagePrompt,
-        n: 1,
-        size,
-        quality: "hd",
-        response_format: "url",
+        contents: [{ parts }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+          imageConfig: { aspectRatio, imageSize },
+        },
       }),
     });
 
-    if (!dalleRes.ok) {
-      const detail = await dalleRes.text();
-      throw new Error(`openai_${dalleRes.status}: ${detail.slice(0, 300)}`);
+    if (!geminiRes.ok) {
+      const detail = await geminiRes.text();
+      throw new Error(`gemini_${geminiRes.status}: ${detail.slice(0, 300)}`);
     }
-    const dalleData = await dalleRes.json();
-    const tempUrl = dalleData.data?.[0]?.url as string | undefined;
-    if (!tempUrl) throw new Error("no_image_url_from_openai");
+    const geminiData = await geminiRes.json();
 
-    // Descargar imagen y subir a cover-renders
-    const imgRes = await fetch(tempUrl);
-    if (!imgRes.ok) throw new Error("failed_to_download_image");
-    const imgBuffer = await imgRes.arrayBuffer();
+    const finishReason = geminiData.candidates?.[0]?.finishReason;
+    if (finishReason === "SAFETY" || finishReason === "PROHIBITED_CONTENT") {
+      throw new Error(`safety_block: ${finishReason}`);
+    }
 
-    const storagePath = `${userId}/${cover_id}.png`;
+    // Parse parts: skip thought, capture inlineData (final image).
+    const responseParts: GeminiPart[] = geminiData.candidates?.[0]?.content?.parts ?? [];
+    let imageBase64: string | null = null;
+    let imageMime = "image/png";
+    for (const part of responseParts) {
+      if (part.thought) continue;
+      if (part.inlineData?.data) {
+        imageBase64 = part.inlineData.data;
+        imageMime = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+    if (!imageBase64) throw new Error("no_image_from_gemini");
+
+    // Upload a cover-renders
+    const ext = imageMime === "image/jpeg" ? "jpg" : "png";
+    const storagePath = `${userId}/${cover_id}.${ext}`;
+    const imgBytes = base64ToBytes(imageBase64);
     const { error: uploadErr } = await admin.storage
       .from("cover-renders")
-      .upload(storagePath, imgBuffer, { contentType: "image/png", upsert: true });
+      .upload(storagePath, imgBytes, { contentType: imageMime, upsert: true });
     if (uploadErr) throw new Error(`upload_failed: ${uploadErr.message}`);
 
-    // Signed URL (4 horas — se refresca desde el frontend)
+    // Signed URL (4h — el frontend la refresca)
     const { data: signedData } = await admin.storage
       .from("cover-renders")
       .createSignedUrl(storagePath, 4 * 3600);
-    const finalUrl = signedData?.signedUrl ?? tempUrl;
+    const finalUrl = signedData?.signedUrl ?? "";
 
-    // Actualizar fila
+    // Actualizar fila — limpiamos generation_error explicitamente.
     await admin.from("covers").update({
       status: "done",
       generated_image_url: finalUrl,
       generated_image_path: storagePath,
       prompt_used: imagePrompt,
       idea_fuerza: ideaFuerza || null,
+      generation_error: null,
     }).eq("id", cover_id);
 
-    return json({ ok: true, generated_image_url: finalUrl, idea_fuerza: ideaFuerza });
+    return json({
+      ok: true,
+      generated_image_url: finalUrl,
+      idea_fuerza: ideaFuerza,
+      model: geminiModel,
+      image_to_image: usedImageToImage,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await admin.from("covers").update({ status: "failed", generation_error: msg }).eq("id", cover_id);
+    await admin
+      .from("covers")
+      .update({ status: "failed", generation_error: msg })
+      .eq("id", cover_id);
     return json({ error: "generation_failed", detail: msg }, 502);
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", ...CORS },
-  });
-}
