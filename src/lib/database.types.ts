@@ -552,6 +552,177 @@ export type Database = {
           },
         ]
       }
+      cover_assets: {
+        Row: {
+          asset_type: string
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          storage_path: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          asset_type?: string
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          asset_type?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      cover_styles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          position: number
+          reference_image_path: string | null
+          reference_image_url: string | null
+          system_prompt: string
+          updated_at: string
+          when_to_use: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          position?: number
+          reference_image_path?: string | null
+          reference_image_url?: string | null
+          system_prompt?: string
+          updated_at?: string
+          when_to_use?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          position?: number
+          reference_image_path?: string | null
+          reference_image_url?: string | null
+          system_prompt?: string
+          updated_at?: string
+          when_to_use?: string | null
+        }
+        Relationships: []
+      }
+      covers: {
+        Row: {
+          aspect_ratio: string
+          cover_style_id: string | null
+          created_at: string
+          generated_image_path: string | null
+          generated_image_url: string | null
+          generation_error: string | null
+          id: string
+          idea_fuerza: string | null
+          owner_id: string
+          prompt_used: string | null
+          script_id: string | null
+          series_id: string | null
+          status: string
+          suggested_style_id: string | null
+          title: string | null
+          updated_at: string
+          video_id: string | null
+        }
+        Insert: {
+          aspect_ratio?: string
+          cover_style_id?: string | null
+          created_at?: string
+          generated_image_path?: string | null
+          generated_image_url?: string | null
+          generation_error?: string | null
+          id?: string
+          idea_fuerza?: string | null
+          owner_id: string
+          prompt_used?: string | null
+          script_id?: string | null
+          series_id?: string | null
+          status?: string
+          suggested_style_id?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string | null
+        }
+        Update: {
+          aspect_ratio?: string
+          cover_style_id?: string | null
+          created_at?: string
+          generated_image_path?: string | null
+          generated_image_url?: string | null
+          generation_error?: string | null
+          id?: string
+          idea_fuerza?: string | null
+          owner_id?: string
+          prompt_used?: string | null
+          script_id?: string | null
+          series_id?: string | null
+          status?: string
+          suggested_style_id?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "covers_cover_style_id_fkey"
+            columns: ["cover_style_id"]
+            isOneToOne: false
+            referencedRelation: "cover_styles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covers_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covers_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covers_suggested_style_id_fkey"
+            columns: ["suggested_style_id"]
+            isOneToOne: false
+            referencedRelation: "cover_styles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covers_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       editor_assignments: {
         Row: {
           brolls_drive_url: string | null
@@ -1452,6 +1623,8 @@ export type Database = {
       }
       series: {
         Row: {
+          cover_reference_image_url: string | null
+          cover_system_prompt: string | null
           created_at: string
           description: string | null
           example_url: string | null
@@ -1462,6 +1635,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cover_reference_image_url?: string | null
+          cover_system_prompt?: string | null
           created_at?: string
           description?: string | null
           example_url?: string | null
@@ -1472,6 +1647,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cover_reference_image_url?: string | null
+          cover_system_prompt?: string | null
           created_at?: string
           description?: string | null
           example_url?: string | null
