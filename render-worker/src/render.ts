@@ -1,4 +1,4 @@
-// Per-slide rendering: PNG via Playwright, MP4 via Hyperframes.
+// Per-slide / per-broll rendering: PNG via Playwright, MP4 via Hyperframes.
 
 import { chromium, type Browser } from "playwright";
 import { spawn } from "node:child_process";
@@ -9,6 +9,8 @@ import { join, resolve } from "node:path";
 import { buildSlideHtml } from "../../src/lib/carousel/render";
 import type { Slide } from "../../src/lib/carousel/types";
 import type { FormatSlug } from "../../src/lib/carousel/formats";
+import { buildBrollHtml } from "../../src/lib/broll/render";
+import type { BrollTemplate, BrollContent, BrollStyleConfig } from "../../src/lib/broll/types";
 
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
@@ -60,8 +62,15 @@ export async function renderPng(opts: {
   try {
     await page.setContent(html, { waitUntil: "networkidle" });
     // Make sure all webfonts have actually loaded -- otherwise the screenshot
-    // catches a fallback font flash.
-    await page.evaluate(() => (document as Document).fonts.ready);
+    // catches a fallback font flash. Runs inside the browser via page.evaluate;
+    // tsconfig doesn't include DOM lib so we cast through unknown.
+    await page.evaluate(
+      () =>
+        (
+          (globalThis as unknown as { document: { fonts: { ready: Promise<void> } } })
+            .document.fonts.ready
+        ),
+    );
     await page.waitForTimeout(800); // settle paint
 
     const buf = await page.screenshot({ type: "png", fullPage: false });
@@ -101,6 +110,45 @@ export async function renderMp4(opts: {
     await runHyperframes(tmpDir);
 
     // Read the produced MP4 from ./renders/*.mp4
+    const rendersDir = join(tmpDir, "renders");
+    if (!existsSync(rendersDir)) {
+      throw new Error("hyperframes_no_renders_dir");
+    }
+    const files = await readdir(rendersDir);
+    const mp4 = files.find((f) => f.toLowerCase().endsWith(".mp4"));
+    if (!mp4) throw new Error("hyperframes_no_mp4_output");
+    return await readFile(join(rendersDir, mp4));
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+// ─── B-roll renderer ────────────────────────────────────────────────────────
+// Mirror exacto de renderMp4(carrusel) pero con buildBrollHtml. Las dimensiones
+// 1080×1920 ya viajan en el data-width/data-height del wrapper que emite
+// buildBrollHtml — el código de Hyperframes runner es idéntico.
+export async function renderBrollMp4(opts: {
+  template: BrollTemplate;
+  content: BrollContent;
+  styleConfig: BrollStyleConfig;
+}): Promise<Buffer> {
+  const html = buildBrollHtml(
+    { template: opts.template, content: opts.content },
+    { outputMode: "animated", styleConfig: opts.styleConfig },
+  );
+
+  const tmpDir = await mkdtemp(join(tmpdir(), "broll-mp4-"));
+  try {
+    await writeFile(join(tmpDir, "index.html"), html, "utf-8");
+
+    const gsapSrc = resolveGsap();
+    if (!gsapSrc) {
+      throw new Error("gsap_min_js_not_found_in_node_modules");
+    }
+    await copyFile(gsapSrc, join(tmpDir, "gsap.min.js"));
+
+    await runHyperframes(tmpDir);
+
     const rendersDir = join(tmpDir, "renders");
     if (!existsSync(rendersDir)) {
       throw new Error("hyperframes_no_renders_dir");

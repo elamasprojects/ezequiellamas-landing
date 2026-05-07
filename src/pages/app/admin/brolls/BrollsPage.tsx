@@ -227,20 +227,32 @@ function BrollQueueItem({ broll }: { broll: BrollSuggestionWithScript }) {
         </div>
       )}
       {genStatus === "failed" && (
-        <div className="flex justify-end pt-1 border-t border-[var(--ll-border)]">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
-            disabled={dispatchMutation.isPending}
-            onClick={() => dispatchMutation.mutate()}
-          >
-            {dispatchMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              "Reintentar"
-            )}
-          </Button>
+        <div className="space-y-2 pt-1 border-t border-[var(--ll-border)]">
+          {broll.generation_error && (
+            <details className="rounded-md border border-red-500/30 bg-red-500/5 p-2">
+              <summary className="cursor-pointer text-xs text-red-300 font-mono">
+                Detalle del error
+              </summary>
+              <pre className="mt-2 whitespace-pre-wrap text-[10px] text-red-200/80 font-mono">
+                {broll.generation_error}
+              </pre>
+            </details>
+          )}
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              disabled={dispatchMutation.isPending}
+              onClick={() => dispatchMutation.mutate()}
+            >
+              {dispatchMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                "Reintentar"
+              )}
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -438,15 +450,21 @@ function StyleForm({
       {form.variant === "v2" && (
         <div className="space-y-1">
           <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
-            Template React/Remotion
+            Configuración JSON del template (opcional)
           </Label>
           <Textarea
             value={form.template_code ?? ""}
             onChange={(e) => patch("template_code", e.target.value || null)}
-            placeholder="// Componente React con props: imageDescription, animationDescription, duration"
-            rows={12}
+            placeholder={`{\n  "bg": "#0a0a0a",\n  "accent": "#C8FF00",\n  "fontHeading": "'Instrument Serif', serif",\n  "stagger": 0.18\n}`}
+            rows={8}
             className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)] text-xs font-mono"
           />
+          <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+            V2 MVP usa solo el template <code>WordStack</code>. Si dejás vacío,
+            aplican los defaults de marca. Override con <code>bg</code>,{" "}
+            <code>accent</code>, <code>fontHeading</code>, <code>stagger</code>,{" "}
+            <code>ease</code>.
+          </p>
         </div>
       )}
 

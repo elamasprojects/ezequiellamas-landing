@@ -1,11 +1,12 @@
 // Entry point: tiny Express server with /health and /render endpoints.
-// /render is HMAC-authenticated and processes the job in the background
+// /render is HMAC-authenticated, accepts both carousel and broll jobs via
+// a discriminated union (`kind`), and processes the job in the background
 // (responds 202 immediately so the calling edge function isn't blocked).
 
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import { verifyHmac } from "./auth.js";
-import { processRenderJob } from "./queue.js";
+import { processCarouselJob, processBrollJob } from "./queue.js";
 import { shutdownBrowser } from "./render.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -39,7 +40,9 @@ app.use(
   }),
 );
 
-const RenderJobSchema = z.object({
+// ─── Discriminated union: kind: "carousel" | "broll" ────────────────────────
+const CarouselJobSchema = z.object({
+  kind: z.literal("carousel"),
   job_id: z.string().uuid(),
   carousel_id: z.string().uuid(),
   owner_id: z.string().uuid(),
@@ -63,6 +66,22 @@ const RenderJobSchema = z.object({
     .min(1)
     .max(12),
 });
+
+const BrollJobSchema = z.object({
+  kind: z.literal("broll"),
+  broll_suggestion_id: z.string().uuid(),
+  owner_id: z.string().uuid(),
+  template: z.enum(["WordStack"]),
+  content: z.record(z.string(), z.unknown()),
+  style_id: z.string().uuid().nullable(),
+  style_template_code: z.string().nullable(),
+  output_format: z.literal("mp4"),
+});
+
+const JobSchema = z.discriminatedUnion("kind", [
+  CarouselJobSchema,
+  BrollJobSchema,
+]);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
@@ -89,8 +108,17 @@ app.post(
       return;
     }
 
-    // 2) Body validation
-    const parsed = RenderJobSchema.safeParse(req.body);
+    // 2) Backward-compat: the legacy carousel payload didn't include `kind`.
+    //    If we see a `slides` array and no `kind`, infer "carousel". This lets
+    //    older deploys of `start-carousel-render` continue working during the
+    //    rollout window.
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    if (!body.kind && Array.isArray(body.slides)) {
+      body.kind = "carousel";
+    }
+
+    // 3) Body validation
+    const parsed = JobSchema.safeParse(body);
     if (!parsed.success) {
       res.status(400).json({
         error: "invalid_body",
@@ -99,22 +127,36 @@ app.post(
       return;
     }
 
-    // 3) Acknowledge IMMEDIATELY -- the edge function caller is not waiting
-    res.status(202).json({
-      ok: true,
-      job_id: parsed.data.job_id,
-      total_slides: parsed.data.slides.length,
-    });
-
-    // 4) Process asynchronously
-    processRenderJob(parsed.data).catch((err) => {
-      console.error(`[job=${parsed.data.job_id}] uncaught:`, err);
-    });
+    // 4) Acknowledge IMMEDIATELY -- the edge function caller is not waiting.
+    //    Extract narrowed locals before the async closure so the closure
+    //    doesn't have to re-narrow the union (which TS can't do across boundaries).
+    if (parsed.data.kind === "carousel") {
+      const job = parsed.data;
+      res.status(202).json({
+        ok: true,
+        kind: "carousel",
+        job_id: job.job_id,
+        total_slides: job.slides.length,
+      });
+      processCarouselJob(job).catch((err) => {
+        console.error(`[carousel job=${job.job_id}] uncaught:`, err);
+      });
+    } else {
+      const job = parsed.data;
+      res.status(202).json({
+        ok: true,
+        kind: "broll",
+        broll_suggestion_id: job.broll_suggestion_id,
+      });
+      processBrollJob(job).catch((err) => {
+        console.error(`[broll=${job.broll_suggestion_id}] uncaught:`, err);
+      });
+    }
   },
 );
 
 const server = app.listen(PORT, () => {
-  console.log(`carousel render worker listening on :${PORT}`);
+  console.log(`render worker listening on :${PORT}`);
 });
 
 // Graceful shutdown -- close the browser when the container is stopping

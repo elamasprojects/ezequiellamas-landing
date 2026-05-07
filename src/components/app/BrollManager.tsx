@@ -519,6 +519,19 @@ function BrollItem({ broll, scriptId, scriptText, index }: BrollItemProps) {
           />
         </div>
       )}
+
+      {genStatus === "failed" && broll.generation_error && (
+        <div className="border-t border-[var(--ll-border)] p-2">
+          <details className="rounded-md border border-red-500/30 bg-red-500/5 p-2">
+            <summary className="cursor-pointer text-[10px] text-red-300 font-mono">
+              Detalle del error
+            </summary>
+            <pre className="mt-1 whitespace-pre-wrap text-[9px] text-red-200/80 font-mono">
+              {broll.generation_error}
+            </pre>
+          </details>
+        </div>
+      )}
     </li>
   );
 }

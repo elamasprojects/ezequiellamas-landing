@@ -1,22 +1,11 @@
-// Upload rendered slide buffers to the carousel-renders bucket using the
+// Upload rendered slide / broll buffers to Supabase Storage using the
 // service role key. Bypasses RLS deliberately -- the worker is trusted via
 // HMAC at the perimeter.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { admin } from "./db.js";
 
-let cached: SupabaseClient | null = null;
-function admin(): SupabaseClient {
-  if (cached) return cached;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("missing_supabase_env_vars");
-  }
-  cached = createClient(url, key, { auth: { persistSession: false } });
-  return cached;
-}
-
-const BUCKET = "carousel-renders";
+const CAROUSEL_BUCKET = "carousel-renders";
+const BROLL_BUCKET = "broll-renders";
 
 /**
  * Path scheme: `{owner_id}/{carousel_id}/slide_{NN}.{ext}` (1-indexed, zero-padded).
@@ -42,7 +31,7 @@ export async function uploadSlide(opts: {
   const contentType = opts.format === "mp4" ? "video/mp4" : "image/png";
 
   const { error } = await admin()
-    .storage.from(BUCKET)
+    .storage.from(CAROUSEL_BUCKET)
     .upload(path, opts.buffer, {
       contentType,
       upsert: true,
@@ -52,4 +41,44 @@ export async function uploadSlide(opts: {
     throw new Error(`upload_failed: ${error.message}`);
   }
   return path;
+}
+
+/**
+ * Path scheme para B-rolls: `{owner_id}/{broll_id}.mp4`.
+ * Distinto del de carruseles que tiene un nivel de slide_NN — cada broll es
+ * un único MP4.
+ */
+export function brollPath(opts: { ownerId: string; brollId: string; ext: "mp4" | "png" }): string {
+  return `${opts.ownerId}/${opts.brollId}.${opts.ext}`;
+}
+
+export async function uploadBroll(opts: {
+  ownerId: string;
+  brollId: string;
+  ext: "mp4" | "png";
+  buffer: Buffer;
+}): Promise<string> {
+  const path = brollPath(opts);
+  const contentType = opts.ext === "mp4" ? "video/mp4" : "image/png";
+
+  const { error } = await admin()
+    .storage.from(BROLL_BUCKET)
+    .upload(path, opts.buffer, {
+      contentType,
+      upsert: true,
+      cacheControl: "31536000",
+    });
+  if (error) {
+    throw new Error(`broll_upload_failed: ${error.message}`);
+  }
+  return path;
+}
+
+/** Sign a broll-renders path with TTL (seconds). Default: 30 days. */
+export async function signBrollUrl(path: string, ttlSeconds = 60 * 60 * 24 * 30): Promise<string> {
+  const { data, error } = await admin().storage.from(BROLL_BUCKET).createSignedUrl(path, ttlSeconds);
+  if (error || !data?.signedUrl) {
+    throw new Error(`broll_sign_failed: ${error?.message ?? "no_signed_url"}`);
+  }
+  return data.signedUrl;
 }

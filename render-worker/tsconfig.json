@@ -15,11 +15,13 @@
     "rootDir": "..",
     "baseUrl": "..",
     "paths": {
-      "@shared/carousel/*": ["src/lib/carousel/*"]
+      "@shared/carousel/*": ["src/lib/carousel/*"],
+      "@shared/broll/*": ["src/lib/broll/*"]
     }
   },
   "include": [
     "src/**/*",
-    "../src/lib/carousel/**/*"
+    "../src/lib/carousel/**/*",
+    "../src/lib/broll/**/*"
   ]
 }
