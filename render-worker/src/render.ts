@@ -147,9 +147,12 @@ export async function renderBrollMp4(opts: {
     }
     await copyFile(gsapSrc, join(tmpDir, "gsap.min.js"));
 
-    // Brolls usan `standard` quality — descarta heavy frame paint como causa
-    // del hang en frame capture. Carruseles siguen con `high`.
-    await runHyperframes(tmpDir, { quality: "standard" });
+    // Brolls: standard quality + 1 worker (no 8 paralelos como auto-detect).
+    // Auto-detect se basa en cpu cores (Railway = 48 cores = 8 workers x ~300MB
+    // cada uno = 2.4GB+). Forzar 1 worker reduce el peak memory dramáticamente
+    // y mata el OOM-induced hang en frame capture. Para un broll de 3-5s no
+    // hace falta paralelismo — la velocidad gana al evitar el OOM.
+    await runHyperframes(tmpDir, { quality: "standard", workers: 1 });
 
     const rendersDir = join(tmpDir, "renders");
     if (!existsSync(rendersDir)) {
@@ -197,7 +200,10 @@ function resolveHyperframesBin(): string | null {
 
 function runHyperframes(
   cwd: string,
-  opts: { quality?: "draft" | "standard" | "high" } = {},
+  opts: {
+    quality?: "draft" | "standard" | "high";
+    workers?: number;
+  } = {},
 ): Promise<void> {
   return new Promise((res, rej) => {
     const bin = resolveHyperframesBin();
@@ -213,13 +219,21 @@ function runHyperframes(
       PRODUCER_FORCE_SCREENSHOT: "true",
     };
     const quality = opts.quality ?? "high";
+    // Hyperframes spawns workers per (cores/6). En Railway con 48 cores eso
+    // son 8 workers, c/u con su propio Chromium → ~2.4GB+. OOM probable.
+    // Fix: cap a `workers` explícito para brolls.
+    const workers = opts.workers;
+    const args = ["render", "--quality", quality];
+    if (typeof workers === "number" && workers > 0) {
+      args.push("--workers", String(workers));
+    }
     // Spawn the locked hyperframes binary directly (avoid npx auto-install).
     // Drop --quiet so we get verbose output for debugging hangs.
-    const proc = spawn(
-      bin,
-      ["render", "--quality", quality],
-      { cwd, env, stdio: ["ignore", "pipe", "pipe"] },
-    );
+    const proc = spawn(bin, args, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     const tag = `[hyperframes pid=${proc.pid}]`;
     console.log(`${tag} spawned`);
     let stderr = "";
