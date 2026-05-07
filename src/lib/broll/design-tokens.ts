@@ -1,52 +1,49 @@
 /**
- * Base CSS para B-rolls. Mirror estructural exacto del patrón carrusel
- * (`src/lib/carousel/design-tokens.ts`) pero a 9:16 (1080×1920).
+ * Brand tokens para B-rolls V2. Mismo design language que la landing page
+ * de @ezequiellamass — fonts (Instrument Serif + DM Sans + JetBrains Mono),
+ * paleta dark con accent acid yellow #c8ff00 y warm orange #ff6b35.
  *
- * Reglas no negociables (heredadas del carrusel v2.2 §6/§7):
- *   - Usar `position: absolute` para layout, NO `display: flex` en contenedores
- *     hijos directos del wrapper. Hyperframes puede tener issues calculando
- *     dimensiones cuando el composition wrapper tiene flex children.
- *   - GSAP siempre local, nunca CDN.
- *
- * Defaults de la BrollStyleConfig — referenciados por CSS custom props.
- * Los templates leen estos vars (--bg, --accent, --text, etc) igual que
- * los carrusel templates leen los del format catalog.
+ * Resolución 720×1280 (9:16) — calibrada para que FFmpeg encode no OOMee
+ * en Railway (1080×1920 era 56% más grande y mataba el container).
  */
 
-// Resolución 720×1280 (9:16) en vez de 1080×1920 — reduce FFmpeg encoding
-// memory ~56% para evitar el OOM kill que estábamos viendo en `Encoding video`.
-// 720p es suficiente para B-roll secundario que se compone dentro de un
-// video principal; cuando se sube el video final a 1080p, el broll se
-// upscalea sin pérdida visible.
 export const SLIDE_WIDTH = 720;
 export const SLIDE_HEIGHT = 1280;
 
-export const DEFAULTS = {
+/** Brand palette — espejo de --ll-* en src/index.css. */
+export const BRAND = {
   bg: "#0a0a0a",
-  accent: "#C8FF00",
-  text: "#ffffff",
-  // System fonts only — evita el hang de Hyperframes frame-capture esperando
-  // fonts de Google CDN. Si quisiéramos Instrument Serif u otra custom font,
-  // habría que (1) instalarla local en el Dockerfile, o (2) embeberla
-  // inline como base64 en el HTML.
-  fontHeading: "Georgia, 'Times New Roman', serif",
-  fontBody: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  surface: "#111111",
+  surface2: "#161616",
+  border: "#1e1e1e",
+  text: "#e8e4de", // warm off-white (no pure white)
+  textMuted: "#8a8580",
+  textDim: "#5a5550",
+  accent: "#c8ff00", // acid yellow-green
+  warm: "#ff6b35", // orange
+  blue: "#4a9eff",
+} as const;
+
+export const FONT_HEADING = "'Instrument Serif', Georgia, serif";
+export const FONT_BODY = "'DM Sans', system-ui, -apple-system, sans-serif";
+export const FONT_MONO = "'JetBrains Mono', ui-monospace, monospace";
+
+export const DEFAULTS = {
+  bg: BRAND.bg,
+  accent: BRAND.accent,
+  secondary: BRAND.warm,
+  text: BRAND.text,
+  fontHeading: FONT_HEADING,
+  fontBody: FONT_BODY,
+  fontMono: FONT_MONO,
   stagger: 0.18,
   ease: "back.out(1.4)",
 } as const;
 
 /**
- * CSS estructural — solo el wrapper `.slide` (mismo nombre de clase que el
- * carrusel para máxima paridad con Hyperframes). Cada template inline su
- * propio CSS específico.
+ * CSS estructural — solo el wrapper `.slide` y normalize. Cada template
+ * inline su propio CSS específico.
  */
-// CSS estructural — fonts inlineadas literal (no `var()`). Hyperframes hace
-// regex extraction de `font-family: X` en el HTML y trata `var(--font-body)`
-// como literal nombre de font, lo que dispara el warning de "deterministic
-// font mapping" y puede colgar el frame capture en algunos casos.
-const FONT_HEADING = "Georgia, 'Times New Roman', serif";
-const FONT_BODY = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-
 export const BASE_BROLL_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -69,6 +66,18 @@ html, body {
   background: var(--bg);
   color: var(--text);
 }
-`;
 
-export { FONT_HEADING, FONT_BODY };
+/* Subtle grid background — same pattern que carrusel pero más sutil */
+.slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+.slide > * { position: relative; z-index: 1; }
+`;

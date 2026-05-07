@@ -45,6 +45,14 @@ import {
 } from "@/lib/api/brolls";
 import BrollTimeline from "@/components/app/BrollTimeline";
 import {
+  BROLL_TEMPLATES,
+  TEMPLATE_CATEGORY,
+  TEMPLATE_LABEL,
+  TEMPLATE_DESCRIPTION,
+  type BrollTemplate,
+  type BrollCategory,
+} from "@/lib/broll/types";
+import {
   useCreateBrollStyle,
   useDeleteBrollStyle,
   useQueuedBrolls,
@@ -371,6 +379,7 @@ const EMPTY_STYLE: Omit<BrollStyleInsert, "owner_id"> = {
   image_prompt: null,
   animation_prompt: null,
   template_code: null,
+  template_name: null,
   thumbnail_url: null,
   position: 0,
 };
@@ -452,24 +461,71 @@ function StyleForm({
       )}
 
       {form.variant === "v2" && (
-        <div className="space-y-1">
-          <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
-            Configuración JSON del template (opcional)
-          </Label>
-          <Textarea
-            value={form.template_code ?? ""}
-            onChange={(e) => patch("template_code", e.target.value || null)}
-            placeholder={`{\n  "bg": "#0a0a0a",\n  "accent": "#C8FF00",\n  "fontHeading": "'Instrument Serif', serif",\n  "stagger": 0.18\n}`}
-            rows={8}
-            className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)] text-xs font-mono"
-          />
-          <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
-            V2 MVP usa solo el template <code>WordStack</code>. Si dejás vacío,
-            aplican los defaults de marca. Override con <code>bg</code>,{" "}
-            <code>accent</code>, <code>fontHeading</code>, <code>stagger</code>,{" "}
-            <code>ease</code>.
-          </p>
-        </div>
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              Template
+            </Label>
+            <Select
+              value={(form as { template_name?: string | null }).template_name ?? "WordStack"}
+              onValueChange={(v) => patch("template_name", v)}
+            >
+              <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]">
+                <SelectValue placeholder="Elegí un template" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)]">
+                {(["text-animation", "posters", "infographics", "presentation"] as BrollCategory[]).map((cat) => {
+                  const templates = BROLL_TEMPLATES.filter((t) => TEMPLATE_CATEGORY[t] === cat);
+                  return (
+                    <div key={cat}>
+                      <div
+                        className="px-2 pt-2 pb-1 text-[9px] uppercase tracking-[0.2em] font-mono"
+                        style={{ color: "var(--ll-text-dim)" }}
+                      >
+                        {cat.replace("-", " ")}
+                      </div>
+                      {templates.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{TEMPLATE_LABEL[t]}</span>
+                            <span
+                              className="text-[10px]"
+                              style={{ color: "var(--ll-text-dim)" }}
+                            >
+                              {TEMPLATE_DESCRIPTION[t]}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </div>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+              8 templates en 4 categorías. Elegí el que matchee con el tipo de
+              broll que querés generar.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              Override JSON (opcional)
+            </Label>
+            <Textarea
+              value={form.template_code ?? ""}
+              onChange={(e) => patch("template_code", e.target.value || null)}
+              placeholder={`{\n  "bg": "#0a0a0a",\n  "accent": "#c8ff00",\n  "stagger": 0.18\n}`}
+              rows={6}
+              className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)] text-xs font-mono"
+            />
+            <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+              Vacío = defaults de marca. Override con <code>bg</code>,{" "}
+              <code>accent</code>, <code>secondary</code>, <code>stagger</code>,{" "}
+              <code>ease</code>.
+            </p>
+          </div>
+        </>
       )}
 
       <div className="space-y-1">
@@ -711,6 +767,7 @@ function StylesSubTab({ variant }: { variant: "v1" | "v2" }) {
                 image_prompt: editing.image_prompt,
                 animation_prompt: editing.animation_prompt,
                 template_code: editing.template_code,
+                template_name: editing.template_name ?? null,
                 thumbnail_url: editing.thumbnail_url,
                 position: editing.position,
               }}

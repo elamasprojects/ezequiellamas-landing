@@ -1,19 +1,15 @@
 /**
- * Broll HTML rendering — pure function usada por:
- *   - el render worker (Node + Playwright + Hyperframes)
- *   - eventualmente, un preview iframe en la UI (si lo agregamos)
+ * Broll HTML rendering — switch sobre los 8 templates organizados en 4
+ * categorías. Cada template recibe el mismo `BrollContent` permissive y
+ * extrae lo que necesita.
  *
- * Mirror estructural EXACTO de `src/lib/carousel/render.ts`:
- *   - Mismo orden de elementos (preconnect → fonts → gsap → style → body)
- *   - Mismo wrapper `<section class="slide">` (no `.broll`) dentro del
- *     composition div para máxima paridad con Hyperframes que ya valida
- *     este pattern en producción
- *   - Mismo formato de timeline injection (paused, asignado a window.__timelines)
+ * Mirror estructural del carrusel `buildSlideHtml`:
+ *   - Mismo orden head/body
+ *   - Mismo wrapper `<section class="slide">` dentro del data-composition-id
+ *   - Mismo formato de timeline injection
  *
- * Diferencias mínimas con carrusel:
- *   - 1080×1920 (9:16) en vez de 1080×1350 (4:5)
- *   - Sin topbar / footer-pill (no aplican a brolls)
- *   - Sin ornaments por design_format (los brolls no tienen formats por ahora)
+ * El worker passes `fontFaces` (los @font-face inline con base64) para que
+ * Hyperframes use las brand fonts sin network requests.
  */
 
 import type {
@@ -22,29 +18,48 @@ import type {
   BrollStyleConfig,
   BrollTemplate,
   BrollContent,
-  WordStackContent,
 } from "./types";
 import {
   BASE_BROLL_CSS,
+  BRAND,
   SLIDE_WIDTH,
   SLIDE_HEIGHT,
   DEFAULTS,
 } from "./design-tokens";
-import { renderWordStack } from "./templates/wordstack";
-import { timelineWordStack, durationWordStack } from "./animations/wordstack";
+import { pickWords, pickText } from "./templates/_shared";
 
-/** Returns el body HTML de un slide (sin doctype/head/wrapper). */
+// Text Animation
+import { renderWordStack, durationWordStack, timelineWordStack } from "./templates/text-animation/wordstack";
+import { renderTypewriter, durationTypewriter, timelineTypewriter } from "./templates/text-animation/typewriter";
+
+// Posters
+import { renderAcronymReveal, durationAcronymReveal, timelineAcronymReveal } from "./templates/posters/acronym-reveal";
+import { renderBoldStatement, durationBoldStatement, timelineBoldStatement } from "./templates/posters/bold-statement";
+
+// Infographics
+import { renderBarGrowth, durationBarGrowth, timelineBarGrowth } from "./templates/infographics/bar-growth";
+import { renderStatCounter, durationStatCounter, timelineStatCounter } from "./templates/infographics/stat-counter";
+
+// Presentation
+import { renderBulletList, durationBulletList, timelineBulletList } from "./templates/presentation/bullet-list";
+import { renderQuoteCard, durationQuoteCard, timelineQuoteCard } from "./templates/presentation/quote-card";
+
 export function renderTemplate(
   template: BrollTemplate,
   content: BrollContent,
 ): string {
   switch (template) {
-    case "WordStack":
-      return renderWordStack(content as WordStackContent);
+    case "WordStack": return renderWordStack(content);
+    case "Typewriter": return renderTypewriter(content);
+    case "AcronymReveal": return renderAcronymReveal(content);
+    case "BoldStatement": return renderBoldStatement(content);
+    case "BarGrowth": return renderBarGrowth(content);
+    case "StatCounter": return renderStatCounter(content);
+    case "BulletList": return renderBulletList(content);
+    case "QuoteCard": return renderQuoteCard(content);
   }
 }
 
-/** Returns el body GSAP JS y la duración de la timeline para un template. */
 export function timelineFor(
   template: BrollTemplate,
   content: BrollContent,
@@ -52,20 +67,97 @@ export function timelineFor(
 ): { js: string; duration: number } {
   switch (template) {
     case "WordStack": {
-      const ws = content as WordStackContent;
-      const wordCount = Math.min(
-        8,
-        (ws.words ?? []).filter(Boolean).length,
-      );
-      const hasCue = !!(ws.cueText && ws.cueText.trim());
+      const words = pickWords(content.words);
+      const wordCount = words.length || 3;
+      const hasCue = !!pickText(content.cueText);
+      const hasLabel = !!pickText(content.caption);
       return {
         js: timelineWordStack({
           wordCount,
           stagger: styleConfig.stagger,
           ease: styleConfig.ease,
           hasCue,
+          hasLabel,
         }),
         duration: durationWordStack(wordCount, styleConfig.stagger),
+      };
+    }
+    case "Typewriter": {
+      const text = pickText(content.text) ?? pickText(content.caption) ?? pickWords(content.words).join(" ") ?? "Tu mensaje acá";
+      const len = text.slice(0, 80).length;
+      return {
+        js: timelineTypewriter(len),
+        duration: durationTypewriter(len),
+      };
+    }
+    case "AcronymReveal": {
+      const words = pickWords(content.words);
+      const acronym = words[0] ?? "CLI";
+      const letterCount = [...acronym].length;
+      return {
+        js: timelineAcronymReveal({
+          letterCount,
+          hasCaption: !!pickText(content.text) || !!pickText(content.cueText),
+        }),
+        duration: durationAcronymReveal(letterCount),
+      };
+    }
+    case "BoldStatement": {
+      const hasSubtitle = !!pickText(content.cueText);
+      return {
+        js: timelineBoldStatement(hasSubtitle),
+        duration: durationBoldStatement(),
+      };
+    }
+    case "BarGrowth": {
+      // Need bars count — re-derive same logic as renderBarGrowth
+      let barCount = 2;
+      const raw = content.raw;
+      if (raw && Array.isArray(raw.bars) && raw.bars.length > 0) {
+        barCount = Math.min(raw.bars.length, 5);
+      } else {
+        const words = pickWords(content.words);
+        if (words.length >= 2) barCount = Math.min(words.length, 4);
+      }
+      return {
+        js: timelineBarGrowth({
+          barCount,
+          bars: Array(barCount).fill({ value: 1 }),
+        }),
+        duration: durationBarGrowth(barCount),
+      };
+    }
+    case "StatCounter": {
+      let target = 0;
+      if (content.raw && typeof content.raw.value === "number") target = content.raw.value;
+      if (!target) {
+        const words = pickWords(content.words);
+        if (words.length > 0) {
+          const m = words[0].match(/(-?\d+(?:[.,]\d+)?)/);
+          if (m) target = parseFloat(m[1].replace(",", "."));
+        }
+      }
+      if (!target) target = 100;
+      return {
+        js: timelineStatCounter(target, !!pickText(content.cueText)),
+        duration: durationStatCounter(),
+      };
+    }
+    case "BulletList": {
+      const bullets = pickWords(content.words);
+      const bulletCount = bullets.length || 3;
+      return {
+        js: timelineBulletList({
+          bulletCount,
+          hasSubtitle: !!pickText(content.cueText),
+        }),
+        duration: durationBulletList(bulletCount),
+      };
+    }
+    case "QuoteCard": {
+      return {
+        js: timelineQuoteCard(),
+        duration: durationQuoteCard(),
       };
     }
   }
@@ -74,56 +166,22 @@ export function timelineFor(
 interface BuildBrollOpts {
   outputMode: BrollMode;
   styleConfig: BrollStyleConfig;
+  /** CSS @font-face block (worker injects this con local woff2 base64). */
+  fontFaces?: string;
 }
 
 function tokensToCss(cfg: BrollStyleConfig): string {
   return `:root {
   --bg: ${cfg.bg ?? DEFAULTS.bg};
   --accent: ${cfg.accent ?? DEFAULTS.accent};
-  --text: ${DEFAULTS.text};
-  --font-heading: ${cfg.fontHeading ?? DEFAULTS.fontHeading};
-  --font-body: ${DEFAULTS.fontBody};
+  --secondary: ${cfg.secondary ?? BRAND.warm};
+  --text: ${BRAND.text};
 }`;
 }
 
-function fontsLink(): string {
-  // SIN Google Fonts — usamos fonts del sistema (Georgia para heading, system-ui
-  // para body). Hyperframes se cuelga en el frame capture cuando la página
-  // tiene `<link>` a fonts CDN que no resuelven o no están en su FONT_ALIASES
-  // map. Para fonts custom, hay que embeberlas inline como base64 o instalarlas
-  // en el Dockerfile del worker.
-  return "";
-}
-
-/**
- * Build a complete HTML document for a single broll.
- *
- * - "static":  preview/PNG. Sin GSAP, simple section wrap.
- * - "animated": MP4. Wraps en data-composition-id + GSAP local
- *               (regla §7 carrusel v2.2: GSAP nunca CDN).
- *
- * Mirror EXACTO del orden de elementos del `buildSlideHtml` de carrusel:
- *   <!DOCTYPE html>
- *   <html>
- *   <head>
- *     <meta charset> <meta viewport> <title>
- *     {fonts links}
- *     <script src="./gsap.min.js"></script>     ← solo en animated
- *     <style>{tokens}{base}{composition-rule}</style>
- *   </head>
- *   <body>
- *     <div data-composition-id ...>
- *       <section class="slide">
- *         {body}
- *       </section>
- *       <script>{timeline IIFE}</script>
- *     </div>
- *   </body>
- *   </html>
- */
 export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string {
   const tokensCss = tokensToCss(opts.styleConfig);
-  const fonts = fontsLink();
+  const fontFaces = opts.fontFaces ?? "";
   const body = renderTemplate(slide.template, slide.content);
 
   if (opts.outputMode === "static") {
@@ -133,8 +191,7 @@ export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
   <title>B-roll preview</title>
-  ${fonts}
-  <style>${tokensCss}${BASE_BROLL_CSS}</style>
+  <style>${fontFaces}\n${tokensCss}\n${BASE_BROLL_CSS}</style>
 </head>
 <body>
   <section class="slide">
@@ -157,9 +214,8 @@ export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
   <title>B-roll</title>
-  ${fonts}
   <script src="./gsap.min.js"></script>
-  <style>${tokensCss}${BASE_BROLL_CSS}
+  <style>${fontFaces}\n${tokensCss}\n${BASE_BROLL_CSS}
     [data-composition-id]{ position: relative; width: ${SLIDE_WIDTH}px; height: ${SLIDE_HEIGHT}px; overflow: hidden; }
   </style>
 </head>

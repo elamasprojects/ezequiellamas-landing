@@ -167,6 +167,7 @@ export type Database = {
           owner_id: string
           position: number
           template_code: string | null
+          template_name: string | null
           thumbnail_url: string | null
           updated_at: string
           variant: string
@@ -180,6 +181,7 @@ export type Database = {
           owner_id: string
           position?: number
           template_code?: string | null
+          template_name?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           variant: string
@@ -193,6 +195,7 @@ export type Database = {
           owner_id?: string
           position?: number
           template_code?: string | null
+          template_name?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           variant?: string

@@ -12,7 +12,7 @@ import { callback, brollCallback } from "./callback.js";
 import { admin } from "./db.js";
 import type { Slide, CarouselTemplate } from "../../src/lib/carousel/types";
 import type { FormatSlug } from "../../src/lib/carousel/formats";
-import type { BrollTemplate, WordStackContent } from "../../src/lib/broll/types";
+import type { BrollTemplate, BrollContent } from "../../src/lib/broll/types";
 import { parseBrollStyleConfig } from "../../src/lib/broll/style-config";
 
 // ─── Carousel ───────────────────────────────────────────────────────────────
@@ -117,15 +117,12 @@ export async function processBrollJob(input: BrollJobInput): Promise<void> {
       .update({ generation_status: "processing", generation_error: null })
       .eq("id", broll_suggestion_id);
 
-    // 2) Render. El cast a WordStackContent es seguro mientras solo exista
-    //    "WordStack"; cuando agreguemos templates, hacer un narrow por template.
+    // 2) Render. El BrollContent es permissive (un union de campos opcionales);
+    //    cada template extrae lo que necesita.
     const styleConfig = parseBrollStyleConfig(style_template_code);
     const buffer = await renderBrollMp4({
       template,
-      // Cast via unknown — the worker's zod schema validates `content` is
-      // a record; per-template shape narrowing happens here. When more
-      // templates land, switch on `template` to pick the right narrow cast.
-      content: content as unknown as WordStackContent,
+      content: content as unknown as BrollContent,
       styleConfig,
     });
 

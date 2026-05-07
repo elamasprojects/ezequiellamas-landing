@@ -436,44 +436,48 @@ async function generateV2(
     );
   }
 
-  // Validar selected_words (WordStack requiere 1..8 palabras)
+  const style = broll.broll_styles;
+
+  // Template selection: lo provee el style; si no hay style o no tiene
+  // template_name, default WordStack (compat con estilos pre-existentes).
+  const VALID_TEMPLATES = [
+    "WordStack",
+    "Typewriter",
+    "AcronymReveal",
+    "BoldStatement",
+    "BarGrowth",
+    "StatCounter",
+    "BulletList",
+    "QuoteCard",
+  ] as const;
+  type BrollTemplate = typeof VALID_TEMPLATES[number];
+  const rawTemplateName = (style?.template_name as string | null | undefined) ?? "WordStack";
+  const template: BrollTemplate = (VALID_TEMPLATES as readonly string[]).includes(rawTemplateName)
+    ? (rawTemplateName as BrollTemplate)
+    : "WordStack";
+
+  // selected_words filtrados (todos los templates aceptan 0-8 words; cada
+  // uno decide qué hacer con su set particular).
   const rawWords: string[] = Array.isArray(broll.selected_words)
     ? broll.selected_words.filter((w: unknown): w is string => typeof w === "string" && w.trim().length > 0)
     : [];
-  if (rawWords.length === 0) {
-    await admin
-      .from("broll_suggestions")
-      .update({
-        generation_status: "failed",
-        generation_error:
-          "wordstack_requires_selected_words: marcá palabras del guion para este B-roll antes de generar",
-      })
-      .eq("id", broll.id);
-    return json({ error: "wordstack_requires_selected_words" }, 400);
-  }
-  if (rawWords.length > 8) {
-    await admin
-      .from("broll_suggestions")
-      .update({
-        generation_status: "failed",
-        generation_error: `too_many_words: max 8 (got ${rawWords.length})`,
-      })
-      .eq("id", broll.id);
-    return json({ error: "too_many_words" }, 400);
-  }
 
-  const style = broll.broll_styles;
+  // Permissive BrollContent — cada template extrae lo que necesita
+  const content = {
+    text: (broll.suggestion as string | null) ?? null,
+    words: rawWords,
+    cueText: (broll.cue_text as string | null) ?? null,
+    caption: (broll.image_description as string | null) ?? null,
+    animationDescription: (broll.animation_description as string | null) ?? null,
+    raw: null, // future: parse JSON from broll.image_description for structured templates
+  };
 
   const payload = {
     kind: "broll" as const,
     broll_suggestion_id: broll.id as string,
     owner_id: ownerId,
-    template: "WordStack" as const,
-    content: {
-      words: rawWords,
-      cueText: (broll.cue_text as string | null) ?? null,
-      caption: (broll.suggestion as string | null) ?? null,
-    },
+    template,
+    content,
     style_id: (style?.id as string | undefined) ?? null,
     style_template_code: (style?.template_code as string | null) ?? null,
     output_format: "mp4" as const,

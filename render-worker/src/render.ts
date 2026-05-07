@@ -11,6 +11,7 @@ import type { Slide } from "../../src/lib/carousel/types";
 import type { FormatSlug } from "../../src/lib/carousel/formats";
 import { buildBrollHtml } from "../../src/lib/broll/render";
 import type { BrollTemplate, BrollContent, BrollStyleConfig } from "../../src/lib/broll/types";
+import { brandFontFaces } from "./fonts.js";
 
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
@@ -134,7 +135,14 @@ export async function renderBrollMp4(opts: {
 }): Promise<Buffer> {
   const html = buildBrollHtml(
     { template: opts.template, content: opts.content },
-    { outputMode: "animated", styleConfig: opts.styleConfig },
+    {
+      outputMode: "animated",
+      styleConfig: opts.styleConfig,
+      // Inyectamos las brand fonts (Instrument Serif + DM Sans + JetBrains Mono)
+      // como @font-face base64 inline. Cero network request — Hyperframes
+      // ya no se cuelga esperando font CDNs.
+      fontFaces: brandFontFaces(),
+    },
   );
 
   const tmpDir = await mkdtemp(join(tmpdir(), "broll-mp4-"));
