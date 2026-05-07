@@ -13,8 +13,13 @@
  * los carrusel templates leen los del format catalog.
  */
 
-export const SLIDE_WIDTH = 1080;
-export const SLIDE_HEIGHT = 1920;
+// Resolución 720×1280 (9:16) en vez de 1080×1920 — reduce FFmpeg encoding
+// memory ~56% para evitar el OOM kill que estábamos viendo en `Encoding video`.
+// 720p es suficiente para B-roll secundario que se compone dentro de un
+// video principal; cuando se sube el video final a 1080p, el broll se
+// upscalea sin pérdida visible.
+export const SLIDE_WIDTH = 720;
+export const SLIDE_HEIGHT = 1280;
 
 export const DEFAULTS = {
   bg: "#0a0a0a",

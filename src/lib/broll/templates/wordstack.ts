@@ -10,7 +10,11 @@
  */
 
 import type { WordStackContent } from "../types";
-import { FONT_HEADING, FONT_BODY } from "../design-tokens";
+import {
+  FONT_HEADING,
+  FONT_BODY,
+  SLIDE_HEIGHT,
+} from "../design-tokens";
 
 /** Escape mínimo HTML para prevenir injection. */
 function escapeHtml(s: string): string {
@@ -22,17 +26,21 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Tabla de font-size por cantidad de palabras (en px). */
+/** Tabla de font-size por cantidad de palabras (en px), calibrada para 720×1280. */
 const WORD_SIZE: Record<number, number> = {
-  1: 320,
-  2: 280,
-  3: 240,
-  4: 200,
-  5: 170,
-  6: 150,
-  7: 130,
-  8: 115,
+  1: 213,
+  2: 187,
+  3: 160,
+  4: 133,
+  5: 113,
+  6: 100,
+  7: 87,
+  8: 77,
 };
+
+const GAP_BETWEEN_WORDS = 14; // px (escalado de 20 a 1080→720)
+const SIDE_PADDING = 53; // px (escalado de 80 a 1080→720)
+const CUE_BOTTOM = 80; // px
 
 export function renderWordStack(content: WordStackContent): string {
   const words = (content.words ?? [])
@@ -40,17 +48,15 @@ export function renderWordStack(content: WordStackContent): string {
     .slice(0, 8);
   const count = words.length;
   const cue = content.cueText?.trim() || "";
-  const fontSize = WORD_SIZE[count] ?? 200;
+  const fontSize = WORD_SIZE[count] ?? 133;
 
-  // Cada palabra como <div> (no <span>), absolutamente positionado dentro de
-  // un wrapper también absolute. Sin flexbox, sin max-content. Layout 100%
-  // determinístico para que Hyperframes no se cuelgue en re-layouts.
-  const totalStackHeight = count * fontSize + (count - 1) * 20;
-  const startY = (1920 - totalStackHeight) / 2;
+  const totalStackHeight =
+    count * fontSize + Math.max(0, count - 1) * GAP_BETWEEN_WORDS;
+  const startY = Math.max(0, (SLIDE_HEIGHT - totalStackHeight) / 2);
 
   const wordsHtml = words
     .map((w, i) => {
-      const top = startY + i * (fontSize + 20);
+      const top = startY + i * (fontSize + GAP_BETWEEN_WORDS);
       return `<div class="ws-word" data-i="${i}" style="top:${top}px">${escapeHtml(w)}</div>`;
     })
     .join("\n  ");
@@ -59,13 +65,11 @@ export function renderWordStack(content: WordStackContent): string {
     ? `<div class="ws-cue">${escapeHtml(cue)}</div>`
     : "";
 
-  // Fonts inlineadas LITERAL (no var(--*)) para que Hyperframes' regex no las
-  // detecte como nombres de font.
   return `
 <style>
   .ws-word {
     position: absolute;
-    left: 80px;
+    left: ${SIDE_PADDING}px;
     font-family: ${FONT_HEADING};
     font-weight: 700;
     color: var(--accent);
@@ -76,12 +80,12 @@ export function renderWordStack(content: WordStackContent): string {
   }
   .ws-cue {
     position: absolute;
-    bottom: 120px;
-    left: 80px;
-    right: 80px;
+    bottom: ${CUE_BOTTOM}px;
+    left: ${SIDE_PADDING}px;
+    right: ${SIDE_PADDING}px;
     text-align: center;
     font-family: ${FONT_BODY};
-    font-size: 36px;
+    font-size: 24px;
     color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.02em;
     line-height: 1.3;

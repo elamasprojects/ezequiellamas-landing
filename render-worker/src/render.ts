@@ -147,12 +147,17 @@ export async function renderBrollMp4(opts: {
     }
     await copyFile(gsapSrc, join(tmpDir, "gsap.min.js"));
 
-    // Brolls: standard quality + 1 worker (no 8 paralelos como auto-detect).
-    // Auto-detect se basa en cpu cores (Railway = 48 cores = 8 workers x ~300MB
-    // cada uno = 2.4GB+). Forzar 1 worker reduce el peak memory dramáticamente
-    // y mata el OOM-induced hang en frame capture. Para un broll de 3-5s no
-    // hace falta paralelismo — la velocidad gana al evitar el OOM.
-    await runHyperframes(tmpDir, { quality: "standard", workers: 1 });
+    // Brolls: 720p (en design-tokens) + standard quality + 1 worker + 24 fps.
+    // Cada uno reduce memory:
+    //   - 720×1280 = 56% del frame size de 1080×1920
+    //   - 1 worker (no 8 auto) → solo 1 Chromium tab para capture
+    //   - 24fps × 3s = 72 frames (vs 90 a 30fps) — menos buffer en FFmpeg
+    // Combinado: peak memory ~30% del original, evita OOM en encoding step.
+    await runHyperframes(tmpDir, {
+      quality: "standard",
+      workers: 1,
+      fps: 24,
+    });
 
     const rendersDir = join(tmpDir, "renders");
     if (!existsSync(rendersDir)) {
@@ -203,6 +208,7 @@ function runHyperframes(
   opts: {
     quality?: "draft" | "standard" | "high";
     workers?: number;
+    fps?: number;
   } = {},
 ): Promise<void> {
   return new Promise((res, rej) => {
@@ -219,13 +225,14 @@ function runHyperframes(
       PRODUCER_FORCE_SCREENSHOT: "true",
     };
     const quality = opts.quality ?? "high";
-    // Hyperframes spawns workers per (cores/6). En Railway con 48 cores eso
-    // son 8 workers, c/u con su propio Chromium → ~2.4GB+. OOM probable.
-    // Fix: cap a `workers` explícito para brolls.
     const workers = opts.workers;
+    const fps = opts.fps;
     const args = ["render", "--quality", quality];
     if (typeof workers === "number" && workers > 0) {
       args.push("--workers", String(workers));
+    }
+    if (typeof fps === "number" && fps > 0) {
+      args.push("--fps", String(fps));
     }
     // Spawn the locked hyperframes binary directly (avoid npx auto-install).
     // Drop --quiet so we get verbose output for debugging hangs.
