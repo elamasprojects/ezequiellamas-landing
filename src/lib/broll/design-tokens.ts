@@ -35,6 +35,13 @@ export const DEFAULTS = {
  * carrusel para máxima paridad con Hyperframes). Cada template inline su
  * propio CSS específico.
  */
+// CSS estructural — fonts inlineadas literal (no `var()`). Hyperframes hace
+// regex extraction de `font-family: X` en el HTML y trata `var(--font-body)`
+// como literal nombre de font, lo que dispara el warning de "deterministic
+// font mapping" y puede colgar el frame capture en algunos casos.
+const FONT_HEADING = "Georgia, 'Times New Roman', serif";
+const FONT_BODY = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
 export const BASE_BROLL_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -44,7 +51,7 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-body);
+  font-family: ${FONT_BODY};
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -58,3 +65,5 @@ html, body {
   color: var(--text);
 }
 `;
+
+export { FONT_HEADING, FONT_BODY };

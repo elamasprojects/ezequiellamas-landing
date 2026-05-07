@@ -147,7 +147,9 @@ export async function renderBrollMp4(opts: {
     }
     await copyFile(gsapSrc, join(tmpDir, "gsap.min.js"));
 
-    await runHyperframes(tmpDir);
+    // Brolls usan `standard` quality — descarta heavy frame paint como causa
+    // del hang en frame capture. Carruseles siguen con `high`.
+    await runHyperframes(tmpDir, { quality: "standard" });
 
     const rendersDir = join(tmpDir, "renders");
     if (!existsSync(rendersDir)) {
@@ -193,7 +195,10 @@ function resolveHyperframesBin(): string | null {
   return null;
 }
 
-function runHyperframes(cwd: string): Promise<void> {
+function runHyperframes(
+  cwd: string,
+  opts: { quality?: "draft" | "standard" | "high" } = {},
+): Promise<void> {
   return new Promise((res, rej) => {
     const bin = resolveHyperframesBin();
     if (!bin) {
@@ -207,11 +212,12 @@ function runHyperframes(cwd: string): Promise<void> {
       HYPERFRAMES_BROWSER_PATH: process.env.HYPERFRAMES_BROWSER_PATH ?? "",
       PRODUCER_FORCE_SCREENSHOT: "true",
     };
+    const quality = opts.quality ?? "high";
     // Spawn the locked hyperframes binary directly (avoid npx auto-install).
     // Drop --quiet so we get verbose output for debugging hangs.
     const proc = spawn(
       bin,
-      ["render", "--quality", "high"],
+      ["render", "--quality", quality],
       { cwd, env, stdio: ["ignore", "pipe", "pipe"] },
     );
     const tag = `[hyperframes pid=${proc.pid}]`;

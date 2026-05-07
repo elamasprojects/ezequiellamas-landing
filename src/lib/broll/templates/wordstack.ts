@@ -10,6 +10,7 @@
  */
 
 import type { WordStackContent } from "../types";
+import { FONT_HEADING, FONT_BODY } from "../design-tokens";
 
 /** Escape mínimo HTML para prevenir injection. */
 function escapeHtml(s: string): string {
@@ -41,49 +42,37 @@ export function renderWordStack(content: WordStackContent): string {
   const cue = content.cueText?.trim() || "";
   const fontSize = WORD_SIZE[count] ?? 200;
 
+  // Cada palabra como <div> (no <span>), absolutamente positionado dentro de
+  // un wrapper también absolute. Sin flexbox, sin max-content. Layout 100%
+  // determinístico para que Hyperframes no se cuelgue en re-layouts.
+  const totalStackHeight = count * fontSize + (count - 1) * 20;
+  const startY = (1920 - totalStackHeight) / 2;
+
   const wordsHtml = words
-    .map(
-      (w, i) =>
-        `<span class="ws-word" data-i="${i}">${escapeHtml(w)}</span>`,
-    )
-    .join("\n        ");
+    .map((w, i) => {
+      const top = startY + i * (fontSize + 20);
+      return `<div class="ws-word" data-i="${i}" style="top:${top}px">${escapeHtml(w)}</div>`;
+    })
+    .join("\n  ");
 
   const cueHtml = cue
     ? `<div class="ws-cue">${escapeHtml(cue)}</div>`
     : "";
 
-  // Pattern del carrusel: <style> inline + <div> con position absolute.
-  // El wrapper externo `.ws` está absolutely positioned y centrado en el
-  // slide; el stack interno usa flexbox-column SOLO dentro del .ws-stack
-  // (no en el direct child del composition wrapper).
+  // Fonts inlineadas LITERAL (no var(--*)) para que Hyperframes' regex no las
+  // detecte como nombres de font.
   return `
 <style>
-  .ws {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: max-content;
-    max-width: 920px;
-  }
-  .ws-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
-    width: max-content;
-  }
   .ws-word {
-    font-family: var(--font-heading);
+    position: absolute;
+    left: 80px;
+    font-family: ${FONT_HEADING};
     font-weight: 700;
     color: var(--accent);
     letter-spacing: -0.02em;
     line-height: 1;
     white-space: nowrap;
     font-size: ${fontSize}px;
-    display: block;
-    /* Sin text-shadow — bumpea el costo de paint en text grande durante
-       el frame capture de Hyperframes. */
   }
   .ws-cue {
     position: absolute;
@@ -91,7 +80,7 @@ export function renderWordStack(content: WordStackContent): string {
     left: 80px;
     right: 80px;
     text-align: center;
-    font-family: var(--font-body);
+    font-family: ${FONT_BODY};
     font-size: 36px;
     color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.02em;
@@ -99,11 +88,7 @@ export function renderWordStack(content: WordStackContent): string {
   }
 </style>
 
-<div class="ws">
-  <div class="ws-stack">
-    ${wordsHtml}
-  </div>
-</div>
+${wordsHtml}
 ${cueHtml}
 `;
 }
