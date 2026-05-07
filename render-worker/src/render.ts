@@ -173,8 +173,33 @@ function resolveGsap(): string | null {
   return null;
 }
 
+/**
+ * Resolve the hyperframes CLI binary inside the worker's node_modules.
+ *
+ * IMPORTANT: we used to invoke `npx hyperframes` from cwd=tmpDir, but the
+ * tmp dirs have no node_modules, so npx walks up, falls back to the registry
+ * and AUTO-INSTALLS the latest hyperframes (currently 0.5.3) on every render.
+ * That's slow, fragile and triggers EBADENGINE warnings + occasional SIGKILLs.
+ *
+ * By resolving against process.cwd() (which is /app/render-worker in prod and
+ * the worker root in dev), we always use the version pinned in package.json.
+ */
+function resolveHyperframesBin(): string | null {
+  const candidates = [
+    resolve(process.cwd(), "node_modules", ".bin", "hyperframes"),
+    resolve(process.cwd(), "..", "node_modules", ".bin", "hyperframes"),
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  return null;
+}
+
 function runHyperframes(cwd: string): Promise<void> {
   return new Promise((res, rej) => {
+    const bin = resolveHyperframesBin();
+    if (!bin) {
+      rej(new Error("hyperframes_bin_not_found_in_node_modules"));
+      return;
+    }
     const env = {
       ...process.env,
       // The browser path was resolved at Docker build time and exported by the
@@ -182,11 +207,11 @@ function runHyperframes(cwd: string): Promise<void> {
       HYPERFRAMES_BROWSER_PATH: process.env.HYPERFRAMES_BROWSER_PATH ?? "",
       PRODUCER_FORCE_SCREENSHOT: "true",
     };
-    // npx is fine here -- hyperframes is in node_modules already
+    // Spawn the locked hyperframes binary directly (avoid npx auto-install).
     const proc = spawn(
-      "npx",
-      ["hyperframes", "render", "--quality", "high", "--quiet"],
-      { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: true },
+      bin,
+      ["render", "--quality", "high", "--quiet"],
+      { cwd, env, stdio: ["ignore", "pipe", "pipe"] },
     );
     let stderr = "";
     proc.stdout?.on("data", () => {}); // discard
