@@ -24,6 +24,7 @@ import {
 } from "@/lib/api/brolls";
 import { useBrollStyles } from "@/hooks/useBrolls";
 import { cn } from "@/lib/utils";
+import BrollTimeline from "@/components/app/BrollTimeline";
 
 const STATUS_LABEL: Record<string, string> = {
   idle: "Sin generar",
@@ -517,6 +518,13 @@ function BrollItem({ broll, scriptId, scriptText, index }: BrollItemProps) {
             selected={localWords}
             onChange={handleWordsChange}
           />
+        </div>
+      )}
+
+      {/* Pipeline timeline — solo para brolls que ya están en algún stage */}
+      {genStatus !== "idle" && (
+        <div className="border-t border-[var(--ll-border)] px-3 py-2">
+          <BrollTimeline broll={broll} />
         </div>
       )}
 

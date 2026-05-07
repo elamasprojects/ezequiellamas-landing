@@ -237,9 +237,17 @@ async function generateV1(
     .filter(Boolean)
     .join("\n\n");
 
+  // Limpiamos campos de runs anteriores al arrancar uno nuevo para que la
+  // timeline de la UI no muestre data stale (imagen vieja / video viejo).
   await admin
     .from("broll_suggestions")
-    .update({ generation_status: "processing" })
+    .update({
+      generation_status: "processing",
+      generation_error: null,
+      intermediate_image_url: null,
+      output_url: null,
+      output_type: null,
+    })
     .eq("id", broll.id);
 
   // ── Step 1: imagen con Gemini Nano Banana 2 ──────────────────────────────
@@ -299,15 +307,31 @@ async function generateV1(
     .upload(storagePath, imgBytes, { contentType: imageMime, upsert: true });
   if (uploadErr) throw new Error(`upload_failed: ${uploadErr.message}`);
 
-  const { data: signedData, error: signErr } = await admin.storage
+  // URL para Kling: TTL corto (1h) — Kling solo la fetcha una vez al iniciar.
+  const { data: klingSignedData, error: klingSignErr } = await admin.storage
     .from("broll-renders")
     .createSignedUrl(storagePath, 3600);
-  if (signErr || !signedData?.signedUrl) {
-    throw new Error(`sign_url_failed: ${signErr?.message ?? "no_signed_url"}`);
+  if (klingSignErr || !klingSignedData?.signedUrl) {
+    throw new Error(`sign_url_failed: ${klingSignErr?.message ?? "no_signed_url"}`);
   }
-  const imageUrl = signedData.signedUrl;
+  const imageUrl = klingSignedData.signedUrl;
+
+  // URL para la UI: TTL largo (30d) — para que se vea en la timeline mientras
+  // Kling renderiza y después como preview del frame inicial.
+  const { data: previewSignedData } = await admin.storage
+    .from("broll-renders")
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 30);
+  if (previewSignedData?.signedUrl) {
+    await admin
+      .from("broll_suggestions")
+      .update({ intermediate_image_url: previewSignedData.signedUrl })
+      .eq("id", broll.id);
+  }
 
   // ── Step 2: animar con Kling (image-to-video, JWT HS256) ─────────────────
+  // Field name: Kling expects `image` (URL or base64). Older docs say `image_url`
+  // but the v2 API rejects with `code:1201, image can not be null` if you send
+  // `image_url`. Pass `image` exclusively.
   const klingJwt = signKlingJwt(KLING_API_KEY, KLING_SECRET_KEY);
 
   const klingRes = await fetch(
@@ -319,7 +343,7 @@ async function generateV1(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        image_url: imageUrl,
+        image: imageUrl,
         prompt: animationPrompt,
         model_name: KLING_MODEL,
         duration: "5",

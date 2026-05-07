@@ -43,6 +43,7 @@ import {
   type BrollStyleInsert,
   type BrollSuggestionWithScript,
 } from "@/lib/api/brolls";
+import BrollTimeline from "@/components/app/BrollTimeline";
 import {
   useCreateBrollStyle,
   useDeleteBrollStyle,
@@ -204,6 +205,9 @@ function BrollQueueItem({ broll }: { broll: BrollSuggestionWithScript }) {
           ))}
         </div>
       )}
+
+      {/* Pipeline timeline (expanded por default, collapsable) */}
+      <BrollTimeline broll={broll} />
 
       {/* Actions */}
       {genStatus === "idle" && (

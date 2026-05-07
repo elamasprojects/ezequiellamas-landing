@@ -208,6 +208,7 @@ export type Database = {
           generation_status: string
           id: string
           image_description: string | null
+          intermediate_image_url: string | null
           is_manual: boolean
           output_type: string | null
           output_url: string | null
@@ -228,6 +229,7 @@ export type Database = {
           generation_status?: string
           id?: string
           image_description?: string | null
+          intermediate_image_url?: string | null
           is_manual?: boolean
           output_type?: string | null
           output_url?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           generation_status?: string
           id?: string
           image_description?: string | null
+          intermediate_image_url?: string | null
           is_manual?: boolean
           output_type?: string | null
           output_url?: string | null
