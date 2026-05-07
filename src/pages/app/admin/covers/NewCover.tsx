@@ -382,12 +382,15 @@ export default function NewCover() {
           >
             Serie <span className="normal-case" style={{ color: "var(--ll-text-dim)" }}>(opcional)</span>
           </legend>
-          <Select value={seriesId} onValueChange={setSeriesId}>
+          <Select
+            value={seriesId || "__none"}
+            onValueChange={(v) => setSeriesId(v === "__none" ? "" : v)}
+          >
             <SelectTrigger className="border-[var(--ll-border)] bg-[var(--ll-bg)] text-[var(--ll-text)]">
               <SelectValue placeholder="Sin serie" />
             </SelectTrigger>
             <SelectContent className="border-[var(--ll-border)] bg-[var(--ll-surface)]">
-              <SelectItem value="">Sin serie</SelectItem>
+              <SelectItem value="__none">Sin serie</SelectItem>
               {series?.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
