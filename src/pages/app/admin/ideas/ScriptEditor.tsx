@@ -36,7 +36,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import BrollList from "@/components/app/BrollList";
+import BrollManager from "@/components/app/BrollManager";
 import { useScript } from "@/hooks/useScript";
 import { useFormats } from "@/hooks/useFormats";
 import { useShapes } from "@/hooks/useShapes";
@@ -675,8 +675,14 @@ export default function ScriptEditor() {
           )}
 
           <div className="space-y-2 pt-4 border-t border-[var(--ll-border)]">
-            <Label style={{ color: "var(--ll-text-muted)" }}>B-rolls sugeridos</Label>
-            <BrollList brolls={script.broll_suggestions} />
+            <Label style={{ color: "var(--ll-text-muted)" }}>B-rolls</Label>
+            <BrollManager
+              brolls={script.broll_suggestions}
+              scriptId={script.id}
+              scriptText={[script.hook, script.development, script.cta]
+                .filter(Boolean)
+                .join(" ")}
+            />
           </div>
 
           <Button

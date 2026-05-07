@@ -46,6 +46,7 @@ const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/Referent
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
+const BrollsPage = lazy(() => import("@/pages/app/admin/brolls/BrollsPage"));
 const CoversList = lazy(() => import("@/pages/app/admin/covers/CoversList"));
 const NewCover = lazy(() => import("@/pages/app/admin/covers/NewCover"));
 const CoverDetail = lazy(() => import("@/pages/app/admin/covers/CoverDetail"));
@@ -105,6 +106,7 @@ export default function App() {
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
+                <Route path="brolls" element={<BrollsPage />} />
                 <Route path="covers" element={<CoversList />} />
                 <Route path="covers/new" element={<NewCover />} />
                 <Route path="covers/:id" element={<CoverDetail />} />
