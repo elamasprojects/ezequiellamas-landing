@@ -210,15 +210,32 @@ async function generateV1(
   }
 
   const style = broll.broll_styles;
-  const imagePrompt = [style?.image_prompt, broll.image_description]
+
+  // Fallback chain para el image prompt:
+  //   1. Style preset image_prompt (si hay estilo)
+  //   2. broll.image_description (campo dedicado del form)
+  //   3. broll.suggestion (el concepto/título — fallback cuando el user solo
+  //      llena un campo en lugar de los 3 separados)
+  const userImagePrompt =
+    (typeof broll.image_description === "string" && broll.image_description.trim()) ||
+    (typeof broll.suggestion === "string" && broll.suggestion.trim()) ||
+    null;
+
+  if (!userImagePrompt && !style?.image_prompt) {
+    throw new Error(
+      "missing_image_prompt: completá `image_description` o `suggestion` en el broll, o asigná un estilo V1 con `image_prompt`",
+    );
+  }
+
+  const imagePrompt = [style?.image_prompt, userImagePrompt]
     .filter(Boolean)
     .join("\n\n");
 
+  // Animation prompt es opcional — Kling puede animar la imagen sin prompt.
+  // Si el user no especifica, dejamos vacío (Kling infiere movimiento del contenido).
   const animationPrompt = [style?.animation_prompt, broll.animation_description]
     .filter(Boolean)
     .join("\n\n");
-
-  if (!imagePrompt) throw new Error("missing_image_prompt");
 
   await admin
     .from("broll_suggestions")
