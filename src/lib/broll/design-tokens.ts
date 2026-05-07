@@ -20,8 +20,12 @@ export const DEFAULTS = {
   bg: "#0a0a0a",
   accent: "#C8FF00",
   text: "#ffffff",
-  fontHeading: "'Instrument Serif', serif",
-  fontBody: "'DM Sans', system-ui, sans-serif",
+  // System fonts only — evita el hang de Hyperframes frame-capture esperando
+  // fonts de Google CDN. Si quisiéramos Instrument Serif u otra custom font,
+  // habría que (1) instalarla local en el Dockerfile, o (2) embeberla
+  // inline como base64 en el HTML.
+  fontHeading: "Georgia, 'Times New Roman', serif",
+  fontBody: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
   stagger: 0.18,
   ease: "back.out(1.4)",
 } as const;

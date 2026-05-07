@@ -87,10 +87,12 @@ function tokensToCss(cfg: BrollStyleConfig): string {
 }
 
 function fontsLink(): string {
-  // Mismo pattern que carrusel: preconnect + el link de Google Fonts.
-  return `<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">`;
+  // SIN Google Fonts — usamos fonts del sistema (Georgia para heading, system-ui
+  // para body). Hyperframes se cuelga en el frame capture cuando la página
+  // tiene `<link>` a fonts CDN que no resuelven o no están en su FONT_ALIASES
+  // map. Para fonts custom, hay que embeberlas inline como base64 o instalarlas
+  // en el Dockerfile del worker.
+  return "";
 }
 
 /**

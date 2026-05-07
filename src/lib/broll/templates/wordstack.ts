@@ -75,14 +75,15 @@ export function renderWordStack(content: WordStackContent): string {
   }
   .ws-word {
     font-family: var(--font-heading);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--accent);
     letter-spacing: -0.02em;
     line-height: 1;
     white-space: nowrap;
     font-size: ${fontSize}px;
-    text-shadow: 0 0 30px rgba(200, 255, 0, 0.25);
     display: block;
+    /* Sin text-shadow — bumpea el costo de paint en text grande durante
+       el frame capture de Hyperframes. */
   }
   .ws-cue {
     position: absolute;
