@@ -110,4 +110,4 @@ export interface BrollStyleConfig {
   ease?: string;
 }
 
-export type BrollMode = "static" | "animated";
+export type BrollMode = "static" | "animated" | "preview";

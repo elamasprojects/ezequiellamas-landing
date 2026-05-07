@@ -44,6 +44,7 @@ import {
   type BrollSuggestionWithScript,
 } from "@/lib/api/brolls";
 import BrollTimeline from "@/components/app/BrollTimeline";
+import BrollTemplatePreview from "@/components/app/BrollTemplatePreview";
 import {
   BROLL_TEMPLATES,
   TEMPLATE_CATEGORY,
@@ -51,7 +52,20 @@ import {
   TEMPLATE_DESCRIPTION,
   type BrollTemplate,
   type BrollCategory,
+  type BrollStyleConfig,
 } from "@/lib/broll/types";
+
+/** Parse defensivo de template_code (JSON config) — devuelve {} si vacío/inválido. */
+function parseStyleConfigSafe(raw: string | null | undefined): BrollStyleConfig {
+  if (!raw || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as BrollStyleConfig;
+  } catch {
+    return {};
+  }
+}
 import {
   useCreateBrollStyle,
   useDeleteBrollStyle,
@@ -508,6 +522,28 @@ function StyleForm({
             </p>
           </div>
 
+          {/* Live preview — re-renderiza cuando cambia template o template_code */}
+          <div className="space-y-1">
+            <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              Preview live
+            </Label>
+            <div className="flex justify-center rounded-lg border border-[var(--ll-border)] bg-[var(--ll-bg)] p-4">
+              <BrollTemplatePreview
+                template={
+                  ((form as { template_name?: string | null }).template_name ??
+                    "WordStack") as BrollTemplate
+                }
+                styleConfig={parseStyleConfigSafe(form.template_code)}
+                width={216}
+                lazy={false}
+              />
+            </div>
+            <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+              Loop continuo con sample content de marca. El JSON config debajo
+              modifica esta preview en vivo.
+            </p>
+          </div>
+
           <div className="space-y-1">
             <Label className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
               Override JSON (opcional)
@@ -591,9 +627,17 @@ function StyleCard({
 
   return (
     <>
-      <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4 space-y-2">
+      <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4 space-y-3">
         <div className="flex items-start gap-3">
-          {style.thumbnail_url ? (
+          {/* V2: live preview iframe; V1: thumbnail or sparkles */}
+          {style.variant === "v2" && style.template_name ? (
+            <BrollTemplatePreview
+              template={style.template_name as BrollTemplate}
+              styleConfig={parseStyleConfigSafe(style.template_code)}
+              width={108}
+              className="shrink-0"
+            />
+          ) : style.thumbnail_url ? (
             <img
               src={style.thumbnail_url}
               alt=""
@@ -616,13 +660,23 @@ function StyleCard({
                 variant="outline"
                 className="border-[var(--ll-border)] text-[var(--ll-text-muted)] text-[10px]"
               >
-                {style.variant === "v1" ? "NanaBanana+Kling" : "Remotion"}
+                {style.variant === "v1" ? "NanaBanana+Kling" : "Hyperframes"}
               </Badge>
+              {style.variant === "v2" && style.template_name && (
+                <Badge
+                  variant="outline"
+                  className="border-[var(--ll-accent)]/30 text-[var(--ll-accent)] text-[10px]"
+                >
+                  {TEMPLATE_LABEL[style.template_name as BrollTemplate] ?? style.template_name}
+                </Badge>
+              )}
             </div>
             <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--ll-text-muted)" }}>
               {style.variant === "v1"
                 ? style.image_prompt?.slice(0, 120) ?? "Sin prompt de imagen"
-                : style.template_code?.slice(0, 120) ?? "Sin template code"}
+                : style.template_code?.slice(0, 120) ??
+                  TEMPLATE_DESCRIPTION[style.template_name as BrollTemplate] ??
+                  "Defaults de marca"}
             </p>
           </div>
           <div className="flex gap-1 shrink-0">

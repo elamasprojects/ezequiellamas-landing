@@ -201,6 +201,50 @@ export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string 
 </html>`;
   }
 
+  if (opts.outputMode === "preview") {
+    // Preview en iframe del web app — auto-play + loop continuo. Usa Google
+    // Fonts via <link> (el browser del user puede acceder OK; es solo el
+    // Hyperframes Chromium en Railway el que tiene el problema). Y GSAP via
+    // jsdelivr para que no haga falta servir gsap.min.js localmente.
+    const { js: timelineJs, duration } = timelineFor(
+      slide.template,
+      slide.content,
+      opts.styleConfig,
+    );
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=${SLIDE_WIDTH}, initial-scale=1">
+  <title>B-roll preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Instrument+Serif:ital,wght@0,400;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13/dist/gsap.min.js"></script>
+  <style>${tokensCss}\n${BASE_BROLL_CSS}
+    [data-composition-id]{ position: relative; width: ${SLIDE_WIDTH}px; height: ${SLIDE_HEIGHT}px; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div data-composition-id="slide-1"
+       data-width="${SLIDE_WIDTH}" data-height="${SLIDE_HEIGHT}"
+       data-start="0" data-duration="${duration}">
+    <section class="slide">
+      ${body}
+    </section>
+    <script>
+      window.addEventListener("load", function() {
+        if (typeof gsap === "undefined") return;
+        // Loop continuo con 1s de pausa entre repeticiones.
+        var tl = gsap.timeline({ repeat: -1, repeatDelay: 1.0 });
+        ${timelineJs}
+      });
+    </script>
+  </div>
+</body>
+</html>`;
+  }
+
   // animated mode — Hyperframes-compatible
   const { js: timelineJs, duration } = timelineFor(
     slide.template,
