@@ -5,7 +5,7 @@
 //   Capa 2: Estilo de portada seleccionado (system_prompt del cover_style)
 //   Capa 3: Serie de contenido (cover_system_prompt de la serie, si aplica)
 //
-// Flujo: Claude extrae la idea fuerza + construye el prompt de imagen → OpenAI DALL-E 3 genera → se sube a cover-renders
+// Flujo: Claude extrae la idea fuerza + construye el prompt de imagen → Google Imagen 3 genera → se sube a cover-renders
 //
 // Body: { cover_id: string, force?: boolean, instruction?: string }
 // Returns: { ok: true, generated_image_url: string, idea_fuerza: string }
@@ -14,7 +14,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -29,7 +29,7 @@ const CORS = {
 // ============================================================================
 const MASTER_SYSTEM_PROMPT = `Sos un generador de portadas para videos cortos de @ezequiellamass.
 
-Tu tarea: analizar el contenido del video y producir un prompt detallado en inglés para generar una portada de video profesional con DALL-E 3.
+Tu tarea: analizar el contenido del video y producir un prompt detallado en inglés para generar una portada de video profesional con Google Imagen.
 
 ## METODOLOGÍA
 
@@ -55,10 +55,10 @@ Destilá el contenido a 2-4 palabras de máximo impacto. Es la promesa o insight
 Respondé SOLO con JSON sin ningún otro texto:
 {
   "idea_fuerza": "2-4 palabras de impacto",
-  "image_prompt": "prompt detallado en inglés para DALL-E 3 que incluya: sujeto y composición, fondo y atmósfera, texto visible (la idea fuerza en Poppins bold), estilo y mood, specs técnicos (sharp, high contrast, professional thumbnail quality)"
+  "image_prompt": "prompt detallado en inglés para Google Imagen que incluya: sujeto y composición, fondo y atmósfera, texto visible (la idea fuerza en Poppins bold), estilo y mood, specs técnicos (sharp, high contrast, professional thumbnail quality)"
 }
 
-El image_prompt debe ser auto-suficiente para que DALL-E 3 pueda generar la imagen sin contexto adicional.`;
+El image_prompt debe ser auto-suficiente para que Google Imagen pueda generar la imagen sin contexto adicional.`;
 
 // ============================================================================
 // Tipos
@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   if (!ANTHROPIC_API_KEY) return json({ error: "missing_anthropic_key" }, 500);
-  if (!OPENAI_API_KEY) return json({ error: "missing_openai_key" }, 500);
+  if (!GEMINI_API_KEY) return json({ error: "missing_gemini_key" }, 500);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "unauthorized" }, 401);
@@ -211,8 +211,8 @@ Aspect ratio de la portada: ${cover.aspect_ratio}${instructionLine}
 ${content}
 
 ${instruction
-  ? `La portada ya existe. Aplicá la instrucción de edición manteniendo el estilo y branding invariante. Generá un nuevo prompt para DALL-E 3 que incorpore el cambio pedido.`
-  : "Analizá el contenido, extraé la idea fuerza y construí el prompt para DALL-E 3."}`;
+  ? `La portada ya existe. Aplicá la instrucción de edición manteniendo el estilo y branding invariante. Generá un nuevo prompt para Google Imagen que incorpore el cambio pedido.`
+  : "Analizá el contenido, extraé la idea fuerza y construí el prompt para Google Imagen."}`;
 
     // Claude extrae idea_fuerza + genera image_prompt
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -251,43 +251,43 @@ ${instruction
     }
     if (!imagePrompt) throw new Error("no_image_prompt_from_claude");
 
-    // Tamaño según aspect ratio
-    const sizeMap: Record<string, string> = {
-      "9:16": "1024x1792",
-      "16:9": "1792x1024",
-      "1:1": "1024x1024",
+    // Llamada a Google Imagen 3 — devuelve base64 directamente
+    const aspectRatioMap: Record<string, string> = {
+      "9:16": "9:16",
+      "16:9": "16:9",
+      "1:1": "1:1",
     };
-    const size = sizeMap[cover.aspect_ratio] ?? "1024x1792";
+    const aspectRatio = aspectRatioMap[cover.aspect_ratio] ?? "9:16";
 
-    // Llamada a OpenAI DALL-E 3
-    const dalleRes = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+    const imagenRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [{ prompt: imagePrompt }],
+          parameters: {
+            aspectRatio,
+            includeSafetyAttributes: false,
+            personGeneration: "allow_adult",
+          },
+        }),
       },
-      body: JSON.stringify({
-        model: "dall-e-3",
-        prompt: imagePrompt,
-        n: 1,
-        size,
-        quality: "hd",
-        response_format: "url",
-      }),
-    });
+    );
 
-    if (!dalleRes.ok) {
-      const detail = await dalleRes.text();
-      throw new Error(`openai_${dalleRes.status}: ${detail.slice(0, 300)}`);
+    if (!imagenRes.ok) {
+      const detail = await imagenRes.text();
+      throw new Error(`imagen_${imagenRes.status}: ${detail.slice(0, 300)}`);
     }
-    const dalleData = await dalleRes.json();
-    const tempUrl = dalleData.data?.[0]?.url as string | undefined;
-    if (!tempUrl) throw new Error("no_image_url_from_openai");
+    const imagenData = await imagenRes.json();
+    const b64 = imagenData.predictions?.[0]?.bytesBase64Encoded as string | undefined;
+    if (!b64) throw new Error("no_image_bytes_from_imagen");
 
-    // Descargar imagen y subir a cover-renders
-    const imgRes = await fetch(tempUrl);
-    if (!imgRes.ok) throw new Error("failed_to_download_image");
-    const imgBuffer = await imgRes.arrayBuffer();
+    // Decodificar base64 → ArrayBuffer
+    const binaryStr = atob(b64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+    const imgBuffer = bytes.buffer;
 
     const storagePath = `${userId}/${cover_id}.png`;
     const { error: uploadErr } = await admin.storage
@@ -299,7 +299,8 @@ ${instruction
     const { data: signedData } = await admin.storage
       .from("cover-renders")
       .createSignedUrl(storagePath, 4 * 3600);
-    const finalUrl = signedData?.signedUrl ?? tempUrl;
+    if (!signedData?.signedUrl) throw new Error("failed_to_create_signed_url");
+    const finalUrl = signedData.signedUrl;
 
     // Actualizar fila
     await admin.from("covers").update({
