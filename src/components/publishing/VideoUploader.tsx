@@ -1,28 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { Upload, Video as VideoIcon, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import * as tus from "tus-js-client";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
+import { BunnyLibraryPicker } from "./BunnyLibraryPicker";
+import type { BunnyVideoRow } from "@/hooks/useBunnyVideos";
 
 /** Discriminated state returned by the uploader once a video is in place. */
-export type VideoUploaderState =
-  | {
-      provider: "bunny";
-      bunny_video_id: string;
-      bunny_library_id: string;
-      cdn_url: string;
-      duration_seconds: number | null;
-      mime_type: string;
-    }
-  | {
-      provider: "supabase";
-      video_storage_path: string;
-      signed_url: string;
-      duration_seconds: number | null;
-      mime_type: string;
-    };
+export type VideoUploaderState = {
+  provider: "bunny";
+  bunny_video_id: string;
+  bunny_library_id: string;
+  cdn_url: string;
+  thumbnail_url: string | null;
+  duration_seconds: number | null;
+  mime_type: string;
+  /** True if the video came from the existing library (not a fresh upload). */
+  from_library: boolean;
+  /** Reflects the encoding state at pick time. May be 'encoding' or 'ready'. */
+  status: BunnyVideoRow["status"];
+};
 
 interface Props {
   state: VideoUploaderState | null;
@@ -31,19 +31,11 @@ interface Props {
 }
 
 const ACCEPTED = "video/mp4,video/quicktime,video/webm";
-// Bunny Stream supports very large files; we cap at 5GB.
-// Supabase Storage 'videos-final' bucket is capped at 500MB server-side.
-const MAX_BYTES_BUNNY = 5 * 1024 * 1024 * 1024;
-const MAX_BYTES_SUPABASE = 500 * 1024 * 1024;
-const SUPABASE_BUCKET = "videos-final";
-// Signed URL TTL for Supabase mode. Used by the form preview AND by the auto
-// transcription/captions flow (transcribe-bunny-video re-signs internally with
-// service-role for the actual fetch, so this only needs to live as long as the
-// form session). 6 h is plenty.
-const SUPABASE_SIGNED_TTL_SECONDS = 6 * 60 * 60;
+const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 interface CreateBunnyResponse {
   ok: true;
+  bunny_videos_id: string | null;
   video_id: string;
   library_id: string;
   upload_url: string;
@@ -51,16 +43,18 @@ interface CreateBunnyResponse {
   auth_expiration_time: number;
   cdn_url: string;
   hls_url?: string;
+  thumbnail_url?: string;
   cdn_hostname: string;
 }
 
-type Provider = "bunny" | "supabase";
+type Mode = "upload" | "library";
 
 export function VideoUploader({ state, onUploaded, onCleared }: Props) {
   const { user } = useSession();
+  const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const tusUploadRef = useRef<tus.Upload | null>(null);
-  const [provider, setProvider] = useState<Provider>("bunny");
+  const [mode, setMode] = useState<Mode>("upload");
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -138,99 +132,20 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
       onSuccess: () => {
         setProgress(100);
         tusUploadRef.current = null;
+        // Refresh the library list so the new row shows up immediately
+        qc.invalidateQueries({ queryKey: ["bunny_videos"] });
         onUploaded({
           provider: "bunny",
           bunny_video_id: createResp.video_id,
           bunny_library_id: createResp.library_id,
           cdn_url: createResp.cdn_url,
+          thumbnail_url: createResp.thumbnail_url ?? null,
           duration_seconds: duration,
           mime_type: file.type,
+          from_library: false,
+          status: "encoding",
         });
-        toast.success("Video subido a Bunny");
-      },
-    });
-
-    tusUploadRef.current = upload;
-    upload.start();
-  }
-
-  async function uploadToSupabase(file: File, duration: number | null) {
-    if (!user) return;
-    const ext = (file.name.split(".").pop() ?? "mp4").toLowerCase();
-    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-
-    // Use Supabase Storage's resumable upload endpoint (TUS protocol).
-    // The simple `supabase.storage.upload()` POST is capped at ~50MB by the
-    // global project max-payload setting; the resumable endpoint bypasses
-    // that and supports large files up to the bucket's `file_size_limit`
-    // (500MB for `videos-final`). Auth is the user's JWT — RLS on
-    // storage.objects enforces folder ownership.
-    setProgress(0);
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
-    if (!supabaseUrl || !accessToken) {
-      const msg = "missing_supabase_session_or_url";
-      setError(msg);
-      setProgress(null);
-      toast.error(`Upload falló: ${msg}`);
-      return;
-    }
-
-    const upload = new tus.Upload(file, {
-      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        // Don't overwrite if the (random) path already exists — should never
-        // happen, but keeps semantics identical to the previous upsert:false.
-        "x-upsert": "false",
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      metadata: {
-        bucketName: SUPABASE_BUCKET,
-        objectName: path,
-        contentType: file.type,
-        cacheControl: "3600",
-      },
-      // Supabase Storage requires a fixed 6MB chunk size for resumable uploads.
-      chunkSize: 6 * 1024 * 1024,
-      onError: (err) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
-        setProgress(null);
-        tusUploadRef.current = null;
-        toast.error(`Upload falló: ${msg}`);
-      },
-      onProgress: (bytesUploaded, bytesTotal) => {
-        const pct = (bytesUploaded / bytesTotal) * 100;
-        setProgress(pct);
-      },
-      onSuccess: async () => {
-        try {
-          const { data: signed, error: signErr } = await supabase.storage
-            .from(SUPABASE_BUCKET)
-            .createSignedUrl(path, SUPABASE_SIGNED_TTL_SECONDS);
-          if (signErr || !signed) throw signErr ?? new Error("sign_url_failed");
-          setProgress(100);
-          tusUploadRef.current = null;
-          onUploaded({
-            provider: "supabase",
-            video_storage_path: path,
-            signed_url: signed.signedUrl,
-            duration_seconds: duration,
-            mime_type: file.type,
-          });
-          toast.success("Video subido a Supabase");
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          setError(msg);
-          setProgress(null);
-          tusUploadRef.current = null;
-          toast.error(`Sign URL falló: ${msg}`);
-        }
+        toast.success("Video subido. Se está codificando…");
       },
     });
 
@@ -240,11 +155,10 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
 
   async function handleFile(file: File) {
     if (!user) return;
-    const maxBytes = provider === "bunny" ? MAX_BYTES_BUNNY : MAX_BYTES_SUPABASE;
-    if (file.size > maxBytes) {
-      const human = (maxBytes / 1024 / 1024 / 1024).toFixed(2);
+    if (file.size > MAX_BYTES) {
+      const human = (MAX_BYTES / 1024 / 1024 / 1024).toFixed(2);
       toast.error(
-        `Video excede ${human}GB para ${provider === "bunny" ? "Bunny" : "Supabase"} (tiene ${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB)`,
+        `Video excede ${human}GB (tiene ${(file.size / 1024 / 1024 / 1024).toFixed(2)}GB)`,
       );
       return;
     }
@@ -254,11 +168,37 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     const duration = await probeDuration(file);
     setPreviewUrl(URL.createObjectURL(file));
 
-    if (provider === "bunny") {
-      await uploadToBunny(file, duration);
-    } else {
-      await uploadToSupabase(file, duration);
+    await uploadToBunny(file, duration);
+  }
+
+  function handlePickFromLibrary(video: BunnyVideoRow) {
+    if (!video.bunny_video_id || !video.bunny_library_id) return;
+    if (video.status === "failed") {
+      toast.error("Este video falló al codificar — no se puede usar.");
+      return;
     }
+    // Reconstruct CDN URL from hostname env (we have library_id but not hostname here);
+    // VideoUploaderState's cdn_url isn't strictly required by publish-now (it
+    // rebuilds from BUNNY_CDN_HOSTNAME server-side), but keep it for the form preview.
+    const cdnUrl = video.thumbnail_url
+      ? video.thumbnail_url.replace(/\/thumbnail\.jpg$/, "/play_720p.mp4")
+      : "";
+    onUploaded({
+      provider: "bunny",
+      bunny_video_id: video.bunny_video_id,
+      bunny_library_id: video.bunny_library_id,
+      cdn_url: cdnUrl,
+      thumbnail_url: video.thumbnail_url,
+      duration_seconds: video.duration_seconds,
+      mime_type: "video/mp4",
+      from_library: true,
+      status: video.status,
+    });
+    toast.success(
+      video.status === "ready"
+        ? "Video seleccionado de la biblioteca"
+        : "Video seleccionado — todavía está codificando",
+    );
   }
 
   function cancelUpload() {
@@ -280,13 +220,9 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     onCleared();
   }
 
-  // Already uploaded state ---------------------------------------------------
+  // Already selected/uploaded state -----------------------------------------
   if (state) {
-    const isBunny = state.provider === "bunny";
-    const externalUrl = isBunny ? state.cdn_url : state.signed_url;
-    const idLabel = isBunny
-      ? `Bunny: ${state.bunny_video_id.slice(0, 8)}…`
-      : `Supabase: ${state.video_storage_path.split("/").pop()?.slice(0, 12) ?? state.video_storage_path}…`;
+    const isEncoding = state.status !== "ready";
     return (
       <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3 space-y-2">
         <div className="flex items-center justify-between gap-3">
@@ -295,17 +231,32 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
             <span
               className="truncate text-sm"
               style={{ color: "var(--ll-text)", fontFamily: "'JetBrains Mono', monospace" }}
-              title={isBunny ? state.bunny_video_id : state.video_storage_path}
+              title={state.bunny_video_id}
             >
-              {idLabel}
+              {state.from_library ? "Biblioteca: " : "Bunny: "}
+              {state.bunny_video_id.slice(0, 8)}…
             </span>
           </div>
           <Button variant="ghost" size="sm" onClick={handleClear}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        {previewUrl && (
+        {previewUrl ? (
           <video src={previewUrl} controls className="w-full max-h-64 rounded bg-black" />
+        ) : state.thumbnail_url && state.status === "ready" ? (
+          <img
+            src={state.thumbnail_url}
+            alt="thumbnail"
+            className="w-full max-h-64 rounded object-cover bg-black"
+          />
+        ) : null}
+        {isEncoding && (
+          <p
+            className="rounded border border-[var(--ll-accent)]/30 bg-[var(--ll-accent)]/10 px-2 py-1.5 text-[11px]"
+            style={{ color: "var(--ll-accent)" }}
+          >
+            Este video aún se está codificando. La transcripción se reintenta automáticamente cuando esté lista.
+          </p>
         )}
         <div
           className="flex flex-wrap gap-3 text-[10px]"
@@ -313,15 +264,6 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
         >
           {state.duration_seconds != null && <span>{state.duration_seconds.toFixed(1)}s</span>}
           {state.mime_type && <span>{state.mime_type}</span>}
-          <a
-            href={externalUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-            style={{ color: "var(--ll-accent)" }}
-          >
-            Ver URL
-          </a>
         </div>
       </div>
     );
@@ -334,7 +276,7 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--ll-accent)" }} />
           <p className="text-sm" style={{ color: "var(--ll-text)" }}>
-            Subiendo a {provider === "bunny" ? "Bunny" : "Supabase"}… {progress.toFixed(0)}%
+            Subiendo a Bunny… {progress.toFixed(0)}%
           </p>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ll-surface-2)]">
@@ -353,71 +295,67 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     );
   }
 
-  // Idle — show provider toggle + drop zone ---------------------------------
+  // Idle — show mode toggle + drop zone OR library picker -------------------
   return (
     <div className="space-y-3">
-      <ProviderToggle value={provider} onChange={setProvider} />
-      <div className="rounded-lg border-2 border-dashed border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center space-y-3">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void handleFile(f);
-          }}
-        />
-        <Upload className="mx-auto h-8 w-8" style={{ color: "var(--ll-text-dim)" }} />
-        <div>
-          <p className="text-sm" style={{ color: "var(--ll-text)" }}>
-            Arrastrá un video o
+      <ModeToggle value={mode} onChange={setMode} />
+      {mode === "upload" ? (
+        <div className="rounded-lg border-2 border-dashed border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center space-y-3">
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPTED}
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+          <Upload className="mx-auto h-8 w-8" style={{ color: "var(--ll-text-dim)" }} />
+          <div>
+            <p className="text-sm" style={{ color: "var(--ll-text)" }}>
+              Arrastrá un video o
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              className="mt-1 text-[var(--ll-accent)]"
+            >
+              elegí un archivo
+            </Button>
+          </div>
+          <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+            MP4 / MOV / WebM · upload a Bunny Stream con TUS · max 5GB
           </p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            className="mt-1 text-[var(--ll-accent)]"
-          >
-            elegí un archivo
-          </Button>
+          {error && (
+            <p
+              className="text-[10px] text-red-400"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {error}
+            </p>
+          )}
         </div>
-        <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
-          {provider === "bunny"
-            ? "MP4 / MOV / WebM · upload a Bunny Stream con TUS · max 5GB"
-            : "MP4 / MOV / WebM · upload directo a Supabase Storage · max 500MB"}
-        </p>
-        {error && (
-          <p
-            className="text-[10px] text-red-400"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            {error}
-          </p>
-        )}
-      </div>
+      ) : (
+        <BunnyLibraryPicker onSelect={handlePickFromLibrary} />
+      )}
     </div>
   );
 }
 
-function ProviderToggle({
-  value,
-  onChange,
-}: {
-  value: Provider;
-  onChange: (p: Provider) => void;
-}) {
+function ModeToggle({ value, onChange }: { value: Mode; onChange: (m: Mode) => void }) {
   return (
     <div
       className="inline-flex rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] p-0.5 text-xs"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
-      <ToggleButton active={value === "bunny"} onClick={() => onChange("bunny")}>
-        Bunny
+      <ToggleButton active={value === "upload"} onClick={() => onChange("upload")}>
+        Subir nuevo
       </ToggleButton>
-      <ToggleButton active={value === "supabase"} onClick={() => onChange("supabase")}>
-        Supabase
+      <ToggleButton active={value === "library"} onClick={() => onChange("library")}>
+        De mi biblioteca
       </ToggleButton>
     </div>
   );

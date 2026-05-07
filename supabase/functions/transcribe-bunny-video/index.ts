@@ -1,13 +1,13 @@
 // transcribe-bunny-video: transcribes a video via OpenAI Whisper-1.
 // Two providers supported:
-//   - Bunny Stream: downloads an MP4 fallback from the Bunny CDN. Probes
-//     the `availableResolutions` reported by the Bunny API and tries each
-//     `/play_{height}p.mp4` URL until one returns 200 (smallest first to
-//     keep the Whisper download light). Waits for transcoding status=4
-//     before downloading, since fallbacks only exist once encoding finishes.
+//   - Bunny Stream: tries the public CDN MP4 fallback URLs directly (URL-first
+//     probe). If none are reachable yet, falls back to the Bunny API status
+//     check to differentiate "still encoding" (retryable) from "encode failed"
+//     (fatal) or "no MP4 fallback" (config issue).
 //   - Supabase Storage: downloads the file from the videos-final bucket
 //     using the service-role client.
-// Caches the transcript on scheduled_posts when scheduled_post_id is given.
+// Caches the transcript on `bunny_videos` (shared across scheduled_posts that
+// reuse the same video) and stamps `scheduled_posts` for back-compat.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -21,9 +21,8 @@ const CORS = {
 const MAX_BYTES = 25 * 1024 * 1024; // OpenAI Whisper API limit
 const SUPABASE_VIDEOS_BUCKET = "videos-final";
 
-// Fallback rung if the Bunny API's availableResolutions field is missing or
-// malformed. We try smallest-first to minimize Whisper download size.
-const FALLBACK_RESOLUTION_RUNG = [240, 360, 480, 720, 1080, 1440, 2160];
+// Resolution rungs to probe, smallest-first to keep Whisper download light.
+const RESOLUTION_RUNG = [240, 360, 480, 720, 1080];
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -85,76 +84,112 @@ async function loadScheduledPost(
   return data as never;
 }
 
+async function loadBunnyVideoCache(
+  admin: SupabaseClient,
+  libraryId: string,
+  bunnyVideoId: string,
+): Promise<{
+  transcript: string | null;
+  transcript_language: string | null;
+  transcript_status: string;
+} | null> {
+  const { data } = await admin
+    .from("bunny_videos")
+    .select("transcript, transcript_language, transcript_status")
+    .eq("bunny_library_id", libraryId)
+    .eq("bunny_video_id", bunnyVideoId)
+    .maybeSingle();
+  return data as never;
+}
+
+async function updateBunnyVideo(
+  admin: SupabaseClient,
+  libraryId: string,
+  bunnyVideoId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await admin
+    .from("bunny_videos")
+    .update(patch)
+    .eq("bunny_library_id", libraryId)
+    .eq("bunny_video_id", bunnyVideoId);
+}
+
 // Bunny statuses: 0=Created, 1=Uploaded, 2=Processing, 3=Transcoding,
 // 4=Finished, 5=Error, 6=UploadFailed.
-async function waitForBunnyEncoding(
+async function bunnyApiStatus(
   libraryId: string,
   apiKey: string,
   videoId: string,
-  maxWaitMs = 60_000,
-): Promise<{
-  status: number | null;
-  availableResolutions: string | null;
-  error?: string;
-}> {
-  const deadline = Date.now() + maxWaitMs;
-  let lastStatus: number | null = null;
-  let lastResolutions: string | null = null;
-  while (Date.now() < deadline) {
+): Promise<{ status: number | null; availableResolutions: string | null; error?: string }> {
+  try {
     const r = await fetch(
       `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`,
       { headers: { AccessKey: apiKey, accept: "application/json" } },
     );
     if (!r.ok) {
       return {
-        status: lastStatus,
-        availableResolutions: lastResolutions,
+        status: null,
+        availableResolutions: null,
         error: `bunny_api_${r.status}`,
       };
     }
-    const j = (await r.json()) as {
-      status?: number;
-      availableResolutions?: string;
+    const j = (await r.json()) as { status?: number; availableResolutions?: string };
+    return {
+      status: typeof j.status === "number" ? j.status : null,
+      availableResolutions: typeof j.availableResolutions === "string" ? j.availableResolutions : null,
     };
-    lastStatus = typeof j.status === "number" ? j.status : null;
-    lastResolutions = typeof j.availableResolutions === "string" ? j.availableResolutions : null;
-    if (lastStatus === 4) {
-      return { status: 4, availableResolutions: lastResolutions };
-    }
-    if (lastStatus === 5 || lastStatus === 6) {
-      return {
-        status: lastStatus,
-        availableResolutions: lastResolutions,
-        error: `bunny_encode_${lastStatus}`,
-      };
-    }
-    await new Promise((res) => setTimeout(res, 5000));
+  } catch (e) {
+    return {
+      status: null,
+      availableResolutions: null,
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
-  return {
-    status: lastStatus,
-    availableResolutions: lastResolutions,
-    error: "bunny_encode_timeout",
-  };
 }
 
-/**
- * Parse Bunny's `availableResolutions` CSV (e.g. "240p,360p,720p") into
- * a sorted list of heights, smallest first. Falls back to a default rung
- * if the field is missing/empty/unparseable.
- */
 function parseResolutions(raw: string | null): number[] {
-  if (!raw) return [...FALLBACK_RESOLUTION_RUNG];
+  if (!raw) return [...RESOLUTION_RUNG];
   const heights = raw
     .split(",")
     .map((s) => s.trim().replace(/p$/i, ""))
     .map((s) => Number.parseInt(s, 10))
     .filter((n) => Number.isFinite(n) && n > 0);
-  if (heights.length === 0) return [...FALLBACK_RESOLUTION_RUNG];
-  // Smallest first: keeps Whisper download under the 25MB cap when possible.
+  if (heights.length === 0) return [...RESOLUTION_RUNG];
   return [...new Set(heights)].sort((a, b) => a - b);
 }
 
-/** Fetch a Bunny CDN MP4 fallback into a Blob. */
+/**
+ * Try each public CDN URL (smallest-first). Returns the first 200, or null if
+ * all probes fail. Does NOT touch the Bunny API.
+ */
+async function probeCdnRungs(
+  cdnHost: string,
+  bunnyVideoId: string,
+  rungs: number[],
+): Promise<
+  | { found: { height: number; url: string; contentLength: number } }
+  | { found: null; attempts: Array<{ height: number; status: number }> }
+> {
+  const attempts: Array<{ height: number; status: number }> = [];
+  for (const height of rungs) {
+    const url = `https://${cdnHost}/${bunnyVideoId}/play_${height}p.mp4`;
+    try {
+      const r = await fetch(url, { method: "HEAD" });
+      attempts.push({ height, status: r.status });
+      if (r.ok) {
+        const contentLength = Number(r.headers.get("content-length") ?? "0");
+        return { found: { height, url, contentLength } };
+      }
+    } catch (e) {
+      attempts.push({ height, status: 0 });
+      console.warn(`bunny_head_threw ${height}p: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { found: null, attempts };
+}
+
+/** Fetch a Bunny CDN MP4 fallback into a Blob. URL-first; API as diagnostic fallback. */
 async function fetchBunnyBlob(
   cdnHost: string,
   bunnyVideoId: string,
@@ -163,120 +198,149 @@ async function fetchBunnyBlob(
   scheduledPostId: string | null,
   admin: SupabaseClient,
 ): Promise<{ blob: Blob } | { error: { status: number; body: unknown } }> {
-  const encodeCheck = await waitForBunnyEncoding(libraryId, libraryKey, bunnyVideoId);
-  if (encodeCheck.status !== 4) {
-    const errMsg = encodeCheck.error ?? "bunny_not_ready";
-    const isTimeout = encodeCheck.error === "bunny_encode_timeout";
-    if (scheduledPostId) {
-      await admin
-        .from("scheduled_posts")
-        .update({
-          transcript_status: isTimeout ? "pending" : "failed",
-          transcript_error: errMsg,
-        })
-        .eq("id", scheduledPostId);
-    }
-    return {
-      error: {
-        status: isTimeout ? 503 : 502,
-        body: { error: errMsg, bunny_status: encodeCheck.status, retryable: isTimeout },
-      },
-    };
+  // Fast path: probe public CDN URLs directly. If any returns 200, we're done.
+  const initialProbe = await probeCdnRungs(cdnHost, bunnyVideoId, RESOLUTION_RUNG);
+
+  let workingUrl: { height: number; url: string; contentLength: number } | null = null;
+  let attempts: Array<{ height: number; status: number }> = [];
+  if ("found" in initialProbe && initialProbe.found) {
+    workingUrl = initialProbe.found;
+  } else if ("attempts" in initialProbe) {
+    attempts = initialProbe.attempts;
   }
 
-  const resolutions = parseResolutions(encodeCheck.availableResolutions);
-  const attempts: Array<{ height: number; status: number; url: string }> = [];
-
-  // Try each resolution. First one that returns 2xx on HEAD wins.
-  for (const height of resolutions) {
-    const cdnUrl = `https://${cdnHost}/${bunnyVideoId}/play_${height}p.mp4`;
-    let headRes: Response;
-    try {
-      headRes = await fetch(cdnUrl, { method: "HEAD" });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      attempts.push({ height, status: 0, url: cdnUrl });
-      console.warn(`bunny_head_fetch_threw ${height}p: ${msg}`);
-      continue;
-    }
-    attempts.push({ height, status: headRes.status, url: cdnUrl });
-    if (!headRes.ok) continue;
-
-    // Found a working fallback. Verify size is under Whisper's limit before
-    // downloading to spare bandwidth on giant 1080p files when a 240p exists.
-    const contentLength = Number(headRes.headers.get("content-length") ?? "0");
-    if (contentLength > MAX_BYTES) {
-      // This rung is too big — keep looking for a smaller fallback in case
-      // we accidentally walked from low→high; otherwise, surface too_large.
-      console.warn(`bunny_${height}p_too_large: ${contentLength} bytes`);
-      // Don't `continue` blindly — if we already iterated smallest-first,
-      // every subsequent rung will also be too big. Surface the error.
+  // Slow path: nothing reachable yet — ask the API why and try the rungs the
+  // library actually advertises if encoding finished. Distinguishes
+  // "encoding-in-progress" (retryable 503) from "encode failed" (502 fatal)
+  // from "fallback disabled" (502 with diagnostic).
+  if (!workingUrl) {
+    const apiInfo = await bunnyApiStatus(libraryId, libraryKey, bunnyVideoId);
+    if (apiInfo.status === 4) {
+      // Encoding done but our default rungs all 4xx'd — try the API's
+      // advertised resolutions.
+      const apiRungs = parseResolutions(apiInfo.availableResolutions);
+      const apiProbe = await probeCdnRungs(cdnHost, bunnyVideoId, apiRungs);
+      if ("found" in apiProbe && apiProbe.found) {
+        workingUrl = apiProbe.found;
+      } else if ("attempts" in apiProbe) {
+        attempts = [...attempts, ...apiProbe.attempts];
+      }
+      if (!workingUrl) {
+        const diagnostics = {
+          library_id: libraryId,
+          bunny_video_id: bunnyVideoId,
+          available_resolutions: apiInfo.availableResolutions,
+          attempts,
+          hint:
+            "Encoding finished (status=4) but every MP4 fallback URL returned " +
+            "non-2xx. Most likely fix: enable 'MP4 Fallback' in bunny.net → " +
+            "Stream → Library → Encoding Settings, then re-encode this video.",
+        };
+        console.error("bunny_no_fallback_available", diagnostics);
+        if (scheduledPostId) {
+          await admin
+            .from("scheduled_posts")
+            .update({
+              transcript_status: "failed",
+              transcript_error: "bunny_no_mp4_fallback_available",
+            })
+            .eq("id", scheduledPostId);
+        }
+        await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+          transcript_status: "failed",
+          transcript_error: "bunny_no_mp4_fallback_available",
+        });
+        return {
+          error: { status: 502, body: { error: "bunny_no_mp4_fallback_available", diagnostics } },
+        };
+      }
+    } else if (apiInfo.status === 5 || apiInfo.status === 6) {
+      const errMsg = `bunny_encode_failed_${apiInfo.status}`;
       if (scheduledPostId) {
         await admin
           .from("scheduled_posts")
-          .update({
-            transcript_status: "too_large",
-            transcript_error: `${contentLength} bytes > ${MAX_BYTES} (height=${height}p)`,
-          })
+          .update({ transcript_status: "failed", transcript_error: errMsg })
           .eq("id", scheduledPostId);
       }
+      await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+        transcript_status: "failed",
+        transcript_error: errMsg,
+      });
       return {
         error: {
-          status: 422,
+          status: 502,
+          body: { error: errMsg, bunny_status: apiInfo.status, retryable: false },
+        },
+      };
+    } else {
+      // status 0/1/2/3 (still encoding) or null (API call failed) — retryable.
+      const errMsg = "bunny_encoding_in_progress";
+      if (scheduledPostId) {
+        await admin
+          .from("scheduled_posts")
+          .update({ transcript_status: "pending", transcript_error: errMsg })
+          .eq("id", scheduledPostId);
+      }
+      await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+        transcript_status: "pending",
+        transcript_error: errMsg,
+      });
+      return {
+        error: {
+          status: 503,
           body: {
-            error: "video_too_large_for_whisper",
-            max_bytes: MAX_BYTES,
-            actual_bytes: contentLength,
-            tried_height: height,
+            error: errMsg,
+            bunny_status: apiInfo.status,
+            retryable: true,
+            retry_after_seconds: 30,
           },
         },
       };
     }
+  }
 
-    const getRes = await fetch(cdnUrl);
-    if (!getRes.ok) {
-      const msg = `bunny_get_${getRes.status}_at_${height}p`;
-      console.warn(msg);
-      // Could be a transient flake — keep trying other heights.
-      attempts.push({ height, status: getRes.status, url: cdnUrl });
-      continue;
+  // We have a working URL. Verify size, then GET.
+  if (workingUrl.contentLength > MAX_BYTES) {
+    const errMsg = `${workingUrl.contentLength} bytes > ${MAX_BYTES} (height=${workingUrl.height}p)`;
+    if (scheduledPostId) {
+      await admin
+        .from("scheduled_posts")
+        .update({ transcript_status: "too_large", transcript_error: errMsg })
+        .eq("id", scheduledPostId);
     }
-    return { blob: await getRes.blob() };
+    await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+      transcript_status: "too_large",
+      transcript_error: errMsg,
+    });
+    return {
+      error: {
+        status: 422,
+        body: {
+          error: "video_too_large_for_whisper",
+          max_bytes: MAX_BYTES,
+          actual_bytes: workingUrl.contentLength,
+          tried_height: workingUrl.height,
+        },
+      },
+    };
   }
 
-  // No resolution worked. Most common cause: MP4 Fallback is disabled in
-  // the Bunny library's encoding settings, so /play_{height}p.mp4 returns
-  // 403 for every rung even though encoding finished.
-  const diagnostics = {
-    library_id: libraryId,
-    bunny_video_id: bunnyVideoId,
-    available_resolutions: encodeCheck.availableResolutions,
-    attempts,
-    hint:
-      "All MP4 fallback URLs returned non-2xx. Most likely fix: enable " +
-      "'MP4 Fallback' in bunny.net → Stream → Library → Encoding Settings, " +
-      "then re-encode this video (existing videos are not re-encoded " +
-      "automatically — you can trigger Re-Encode from the Bunny dashboard).",
-  };
-  console.error("bunny_no_fallback_available", diagnostics);
-  if (scheduledPostId) {
-    await admin
-      .from("scheduled_posts")
-      .update({
-        transcript_status: "failed",
-        transcript_error: "bunny_no_mp4_fallback_available",
-      })
-      .eq("id", scheduledPostId);
+  const getRes = await fetch(workingUrl.url);
+  if (!getRes.ok) {
+    const errMsg = `bunny_get_${getRes.status}_at_${workingUrl.height}p`;
+    if (scheduledPostId) {
+      await admin
+        .from("scheduled_posts")
+        .update({ transcript_status: "failed", transcript_error: errMsg })
+        .eq("id", scheduledPostId);
+    }
+    await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+      transcript_status: "failed",
+      transcript_error: errMsg,
+    });
+    return { error: { status: 502, body: { error: errMsg } } };
   }
-  return {
-    error: {
-      status: 502,
-      body: {
-        error: "bunny_no_mp4_fallback_available",
-        diagnostics,
-      },
-    },
-  };
+  return { blob: await getRes.blob() };
 }
 
 /** Fetch a video from the Supabase Storage videos-final bucket. */
@@ -381,24 +445,53 @@ Deno.serve(async (req) => {
       return json(400, { error: "missing_video_source" });
     }
 
+    // Shared cache: if this Bunny video was already transcribed in another
+    // scheduled_post, reuse the transcript. Only the bunny_video_id path has
+    // shared cache (Supabase Storage paths are per-upload).
+    const libraryId = Deno.env.get("BUNNY_LIBRARY_ID");
+    if (bunnyVideoId && libraryId && !body.force) {
+      const cached = await loadBunnyVideoCache(admin, libraryId, bunnyVideoId);
+      if (cached?.transcript && cached.transcript_status === "done") {
+        if (scheduledPostId) {
+          await admin
+            .from("scheduled_posts")
+            .update({
+              transcript: cached.transcript,
+              transcript_language: cached.transcript_language,
+              transcript_status: "done",
+              transcript_error: null,
+            })
+            .eq("id", scheduledPostId);
+        }
+        return json(200, {
+          ok: true,
+          transcript: cached.transcript,
+          language: cached.transcript_language,
+          duration_seconds: null,
+          cached: true,
+          cache_source: "bunny_videos",
+        });
+      }
+    }
+
     if (scheduledPostId) {
       await admin
         .from("scheduled_posts")
         .update({ transcript_status: "pending", transcript_error: null })
         .eq("id", scheduledPostId);
     }
+    if (bunnyVideoId && libraryId) {
+      await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+        transcript_status: "pending",
+        transcript_error: null,
+      });
+    }
 
     let blobResult: { blob: Blob } | { error: { status: number; body: unknown } };
     if (storagePath) {
-      // Supabase provider — RLS already enforced via scheduledPost.owner_id check
-      // when scheduledPostId is supplied. For the pre-submit path (no scheduled_post_id)
-      // we trust the caller: the user uploaded with their session and owns the
-      // path, and the bucket RLS enforces folder ownership on read anyway when
-      // not using service-role (we use service-role here to bypass-with-purpose).
       blobResult = await fetchStorageBlob(admin, storagePath, scheduledPostId);
     } else {
       const cdnHost = Deno.env.get("BUNNY_CDN_HOSTNAME");
-      const libraryId = Deno.env.get("BUNNY_LIBRARY_ID");
       const libraryKey = Deno.env.get("BUNNY_LIBRARY_KEY");
       if (!cdnHost) return json(500, { error: "BUNNY_CDN_HOSTNAME not set" });
       if (!libraryId || !libraryKey) return json(500, { error: "bunny_not_configured" });
@@ -428,6 +521,12 @@ Deno.serve(async (req) => {
           .update({ transcript_status: "failed", transcript_error: msg })
           .eq("id", scheduledPostId);
       }
+      if (bunnyVideoId && libraryId) {
+        await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+          transcript_status: "failed",
+          transcript_error: msg,
+        });
+      }
       return json(502, { error: msg });
     }
 
@@ -441,6 +540,14 @@ Deno.serve(async (req) => {
           transcript_error: null,
         })
         .eq("id", scheduledPostId);
+    }
+    if (bunnyVideoId && libraryId) {
+      await updateBunnyVideo(admin, libraryId, bunnyVideoId, {
+        transcript: result.text,
+        transcript_language: result.language,
+        transcript_status: "done",
+        transcript_error: null,
+      });
     }
 
     return json(200, {

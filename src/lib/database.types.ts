@@ -283,6 +283,84 @@ export type Database = {
           },
         ]
       }
+      bunny_videos: {
+        Row: {
+          archived_at: string | null
+          available_resolutions: string | null
+          bunny_library_id: string
+          bunny_video_id: string
+          created_at: string
+          duration_seconds: number | null
+          encode_error: string | null
+          encode_progress: number | null
+          filename: string | null
+          height: number | null
+          id: string
+          last_polled_at: string | null
+          owner_id: string
+          size_bytes: number | null
+          status: string
+          thumbnail_url: string | null
+          title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          archived_at?: string | null
+          available_resolutions?: string | null
+          bunny_library_id: string
+          bunny_video_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          encode_error?: string | null
+          encode_progress?: number | null
+          filename?: string | null
+          height?: number | null
+          id?: string
+          last_polled_at?: string | null
+          owner_id: string
+          size_bytes?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          archived_at?: string | null
+          available_resolutions?: string | null
+          bunny_library_id?: string
+          bunny_video_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          encode_error?: string | null
+          encode_progress?: number | null
+          filename?: string | null
+          height?: number | null
+          id?: string
+          last_polled_at?: string | null
+          owner_id?: string
+          size_bytes?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
       carousel_references: {
         Row: {
           analysis_error: string | null

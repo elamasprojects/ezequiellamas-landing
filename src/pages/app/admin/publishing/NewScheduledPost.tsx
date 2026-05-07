@@ -107,16 +107,12 @@ export default function NewScheduledPost() {
     );
   }
 
-  /** Build the source-identifier params for transcribe/captions based on the
-   * provider currently in videoState. */
-  function videoSourceParams(): {
-    bunny_video_id?: string;
-    video_storage_path?: string;
-  } {
+  /** Build the source-identifier params for transcribe/captions. Currently
+   * only Bunny is supported via the form (Supabase Storage path is kept in
+   * the schema as M15 fallback but no longer exposed in UI). */
+  function videoSourceParams(): { bunny_video_id?: string } {
     if (!videoState) return {};
-    return videoState.provider === "bunny"
-      ? { bunny_video_id: videoState.bunny_video_id }
-      : { video_storage_path: videoState.video_storage_path };
+    return { bunny_video_id: videoState.bunny_video_id };
   }
 
   async function runTranscribe() {
@@ -195,12 +191,9 @@ export default function NewScheduledPost() {
       const post = await createScheduledPost({
         owner_id: user.id,
         asset_kind: assetKind,
-        bunny_video_id:
-          videoState?.provider === "bunny" ? videoState.bunny_video_id : null,
-        bunny_library_id:
-          videoState?.provider === "bunny" ? videoState.bunny_library_id : null,
-        video_storage_path:
-          videoState?.provider === "supabase" ? videoState.video_storage_path : null,
+        bunny_video_id: videoState?.bunny_video_id ?? null,
+        bunny_library_id: videoState?.bunny_library_id ?? null,
+        video_storage_path: null,
         carousel_id: carouselId,
         title: title || null,
         caption_default: defaultCaption || null,
