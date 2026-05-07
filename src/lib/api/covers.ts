@@ -28,16 +28,35 @@ function withTimeout<T>(p: Promise<T>, ms = 15_000, label = "supabase"): Promise
   ]);
 }
 
+// Supabase devuelve errores como objeto plano { message, code, details, hint }
+// — no como Error. Lo envolvemos para que llegue al UI con .message legible
+// y la causa original quede en `cause` para inspección en DevTools.
+function wrapSupabaseError(label: string, err: unknown): Error {
+  console.error(`[${label}]`, err);
+  if (err instanceof Error) return err;
+  if (typeof err === "object" && err !== null) {
+    const obj = err as Record<string, unknown>;
+    const parts = [String(obj.message ?? `${label}_error`)];
+    if (obj.code) parts.push(`(code ${obj.code})`);
+    if (obj.hint) parts.push(`— hint: ${obj.hint}`);
+    if (obj.details) parts.push(`— ${obj.details}`);
+    const wrapped = new Error(parts.join(" "));
+    (wrapped as Error & { cause?: unknown }).cause = err;
+    return wrapped;
+  }
+  return new Error(`${label}_error: ${String(err)}`);
+}
+
 export async function fetchCovers(): Promise<CoverWithRelations[]> {
   const { data, error } = await withTimeout(
     supabase
       .from("covers")
-      .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
+      .select("*, cover_styles!cover_style_id(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
       .order("created_at", { ascending: false }),
     15_000,
     "fetch_covers",
   );
-  if (error) throw error;
+  if (error) throw wrapSupabaseError("fetchCovers", error);
   return (data ?? []) as CoverWithRelations[];
 }
 
@@ -45,13 +64,13 @@ export async function fetchCover(id: string): Promise<CoverWithRelations | null>
   const { data, error } = await withTimeout(
     supabase
       .from("covers")
-      .select("*, cover_styles(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
+      .select("*, cover_styles!cover_style_id(id, name), scripts(id, title, hook), videos(id, title), series(id, name)")
       .eq("id", id)
       .maybeSingle(),
     15_000,
     "fetch_cover",
   );
-  if (error) throw error;
+  if (error) throw wrapSupabaseError("fetchCover", error);
   return data as CoverWithRelations | null;
 }
 
