@@ -19,7 +19,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Variante 1 — Gemini (imagen) + Kling (image-to-video)
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+// Kling usa auth JWT con par AK/SK: KLING_API_KEY como `iss`, KLING_SECRET_KEY
+// para firmar HS256. Endpoint global por default; override con KLING_API_BASE.
 const KLING_API_KEY = Deno.env.get("KLING_API_KEY");
+const KLING_SECRET_KEY = Deno.env.get("KLING_SECRET_KEY");
+const KLING_API_BASE = Deno.env.get("KLING_API_BASE") ?? "https://api.klingai.com";
 
 // Variante 2 — Railway render worker (compartido con carruseles)
 const RENDER_WORKER_URL = Deno.env.get("RENDER_WORKER_URL");
@@ -27,6 +31,8 @@ const RENDER_WORKER_SECRET = Deno.env.get("RENDER_WORKER_SECRET");
 
 // Modelo de imagen — mismo patrón validado que `generate-cover`.
 const GEMINI_FLASH = "gemini-3.1-flash-image-preview"; // Nano Banana 2
+// Modelo de video — kling-v2-1 es el default oficial para image2video y soporta `mode`.
+const KLING_MODEL = "kling-v2-1";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +59,42 @@ function base64ToBytes(base64: string): Uint8Array {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
+}
+
+function base64UrlEncode(input: Uint8Array | string): string {
+  let b64: string;
+  if (typeof input === "string") {
+    b64 = btoa(input);
+  } else {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < input.length; i += chunk) {
+      binary += String.fromCharCode(
+        ...input.subarray(i, Math.min(i + chunk, input.length)),
+      );
+    }
+    b64 = btoa(binary);
+  }
+  return b64.replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+// JWT HS256 para auth de Kling: header {alg:HS256, typ:JWT}, payload
+// {iss: AK, exp: now+1800, nbf: now-5}, firmado con SK.
+function signKlingJwt(accessKey: string, secretKey: string): string {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { iss: accessKey, exp: now + 1800, nbf: now - 5 };
+  const headerB64 = base64UrlEncode(JSON.stringify(header));
+  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${headerB64}.${payloadB64}`;
+  const sigBuffer = createHmac("sha256", secretKey)
+    .update(signingInput)
+    .digest();
+  const sigBytes = sigBuffer instanceof Uint8Array
+    ? sigBuffer
+    : new Uint8Array(sigBuffer);
+  const sigB64 = base64UrlEncode(sigBytes);
+  return `${signingInput}.${sigB64}`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -146,7 +188,7 @@ async function generateV1(
   // deno-lint-ignore no-explicit-any
   admin: any,
 ): Promise<Response> {
-  if (!GEMINI_API_KEY || !KLING_API_KEY) {
+  if (!GEMINI_API_KEY || !KLING_API_KEY || !KLING_SECRET_KEY) {
     await admin
       .from("broll_suggestions")
       .update({ generation_status: "failed" })
@@ -155,7 +197,7 @@ async function generateV1(
       {
         error: "v1_not_configured",
         detail:
-          "GEMINI_API_KEY y KLING_API_KEY deben estar seteados en Edge Function secrets.",
+          "GEMINI_API_KEY, KLING_API_KEY y KLING_SECRET_KEY deben estar seteados en Edge Function secrets.",
       },
       503,
     );
@@ -242,19 +284,21 @@ async function generateV1(
   }
   const imageUrl = signedData.signedUrl;
 
-  // ── Step 2: animar con Kling (image-to-video) ────────────────────────────
+  // ── Step 2: animar con Kling (image-to-video, JWT HS256) ─────────────────
+  const klingJwt = signKlingJwt(KLING_API_KEY, KLING_SECRET_KEY);
+
   const klingRes = await fetch(
-    "https://api.klingai.com/v1/videos/image2video",
+    `${KLING_API_BASE}/v1/videos/image2video`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${KLING_API_KEY}`,
+        Authorization: `Bearer ${klingJwt}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         image_url: imageUrl,
         prompt: animationPrompt,
-        model_name: "kling-v2-master",
+        model_name: KLING_MODEL,
         duration: "5",
         mode: "pro",
       }),
@@ -270,13 +314,13 @@ async function generateV1(
   const taskId: string = klingData.data?.task_id;
   if (!taskId) throw new Error("kling_no_task_id");
 
-  // Poll Kling hasta completar (max 90s)
+  // Poll Kling hasta completar (max 90s). El JWT dura 30min, alcanza para el polling.
   let videoUrl: string | null = null;
   for (let i = 0; i < 18; i++) {
     await new Promise((r) => setTimeout(r, 5000));
     const pollRes = await fetch(
-      `https://api.klingai.com/v1/videos/image2video/${taskId}`,
-      { headers: { Authorization: `Bearer ${KLING_API_KEY}` } },
+      `${KLING_API_BASE}/v1/videos/image2video/${taskId}`,
+      { headers: { Authorization: `Bearer ${klingJwt}` } },
     );
     if (!pollRes.ok) continue;
     const pollData = await pollRes.json();
