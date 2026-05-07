@@ -44,9 +44,12 @@ tl.from(".ws-word",
     ? `\n  .from(".ws-cue", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, ${(revealEnd + 0.1).toFixed(2)})`
     : "";
 
-  // Hold final con un set en el body (target válido) en vez de `.to({})` para
-  // evitar el `gsap.to(emptyObject)` que algunas builds tratan como warning.
-  const holdTween = `\n  .to("body", { opacity: 1, duration: 1.0 }, ${(revealEnd + 0.2).toFixed(2)});`;
+  // Hold final — copiamos verbatim el patrón del carrusel (T1Cover line 16):
+  // `.to({}, { duration: 1.0 }, 3.5)`. Es un delay-tween que extiende la
+  // timeline sin animar nada. Hyperframes consume `data-duration` del wrapper
+  // y termina cuando llega al final, así que necesita que la timeline
+  // efectivamente dure ese tiempo.
+  const holdTween = `\n  .to({}, { duration: 1.0 }, ${(revealEnd + 0.2).toFixed(2)});`;
 
   return wordsTween + cueTween + holdTween;
 }

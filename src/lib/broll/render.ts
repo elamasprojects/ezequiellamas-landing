@@ -3,36 +3,48 @@
  *   - el render worker (Node + Playwright + Hyperframes)
  *   - eventualmente, un preview iframe en la UI (si lo agregamos)
  *
- * Mirror de `src/lib/carousel/render.ts` con dos diferencias:
- *   - Aspecto 9:16 (1080×1920) en vez de 4:5
- *   - 1 solo template (`WordStack`) en lugar de los 5 de carrusel
+ * Mirror estructural EXACTO de `src/lib/carousel/render.ts`:
+ *   - Mismo orden de elementos (preconnect → fonts → gsap → style → body)
+ *   - Mismo wrapper `<section class="slide">` (no `.broll`) dentro del
+ *     composition div para máxima paridad con Hyperframes que ya valida
+ *     este pattern en producción
+ *   - Mismo formato de timeline injection (paused, asignado a window.__timelines)
  *
- * Output modes:
- *   - "static":  HTML standalone sin GSAP (preview / future PNG snapshot)
- *   - "animated": Hyperframes-compatible con data-composition-id, GSAP local
- *                 y timeline inline. Used SOLO para MP4 renders.
+ * Diferencias mínimas con carrusel:
+ *   - 1080×1920 (9:16) en vez de 1080×1350 (4:5)
+ *   - Sin topbar / footer-pill (no aplican a brolls)
+ *   - Sin ornaments por design_format (los brolls no tienen formats por ahora)
  */
 
-import type { BrollSlide, BrollMode, BrollStyleConfig, BrollTemplate, BrollContent, WordStackContent } from "./types";
-import { BASE_BROLL_CSS, SLIDE_WIDTH, SLIDE_HEIGHT, DEFAULTS } from "./design-tokens";
+import type {
+  BrollSlide,
+  BrollMode,
+  BrollStyleConfig,
+  BrollTemplate,
+  BrollContent,
+  WordStackContent,
+} from "./types";
+import {
+  BASE_BROLL_CSS,
+  SLIDE_WIDTH,
+  SLIDE_HEIGHT,
+  DEFAULTS,
+} from "./design-tokens";
 import { renderWordStack } from "./templates/wordstack";
 import { timelineWordStack, durationWordStack } from "./animations/wordstack";
 
-/**
- * Returns el body HTML de un slide (sin doctype/head/wrapper).
- * Cuando agreguemos más templates, este switch crece.
- */
-export function renderTemplate(template: BrollTemplate, content: BrollContent): string {
+/** Returns el body HTML de un slide (sin doctype/head/wrapper). */
+export function renderTemplate(
+  template: BrollTemplate,
+  content: BrollContent,
+): string {
   switch (template) {
     case "WordStack":
       return renderWordStack(content as WordStackContent);
   }
 }
 
-/**
- * Returns el body GSAP JS de un slide animated.
- * `duration` está en segundos y se inyecta como `data-duration` del wrapper.
- */
+/** Returns el body GSAP JS y la duración de la timeline para un template. */
 export function timelineFor(
   template: BrollTemplate,
   content: BrollContent,
@@ -41,7 +53,10 @@ export function timelineFor(
   switch (template) {
     case "WordStack": {
       const ws = content as WordStackContent;
-      const wordCount = Math.min(8, (ws.words ?? []).filter(Boolean).length);
+      const wordCount = Math.min(
+        8,
+        (ws.words ?? []).filter(Boolean).length,
+      );
       const hasCue = !!(ws.cueText && ws.cueText.trim());
       return {
         js: timelineWordStack({
@@ -63,27 +78,46 @@ interface BuildBrollOpts {
 
 function tokensToCss(cfg: BrollStyleConfig): string {
   return `:root {
-    --bg: ${cfg.bg ?? DEFAULTS.bg};
-    --accent: ${cfg.accent ?? DEFAULTS.accent};
-    --text: ${DEFAULTS.text};
-    --font-heading: ${cfg.fontHeading ?? DEFAULTS.fontHeading};
-    --font-body: ${DEFAULTS.fontBody};
-  }`;
+  --bg: ${cfg.bg ?? DEFAULTS.bg};
+  --accent: ${cfg.accent ?? DEFAULTS.accent};
+  --text: ${DEFAULTS.text};
+  --font-heading: ${cfg.fontHeading ?? DEFAULTS.fontHeading};
+  --font-body: ${DEFAULTS.fontBody};
+}`;
 }
 
-/** Google Fonts link — Instrument Serif (heading) + DM Sans (body). */
 function fontsLink(): string {
+  // Mismo pattern que carrusel: preconnect + el link de Google Fonts.
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">`;
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">`;
 }
 
 /**
  * Build a complete HTML document for a single broll.
  *
- * - outputMode="static":  preview/PNG. Sin GSAP.
- * - outputMode="animated": MP4. Wraps en data-composition-id + GSAP local
- *                         (regla §7 carrusel v2.2: GSAP nunca CDN).
+ * - "static":  preview/PNG. Sin GSAP, simple section wrap.
+ * - "animated": MP4. Wraps en data-composition-id + GSAP local
+ *               (regla §7 carrusel v2.2: GSAP nunca CDN).
+ *
+ * Mirror EXACTO del orden de elementos del `buildSlideHtml` de carrusel:
+ *   <!DOCTYPE html>
+ *   <html>
+ *   <head>
+ *     <meta charset> <meta viewport> <title>
+ *     {fonts links}
+ *     <script src="./gsap.min.js"></script>     ← solo en animated
+ *     <style>{tokens}{base}{composition-rule}</style>
+ *   </head>
+ *   <body>
+ *     <div data-composition-id ...>
+ *       <section class="slide">
+ *         {body}
+ *       </section>
+ *       <script>{timeline IIFE}</script>
+ *     </div>
+ *   </body>
+ *   </html>
  */
 export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string {
   const tokensCss = tokensToCss(opts.styleConfig);
@@ -101,12 +135,14 @@ export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string 
   <style>${tokensCss}${BASE_BROLL_CSS}</style>
 </head>
 <body>
-  ${body}
+  <section class="slide">
+    ${body}
+  </section>
 </body>
 </html>`;
   }
 
-  // animated mode — Hyperframes
+  // animated mode — Hyperframes-compatible
   const { js: timelineJs, duration } = timelineFor(
     slide.template,
     slide.content,
@@ -126,17 +162,19 @@ export function buildBrollHtml(slide: BrollSlide, opts: BuildBrollOpts): string 
   </style>
 </head>
 <body>
-  <div data-composition-id="broll-1"
+  <div data-composition-id="slide-1"
        data-width="${SLIDE_WIDTH}" data-height="${SLIDE_HEIGHT}"
        data-start="0" data-duration="${duration}">
-    ${body}
+    <section class="slide">
+      ${body}
+    </section>
     <script>
       (function(){
         if (typeof gsap === "undefined") return;
         var tl = gsap.timeline({ paused: true });
         ${timelineJs}
         window.__timelines = window.__timelines || {};
-        window.__timelines["broll-1"] = tl;
+        window.__timelines["slide-1"] = tl;
       })();
     </script>
   </div>
