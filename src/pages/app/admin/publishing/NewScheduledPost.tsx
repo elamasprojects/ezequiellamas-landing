@@ -511,11 +511,22 @@ export default function NewScheduledPost() {
           </div>
         )}
 
-        <Field label="Título interno (opcional)">
+        <Field
+          label="Título"
+          hint={
+            platforms.includes("youtube")
+              ? "YouTube lo usa como título del video. IG/TT lo ignoran."
+              : "Para tu organización. Si después agregás YouTube, se usa como título."
+          }
+        >
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Solo para vos — no se publica"
+            placeholder={
+              platforms.includes("youtube")
+                ? "Ej: Cero clicks, control total"
+                : "Para tu organización"
+            }
             className="bg-[var(--ll-surface)] border-[var(--ll-border)]"
           />
         </Field>
@@ -657,7 +668,15 @@ function Section({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <label
@@ -667,6 +686,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         {label}
       </label>
       {children}
+      {hint && (
+        <p className="text-[11px]" style={{ color: "var(--ll-text-dim)" }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
