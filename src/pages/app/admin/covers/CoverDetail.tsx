@@ -72,6 +72,7 @@ export default function CoverDetail() {
   const [styleDialogOpen, setStyleDialogOpen] = useState(false);
   const [newStyleId, setNewStyleId] = useState("");
   const [quality, setQuality] = useState<CoverQuality>("standard");
+  const [isDownloading, setIsDownloading] = useState(false);
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["cover", id] });
@@ -204,10 +205,10 @@ export default function CoverDetail() {
       </header>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Imagen */}
+        {/* Imagen — limitada a 50% del ancho de su columna para que no domine la vista */}
         <div
           className={cn(
-            "overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-bg)]",
+            "mx-auto w-full max-w-[50%] overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-bg)]",
             aspectClass,
           )}
         >
@@ -356,12 +357,36 @@ export default function CoverDetail() {
               <Button
                 variant="ghost"
                 className="w-full text-[var(--ll-text-muted)]"
-                asChild
+                disabled={isDownloading}
+                onClick={async () => {
+                  // El attribute `download` del <a> se ignora cuando href es
+                  // cross-origin (Supabase signed URL en otro dominio). Para
+                  // forzar la descarga real fetcheamos el blob, generamos un
+                  // object URL y disparamos un click programático.
+                  setIsDownloading(true);
+                  try {
+                    const res = await fetch(imageSrc);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const blob = await res.blob();
+                    const objectUrl = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = objectUrl;
+                    link.download = `portada-${id}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                  } catch (err) {
+                    toast.error(
+                      `No pude descargar: ${err instanceof Error ? err.message : "error"}`,
+                    );
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
               >
-                <a href={imageSrc} download={`portada-${id}.png`} target="_blank" rel="noreferrer">
-                  <Download className="h-4 w-4" />
-                  Descargar
-                </a>
+                <Download className="h-4 w-4" />
+                {isDownloading ? "Descargando…" : "Descargar"}
               </Button>
             )}
           </div>
