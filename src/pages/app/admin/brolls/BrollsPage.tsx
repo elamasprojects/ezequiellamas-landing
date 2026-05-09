@@ -341,9 +341,11 @@ function QueueTab() {
           <h3 className="text-xs uppercase tracking-widest" style={{ color: "var(--ll-warm)", fontFamily: "'JetBrains Mono', monospace" }}>
             En progreso ({inProgress.length})
           </h3>
-          {inProgress.map((b) => (
-            <BrollQueueItem key={b.id} broll={b} />
-          ))}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {inProgress.map((b) => (
+              <BrollQueueItem key={b.id} broll={b} />
+            ))}
+          </div>
         </section>
       )}
 
@@ -352,9 +354,11 @@ function QueueTab() {
           <h3 className="text-xs uppercase tracking-widest" style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
             Pendientes ({idle.length})
           </h3>
-          {idle.map((b) => (
-            <BrollQueueItem key={b.id} broll={b} />
-          ))}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {idle.map((b) => (
+              <BrollQueueItem key={b.id} broll={b} />
+            ))}
+          </div>
         </section>
       )}
 
@@ -363,9 +367,11 @@ function QueueTab() {
           <h3 className="text-xs uppercase tracking-widest" style={{ color: "rgb(248 113 113)", fontFamily: "'JetBrains Mono', monospace" }}>
             Con errores ({failed.length})
           </h3>
-          {failed.map((b) => (
-            <BrollQueueItem key={b.id} broll={b} />
-          ))}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {failed.map((b) => (
+              <BrollQueueItem key={b.id} broll={b} />
+            ))}
+          </div>
         </section>
       )}
 
@@ -374,9 +380,11 @@ function QueueTab() {
           <h3 className="text-xs uppercase tracking-widest" style={{ color: "rgb(52 211 153)", fontFamily: "'JetBrains Mono', monospace" }}>
             Listos para descargar ({done.length})
           </h3>
-          {done.map((b) => (
-            <BrollQueueItem key={b.id} broll={b} />
-          ))}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {done.map((b) => (
+              <BrollQueueItem key={b.id} broll={b} />
+            ))}
+          </div>
         </section>
       )}
     </div>

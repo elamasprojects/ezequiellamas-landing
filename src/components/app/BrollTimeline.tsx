@@ -185,7 +185,7 @@ export default function BrollTimeline({
                   <img
                     src={broll.intermediate_image_url ?? undefined}
                     alt="Frame inicial generado por Gemini"
-                    className="h-28 w-auto rounded border border-[var(--ll-border)] object-cover transition-opacity hover:opacity-80"
+                    className="h-80 w-auto rounded border border-[var(--ll-border)] object-cover transition-opacity hover:opacity-80"
                     loading="lazy"
                   />
                 </a>
@@ -200,7 +200,8 @@ export default function BrollTimeline({
                   src={broll.output_url}
                   controls
                   preload="metadata"
-                  className="h-28 w-auto rounded border border-[var(--ll-border)] bg-black"
+                  playsInline
+                  className="h-80 w-auto rounded border border-[var(--ll-border)] bg-black"
                 />
               </div>
             )}
