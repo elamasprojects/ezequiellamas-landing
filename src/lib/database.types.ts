@@ -990,6 +990,206 @@ export type Database = {
         }
         Relationships: []
       }
+      motion_graphic_categories: {
+        Row: {
+          avoid_when: string[]
+          created_at: string
+          essence: string | null
+          id: string
+          is_system: boolean
+          label: string
+          num: string
+          owner_id: string | null
+          position: number
+          slug: string
+          updated_at: string
+          use_when: string[]
+        }
+        Insert: {
+          avoid_when?: string[]
+          created_at?: string
+          essence?: string | null
+          id?: string
+          is_system?: boolean
+          label: string
+          num: string
+          owner_id?: string | null
+          position?: number
+          slug: string
+          updated_at?: string
+          use_when?: string[]
+        }
+        Update: {
+          avoid_when?: string[]
+          created_at?: string
+          essence?: string | null
+          id?: string
+          is_system?: boolean
+          label?: string
+          num?: string
+          owner_id?: string | null
+          position?: number
+          slug?: string
+          updated_at?: string
+          use_when?: string[]
+        }
+        Relationships: []
+      }
+      motion_graphic_suggestions: {
+        Row: {
+          created_at: string
+          cue_text: string | null
+          end_ms: number | null
+          end_word_index: number | null
+          filled_slots: Json
+          generation_error: string | null
+          generation_status: string
+          id: string
+          is_manual: boolean
+          output_format: string
+          output_url: string | null
+          position: number
+          rationale: string | null
+          requested: boolean
+          script_id: string
+          start_ms: number | null
+          start_word_index: number | null
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cue_text?: string | null
+          end_ms?: number | null
+          end_word_index?: number | null
+          filled_slots?: Json
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          is_manual?: boolean
+          output_format?: string
+          output_url?: string | null
+          position?: number
+          rationale?: string | null
+          requested?: boolean
+          script_id: string
+          start_ms?: number | null
+          start_word_index?: number | null
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cue_text?: string | null
+          end_ms?: number | null
+          end_word_index?: number | null
+          filled_slots?: Json
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          is_manual?: boolean
+          output_format?: string
+          output_url?: string | null
+          position?: number
+          rationale?: string | null
+          requested?: boolean
+          script_id?: string
+          start_ms?: number | null
+          start_word_index?: number | null
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motion_graphic_suggestions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motion_graphic_suggestions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "motion_graphic_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      motion_graphic_templates: {
+        Row: {
+          avoid_for: string[]
+          category_id: string
+          claim_type: string[]
+          content_slots: Json
+          created_at: string
+          duration_s: number
+          id: string
+          is_system: boolean
+          name: string
+          narrative_position: string[]
+          owner_id: string | null
+          pillars: string[]
+          position: number
+          slug: string
+          tag: string | null
+          tone: string[]
+          updated_at: string
+          use_for: string[]
+          visual: string | null
+        }
+        Insert: {
+          avoid_for?: string[]
+          category_id: string
+          claim_type?: string[]
+          content_slots: Json
+          created_at?: string
+          duration_s: number
+          id?: string
+          is_system?: boolean
+          name: string
+          narrative_position?: string[]
+          owner_id?: string | null
+          pillars?: string[]
+          position?: number
+          slug: string
+          tag?: string | null
+          tone?: string[]
+          updated_at?: string
+          use_for?: string[]
+          visual?: string | null
+        }
+        Update: {
+          avoid_for?: string[]
+          category_id?: string
+          claim_type?: string[]
+          content_slots?: Json
+          created_at?: string
+          duration_s?: number
+          id?: string
+          is_system?: boolean
+          name?: string
+          narrative_position?: string[]
+          owner_id?: string | null
+          pillars?: string[]
+          position?: number
+          slug?: string
+          tag?: string | null
+          tone?: string[]
+          updated_at?: string
+          use_for?: string[]
+          visual?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motion_graphic_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "motion_graphic_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -2236,6 +2436,46 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
+      create_script_with_animations: {
+        Args: {
+          _ai_summary: string
+          _animations: Json
+          _audio_upload_id: string
+          _avatar_target?: string
+          _caption?: string
+          _content_bucket?: string
+          _cta: string
+          _development: string
+          _estimated_wpm: number
+          _format_id: string
+          _generated_script: string
+          _generation_warning?: string
+          _hashtags?: string[]
+          _hook: string
+          _hook_alternatives?: string[]
+          _hook_reference?: string
+          _idea_reference_id?: string
+          _mental_model?: string
+          _on_screen_text?: string
+          _part_number?: number
+          _platform_codes?: string[]
+          _raw_concept: string
+          _reference_mode?: string
+          _referent_video_id?: string
+          _seo_keywords?: string[]
+          _series_id?: string
+          _shape_id?: string
+          _storytelling_conflict?: string
+          _storytelling_resolution?: string
+          _storytelling_setup?: string
+          _title: string
+          _tone: string
+          _visual_hook_format?: number
+          _why_it_works?: string
+          _word_count: number
+        }
+        Returns: string
+      }
       create_script_with_brolls: {
         Args: {
           _ai_summary: string
@@ -2283,6 +2523,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      insert_brolls_for_script: {
+        Args: { _brolls: Json; _script_id: string }
+        Returns: number
       }
     }
     Enums: {
@@ -2456,5 +2700,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.98.2 (currently installed v2.95.2)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -1,11 +1,18 @@
 // generate-script — orquestador
 // Flujo: audio (Whisper) + text → Claude Sonnet 4.6 con manifesto+rules+banco
-// → submit_script tool → validación AI-tells → retry correctivo si hace falta
-// → create_script_with_brolls RPC.
+// + catálogo de motion graphics → submit_script tool → validación AI-tells →
+// retry correctivo si hace falta → create_script_with_animations RPC.
+// Las brolls (sistema viejo NanoBanana/Kling) ya no se generan acá — viven en
+// generate-brolls-on-demand y se disparan con el botón "Crear Brolls".
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { SUBMIT_SCRIPT_TOOL, SYSTEM_PROMPT } from "./prompt.ts";
+import {
+  buildMotionGraphicsCatalogBlock,
+  type MotionGraphicTemplateRow,
+  SUBMIT_SCRIPT_TOOL,
+  SYSTEM_PROMPT,
+} from "./prompt.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -85,10 +92,14 @@ async function transcribeWithWhisper(blob: Blob, filename: string): Promise<stri
 // Claude tool result
 // ---------------------------------------------------------------------------
 
-interface BrollItem {
+interface AnimationItem {
+  template_slug: string;
   position: number;
-  cue_text?: string;
-  suggestion: string;
+  start_word_index: number;
+  end_word_index: number;
+  cue_text: string;
+  filled_slots: Record<string, unknown>;
+  rationale?: string;
 }
 
 interface ClaudeToolResult {
@@ -103,7 +114,7 @@ interface ClaudeToolResult {
   caption: string;
   hashtags: string[];
   seo_keywords: string[];
-  brolls: BrollItem[];
+  animations: AnimationItem[];
   why_it_works: string;
   content_bucket: "negocios" | "sistemas" | "ia_estrategica" | "finanzas" | "mentalidad";
   avatar_target: "newbie" | "owner" | "developer";
@@ -346,6 +357,7 @@ function buildUserPrompt(args: {
   seriesPriorScripts?: SeriesPriorScript[];
   fewShotScripts: FewShotScript[];
   referenceBlock?: string;
+  motionGraphicsCatalogBlock: string;
 }): string {
   const formatLine = args.formatName
     ? `=== FORMATO ELEGIDO ===\n${args.formatName}: ${args.formatDescription ?? ""}`
@@ -401,7 +413,8 @@ function buildUserPrompt(args: {
     shapeLine,
     seriesBlock,
     fewShotBlock,
-    `=== INSTRUCCIONES ===\nGenerá el guion completo en la voz de Ezequiel. Aplicá el manifiesto + las reglas + el banco de hooks${args.shapeName ? " + el shape elegido" : ""}${args.seriesName ? " + el contexto de la serie" : ""}. Llamá a la tool submit_script con el resultado estructurado. UNA SOLA invocación.`,
+    args.motionGraphicsCatalogBlock,
+    `=== INSTRUCCIONES ===\nGenerá el guion completo en la voz de Ezequiel. Aplicá el manifiesto + las reglas + el banco de hooks${args.shapeName ? " + el shape elegido" : ""}${args.seriesName ? " + el contexto de la serie" : ""}. Para el campo \`animations\`: elegí 1 motion graphic cada 10-15 segundos del audio (target ~ word_count / estimated_wpm * 60 / 12), matcheando pillars/narrative_position/claim_type. Llamá a la tool submit_script con el resultado estructurado. UNA SOLA invocación.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -424,6 +437,119 @@ function sanitizeHashtag(tag: string): string {
     .replace(/^#+/, "")
     .toLowerCase()
     .replace(/[^a-z0-9áéíóúñ]/g, "");
+}
+
+// ---------------------------------------------------------------------------
+// Motion graphics templates loading + per-suggestion sanitization
+// ---------------------------------------------------------------------------
+
+interface PreparedAnimation {
+  template_slug: string;
+  template_id: string;
+  position: number;
+  start_word_index: number | null;
+  end_word_index: number | null;
+  start_ms: number | null;
+  end_ms: number | null;
+  cue_text: string | null;
+  filled_slots: Record<string, unknown>;
+  rationale: string | null;
+}
+
+// Truncate strings recursively when a `max_chars` constraint applies. The
+// content_slots schema declares max_chars at the slot definition level (not
+// per filled value), so we walk the slot definitions and clamp matching paths
+// in filled_slots.
+function clampToMaxChars(
+  filled: Record<string, unknown>,
+  slotDefs: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(filled)) {
+    const def = slotDefs?.[key] as Record<string, unknown> | undefined;
+    if (!def) {
+      // Unknown slot — keep as-is so admin can still edit it manually.
+      out[key] = val;
+      continue;
+    }
+    const max = typeof def.max_chars === "number" ? def.max_chars : null;
+    if (typeof val === "string" && max && val.length > max) {
+      out[key] = val.slice(0, max);
+    } else if (Array.isArray(val) && max && typeof val[0] === "string") {
+      out[key] = val.map((v) => (typeof v === "string" && v.length > max ? v.slice(0, max) : v));
+    } else if (val && typeof val === "object" && !Array.isArray(val)) {
+      // Sub-object — look for a sibling sub-schema definition, e.g.
+      // `metric_card` slot uses the `_metric_card_schema` keys.
+      const subSchemaKey = `_${String(def.type ?? "").replace(/\[\d+\]$/, "")}_schema`;
+      const subSchema = slotDefs?.[subSchemaKey] as Record<string, unknown> | undefined;
+      if (subSchema) {
+        out[key] = clampToMaxChars(val as Record<string, unknown>, subSchema);
+      } else {
+        out[key] = val;
+      }
+    } else if (Array.isArray(val) && val.every((v) => v && typeof v === "object")) {
+      // Array of sub-objects (e.g. messages, items, segments) — apply the
+      // sibling sub-schema to each entry.
+      const subSchemaKey = `_${String(def.type ?? "").replace(/\[\d+\]$/, "")}_schema`;
+      const subSchema = slotDefs?.[subSchemaKey] as Record<string, unknown> | undefined;
+      if (subSchema) {
+        out[key] = val.map((v) => clampToMaxChars(v as Record<string, unknown>, subSchema));
+      } else {
+        out[key] = val;
+      }
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+}
+
+function prepareAnimations(
+  raw: AnimationItem[] | undefined,
+  templates: MotionGraphicTemplateRow[],
+  templateIdBySlug: Map<string, string>,
+  estimatedWpm: number,
+): PreparedAnimation[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const wpm = estimatedWpm && estimatedWpm > 0 ? estimatedWpm : 240;
+  const msPerWord = 60_000 / wpm;
+  const bySlug = new Map(templates.map((t) => [t.slug, t]));
+  return raw
+    .map((a, i): PreparedAnimation | null => {
+      const slug = a.template_slug?.trim();
+      if (!slug) return null;
+      const tpl = bySlug.get(slug);
+      const tid = templateIdBySlug.get(slug);
+      if (!tpl || !tid) {
+        // Skip unknown slugs — Claude should match against the catalog but
+        // occasionally hallucinates. Better to drop silently than fail the
+        // whole generation.
+        console.warn(`generate-script: dropping animation with unknown template_slug=${slug}`);
+        return null;
+      }
+      const startW = Number.isInteger(a.start_word_index) ? a.start_word_index : null;
+      const endW = Number.isInteger(a.end_word_index) ? a.end_word_index : null;
+      const startMs = startW != null ? Math.round(startW * msPerWord) : null;
+      const endMs = endW != null ? Math.round(endW * msPerWord) : null;
+      const filled = clampToMaxChars(
+        (a.filled_slots ?? {}) as Record<string, unknown>,
+        (tpl.content_slots ?? {}) as Record<string, unknown>,
+      );
+      return {
+        template_slug: slug,
+        template_id: tid,
+        position: typeof a.position === "number" ? a.position : i,
+        start_word_index: startW,
+        end_word_index: endW,
+        start_ms: startMs,
+        end_ms: endMs,
+        cue_text: a.cue_text ?? null,
+        filled_slots: filled,
+        rationale: a.rationale ?? null,
+      };
+    })
+    .filter((x): x is PreparedAnimation => x !== null)
+    .sort((a, b) => a.position - b.position);
 }
 
 // ---------------------------------------------------------------------------
@@ -716,6 +842,37 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(5);
 
+    // -- Motion graphics catalog ---------------------------------------------
+    // Carga las filas del catálogo (system seed + del owner) y arma el bloque
+    // de texto que se inyecta al user prompt. Si la query falla, seguimos sin
+    // catálogo (el modelo devolverá animations:[] y la script igual se crea).
+    const { data: templateRows, error: tplErr } = await userClient
+      .from("motion_graphic_templates")
+      .select(
+        "id, slug, name, visual, use_for, avoid_for, narrative_position, pillars, tone, claim_type, duration_s, content_slots, position",
+      )
+      .order("position", { ascending: true });
+    if (tplErr) {
+      console.warn(`generate-script: failed to load motion_graphic_templates: ${tplErr.message}`);
+    }
+    const templates: MotionGraphicTemplateRow[] = (templateRows ?? []).map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      visual: r.visual,
+      use_for: r.use_for ?? [],
+      avoid_for: r.avoid_for ?? [],
+      narrative_position: r.narrative_position ?? [],
+      pillars: r.pillars ?? [],
+      tone: r.tone ?? [],
+      claim_type: r.claim_type ?? [],
+      duration_s: Number(r.duration_s),
+      content_slots: (r.content_slots ?? {}) as Record<string, unknown>,
+    }));
+    const templateIdBySlug = new Map<string, string>(
+      (templateRows ?? []).map((r) => [r.slug, r.id]),
+    );
+    const motionGraphicsCatalogBlock = buildMotionGraphicsCatalogBlock(templates);
+
     const userPromptText = buildUserPrompt({
       concept,
       formatName,
@@ -728,6 +885,7 @@ Deno.serve(async (req) => {
       seriesPriorScripts,
       fewShotScripts: priorScripts ?? [],
       referenceBlock,
+      motionGraphicsCatalogBlock,
     });
 
     // -- Claude call (with one corrective retry on validation failure) -------
@@ -801,11 +959,12 @@ Deno.serve(async (req) => {
     const generated_script = `${result.hook}\n\n${result.development}\n\n${result.cta}`;
     const word_count = wordCount(generated_script);
 
-    const brolls = (result.brolls ?? []).map((b, i) => ({
-      position: typeof b.position === "number" ? b.position : i,
-      suggestion: b.suggestion,
-      cue_text: b.cue_text ?? null,
-    }));
+    const animations = prepareAnimations(
+      result.animations,
+      templates,
+      templateIdBySlug,
+      result.estimated_wpm,
+    );
 
     const story = result.storytelling ?? { setup: "", conflict: "", resolution: "" };
     const isStoryPopulated = !!(story.setup?.trim() || story.conflict?.trim() || story.resolution?.trim());
@@ -855,18 +1014,33 @@ Deno.serve(async (req) => {
         .eq("id", target_script_id);
       if (updErr) return json({ error: `Update failed: ${updErr.message}` }, 500);
 
-      // Reemplazar brolls: borrar viejos + insertar nuevos.
+      // Reemplazar animations: borrar las viejas + insertar las nuevas. Las
+      // brolls (sistema viejo) NO se tocan en regeneración — siguen siendo
+      // on-demand y persisten entre regeneraciones del guion.
       const { error: delErr } = await userClient
-        .from("broll_suggestions")
+        .from("motion_graphic_suggestions")
         .delete()
         .eq("script_id", target_script_id);
-      if (delErr) return json({ error: `Brolls delete failed: ${delErr.message}` }, 500);
+      if (delErr) return json({ error: `Animations delete failed: ${delErr.message}` }, 500);
 
-      if (brolls.length > 0) {
+      if (animations.length > 0) {
         const { error: insErr } = await userClient
-          .from("broll_suggestions")
-          .insert(brolls.map((b) => ({ ...b, script_id: target_script_id })));
-        if (insErr) return json({ error: `Brolls insert failed: ${insErr.message}` }, 500);
+          .from("motion_graphic_suggestions")
+          .insert(
+            animations.map((a) => ({
+              script_id: target_script_id,
+              template_id: a.template_id,
+              position: a.position,
+              start_word_index: a.start_word_index,
+              end_word_index: a.end_word_index,
+              start_ms: a.start_ms,
+              end_ms: a.end_ms,
+              cue_text: a.cue_text,
+              filled_slots: a.filled_slots,
+              rationale: a.rationale,
+            })),
+          );
+        if (insErr) return json({ error: `Animations insert failed: ${insErr.message}` }, 500);
       }
 
       return json({
@@ -881,8 +1055,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const animationsForRpc = animations.map((a) => ({
+      template_slug: a.template_slug,
+      position: a.position,
+      start_word_index: a.start_word_index,
+      end_word_index: a.end_word_index,
+      start_ms: a.start_ms,
+      end_ms: a.end_ms,
+      cue_text: a.cue_text,
+      filled_slots: a.filled_slots,
+      rationale: a.rationale,
+    }));
+
     const { data: scriptId, error: rpcErr } = await userClient.rpc(
-      "create_script_with_brolls",
+      "create_script_with_animations",
       {
         _audio_upload_id: audio_upload_id,
         _format_id: effective_format_id,
@@ -896,7 +1082,7 @@ Deno.serve(async (req) => {
         _estimated_wpm: result.estimated_wpm,
         _tone: result.tone,
         _ai_summary: result.ai_summary,
-        _brolls: brolls,
+        _animations: animationsForRpc,
         _content_bucket: result.content_bucket ?? null,
         _avatar_target: result.avatar_target ?? null,
         _hook_reference: result.hook_reference ?? null,

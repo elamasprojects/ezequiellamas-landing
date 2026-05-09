@@ -89,3 +89,20 @@ export async function callback(body: CallbackBody): Promise<void> {
 export async function brollCallback(body: BrollCallbackBody): Promise<void> {
   await postCallback("complete-broll-render", JSON.stringify(body));
 }
+
+// ─── Motion graphic callback ────────────────────────────────────────────────
+interface MGDoneBody {
+  suggestion_id: string;
+  status: "done";
+  rendered_path: string;
+}
+interface MGErrorBody {
+  suggestion_id: string;
+  status: "error";
+  error: string;
+}
+type MGCallbackBody = MGDoneBody | MGErrorBody;
+
+export async function motionGraphicCallback(body: MGCallbackBody): Promise<void> {
+  await postCallback("complete-motion-graphic-render", JSON.stringify(body));
+}

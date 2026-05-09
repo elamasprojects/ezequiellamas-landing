@@ -6,9 +6,9 @@
 //   - processBrollJob: single MP4 render -> upload -> sign URL -> callback. Errors
 //     fire a single error callback.
 
-import { renderPng, renderMp4, renderBrollMp4 } from "./render.js";
-import { uploadSlide, uploadBroll, signBrollUrl } from "./upload.js";
-import { callback, brollCallback } from "./callback.js";
+import { renderPng, renderMp4, renderBrollMp4, renderMotionGraphicMp4 } from "./render.js";
+import { uploadSlide, uploadBroll, signBrollUrl, uploadMotionGraphic } from "./upload.js";
+import { callback, brollCallback, motionGraphicCallback } from "./callback.js";
 import { admin } from "./db.js";
 import type { Slide, CarouselTemplate } from "../../src/lib/carousel/types";
 import type { FormatSlug } from "../../src/lib/carousel/formats";
@@ -156,6 +156,55 @@ export async function processBrollJob(input: BrollJobInput): Promise<void> {
       });
     } catch (cbErr) {
       console.error("broll callback failed:", cbErr);
+    }
+  }
+}
+
+// ─── Motion graphic ─────────────────────────────────────────────────────────
+
+export interface MotionGraphicJobInput {
+  kind: "motion_graphic";
+  suggestion_id: string;
+  owner_id: string;
+  script_id: string;
+  template_slug: string;
+  duration_s: number;
+  filled_slots: Record<string, unknown>;
+}
+
+export async function processMotionGraphicJob(input: MotionGraphicJobInput): Promise<void> {
+  const { suggestion_id, owner_id, script_id, template_slug, duration_s, filled_slots } = input;
+
+  try {
+    const buffer = await renderMotionGraphicMp4({
+      templateSlug: template_slug,
+      filledSlots: filled_slots,
+      durationS: duration_s,
+    });
+
+    const path = await uploadMotionGraphic({
+      ownerId: owner_id,
+      scriptId: script_id,
+      suggestionId: suggestion_id,
+      buffer,
+    });
+
+    await motionGraphicCallback({
+      suggestion_id,
+      status: "done",
+      rendered_path: path,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[motion_graphic=${suggestion_id}] error:`, msg);
+    try {
+      await motionGraphicCallback({
+        suggestion_id,
+        status: "error",
+        error: msg.slice(0, 1000),
+      });
+    } catch (cbErr) {
+      console.error("motion graphic callback failed:", cbErr);
     }
   }
 }

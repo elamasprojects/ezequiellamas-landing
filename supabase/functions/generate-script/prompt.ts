@@ -40,6 +40,94 @@ export const SYSTEM_PROMPT = [
   `=== BANCO DE HOOKS ===\n${HOOK_BANK}`,
 ].join("\n\n");
 
+// ---------------------------------------------------------------------------
+// Catálogo de motion graphics — formatter
+// ---------------------------------------------------------------------------
+// Recibe las filas de motion_graphic_templates (system + del owner) y devuelve
+// un bloque de texto compacto que se inyecta en el user prompt para que Claude
+// elija template_slug + filled_slots correctos.
+
+export interface MotionGraphicTemplateRow {
+  slug: string;
+  name: string;
+  visual: string | null;
+  use_for: string[];
+  avoid_for: string[];
+  narrative_position: string[];
+  pillars: string[];
+  tone: string[];
+  claim_type: string[];
+  duration_s: number;
+  content_slots: Record<string, unknown>;
+}
+
+function compactSlots(slots: Record<string, unknown>): string {
+  // Cada slot key con su tipo + max_chars + 1 línea de desc + ejemplo si es string corto.
+  // Sub-schemas (keys que arrancan con `_`) se muestran como definiciones aparte al final.
+  const lines: string[] = [];
+  const subSchemas: string[] = [];
+  for (const [key, raw] of Object.entries(slots)) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const v = raw as Record<string, unknown>;
+    if (key.startsWith("_")) {
+      // sub-schema
+      const subFields = Object.entries(v)
+        .map(([k, sv]) => {
+          const s = (sv ?? {}) as Record<string, unknown>;
+          const t = String(s.type ?? "any");
+          const max = s.max_chars ? `<=${s.max_chars}` : "";
+          const enums = Array.isArray(s.values) ? ` ${JSON.stringify(s.values)}` : "";
+          return `${k}:${t}${max}${enums}`;
+        })
+        .join(", ");
+      subSchemas.push(`  ${key} = { ${subFields} }`);
+      continue;
+    }
+    const type = String(v.type ?? "any");
+    const max = v.max_chars ? ` max_chars=${v.max_chars}` : "";
+    const desc = v.desc ? ` — ${String(v.desc).slice(0, 80)}` : "";
+    const example = v.example !== undefined
+      ? ` ej=${typeof v.example === "string" ? JSON.stringify(v.example) : JSON.stringify(v.example).slice(0, 120)}`
+      : "";
+    lines.push(`    ${key} (${type}${max})${desc}${example}`);
+  }
+  if (subSchemas.length) {
+    lines.push("  --- sub-schemas ---");
+    lines.push(...subSchemas);
+  }
+  return lines.join("\n");
+}
+
+export function buildMotionGraphicsCatalogBlock(rows: MotionGraphicTemplateRow[]): string {
+  if (!rows || rows.length === 0) {
+    return "=== CATÁLOGO DE MOTION GRAPHICS ===\n(catálogo vacío — omití el campo `animations` o devolvelo como [])";
+  }
+  const sections = rows.map((t) => {
+    const meta = [
+      `pillars=${t.pillars.join("|")}`,
+      `narrative_position=${t.narrative_position.join("|")}`,
+      `tone=${t.tone.join("|")}`,
+      `claim_type=${t.claim_type.join("|")}`,
+      `duration=${t.duration_s}s`,
+    ].join(" · ");
+    const useFor = t.use_for?.length ? `  USE_FOR: ${t.use_for.map((s) => `"${s}"`).join("; ")}` : "";
+    const avoidFor = t.avoid_for?.length ? `  AVOID_FOR: ${t.avoid_for.map((s) => `"${s}"`).join("; ")}` : "";
+    const visual = t.visual ? `  VISUAL: ${t.visual}` : "";
+    const slots = `  SLOTS:\n${compactSlots(t.content_slots ?? {})}`;
+    return [`▸ ${t.slug} — "${t.name}"`, `  ${meta}`, visual, useFor, avoidFor, slots]
+      .filter(Boolean)
+      .join("\n");
+  });
+  return [
+    "=== CATÁLOGO DE MOTION GRAPHICS ===",
+    "Elegí UN template_slug por animación. Rellená filled_slots respetando max_chars.",
+    "Reglas duras: NO em-dashes (—), voseo argentino (construilo / dejá / mirá / hacés),",
+    "no banned AI patterns ('no es X es Y', 'spoiler:', 'imaginate', 'literalmente').",
+    "",
+    ...sections,
+  ].join("\n");
+}
+
 export const SUBMIT_SCRIPT_TOOL = {
   name: "submit_script",
   description:
@@ -112,28 +200,63 @@ export const SUBMIT_SCRIPT_TOOL = {
         minItems: 3,
         maxItems: 12,
       },
-      brolls: {
+      animations: {
         type: "array",
         description:
-          "3-5 sugerencias de B-roll concretas, atadas a líneas específicas del guion.",
+          "Sugerencias de motion graphics editoriales para el guion. Apuntá a UNA cada 10-15 segundos del audio (calculá target_count = floor((word_count / estimated_wpm * 60) / 12)). Cada item elige un template del CATÁLOGO DE MOTION GRAPHICS que se inyecta abajo y rellena sus slots respetando max_chars. Reglas duras del catálogo: NO em-dashes, voseo argentino, sin AI-tells. Si no encontrás un template apropiado para un beat, omitilo en vez de forzarlo.",
         items: {
           type: "object",
           properties: {
-            position: { type: "integer", minimum: 0 },
+            template_slug: {
+              type: "string",
+              description:
+                "Slug exacto del template del catálogo (ej: 'bento.dashboard', 'kinetic.stack'). Debe matchear EXACTO uno de los slugs listados.",
+            },
+            position: {
+              type: "integer",
+              minimum: 0,
+              description: "Orden cronológico (0, 1, 2, ...) en el guion.",
+            },
+            start_word_index: {
+              type: "integer",
+              minimum: 0,
+              description:
+                "Índice del primer word del guion (concatenado hook + development + cta) donde arranca el motion graphic. 0-indexed.",
+            },
+            end_word_index: {
+              type: "integer",
+              minimum: 0,
+              description:
+                "Índice del último word donde termina (inclusive). Debe ser >= start_word_index.",
+            },
             cue_text: {
               type: "string",
               description:
-                "La línea exacta del guion donde el B-roll arranca.",
+                "La frase exacta del guion (~3-12 palabras) que dispara el motion graphic. Sirve como respaldo del timing si los índices fallan.",
             },
-            suggestion: {
+            filled_slots: {
+              type: "object",
+              description:
+                "Objeto con las keys del template elegido (ver content_slots en el catálogo) ya rellenadas. Respetar max_chars de cada slot (truncar si hace falta). Si un slot acepta sub-objetos (metric_card, message, node, etc.) seguir el sub-schema con todas sus keys.",
+              additionalProperties: true,
+            },
+            rationale: {
               type: "string",
-              description: "Qué se muestra en pantalla (concreto, ejecutable).",
+              description:
+                "Una frase corta (<= 25 palabras) explicando por qué este template encaja en este beat (pillar, narrative_position, claim_type que matcheaste).",
             },
           },
-          required: ["position", "suggestion"],
+          required: [
+            "template_slug",
+            "position",
+            "start_word_index",
+            "end_word_index",
+            "cue_text",
+            "filled_slots",
+          ],
         },
-        minItems: 3,
-        maxItems: 5,
+        minItems: 2,
+        maxItems: 8,
       },
       why_it_works: {
         type: "string",
@@ -222,7 +345,7 @@ export const SUBMIT_SCRIPT_TOOL = {
       "caption",
       "hashtags",
       "seo_keywords",
-      "brolls",
+      "animations",
       "why_it_works",
       "content_bucket",
       "avatar_target",

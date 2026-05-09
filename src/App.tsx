@@ -47,6 +47,8 @@ const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsLi
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
 const BrollsPage = lazy(() => import("@/pages/app/admin/brolls/BrollsPage"));
+const AnimationsPage = lazy(() => import("@/pages/app/admin/animations/AnimationsPage"));
+const MotionGraphicsPage = lazy(() => import("@/pages/app/admin/motion-graphics/MotionGraphicsPage"));
 const CoversList = lazy(() => import("@/pages/app/admin/covers/CoversList"));
 const NewCover = lazy(() => import("@/pages/app/admin/covers/NewCover"));
 const CoverDetail = lazy(() => import("@/pages/app/admin/covers/CoverDetail"));
@@ -107,6 +109,8 @@ export default function App() {
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
                 <Route path="brolls" element={<BrollsPage />} />
+                <Route path="animations" element={<AnimationsPage />} />
+                <Route path="motion-graphics" element={<MotionGraphicsPage />} />
                 <Route path="covers" element={<CoversList />} />
                 <Route path="covers/new" element={<NewCover />} />
                 <Route path="covers/:id" element={<CoverDetail />} />

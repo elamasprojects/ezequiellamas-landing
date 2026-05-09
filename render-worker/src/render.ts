@@ -12,6 +12,8 @@ import type { FormatSlug } from "../../src/lib/carousel/formats";
 import { buildBrollHtml } from "../../src/lib/broll/render";
 import type { BrollTemplate, BrollContent, BrollStyleConfig } from "../../src/lib/broll/types";
 import { brandFontFaces } from "./fonts.js";
+import { buildMotionGraphicHtml } from "./motion-graphics/shell.js";
+import { renderTemplate } from "./motion-graphics/templates.js";
 
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
@@ -161,6 +163,51 @@ export async function renderBrollMp4(opts: {
     //   - 1 worker (no 8 auto) → solo 1 Chromium tab para capture
     //   - 24fps × 3s = 72 frames (vs 90 a 30fps) — menos buffer en FFmpeg
     // Combinado: peak memory ~30% del original, evita OOM en encoding step.
+    await runHyperframes(tmpDir, {
+      quality: "standard",
+      workers: 1,
+      fps: 24,
+    });
+
+    const rendersDir = join(tmpDir, "renders");
+    if (!existsSync(rendersDir)) {
+      throw new Error("hyperframes_no_renders_dir");
+    }
+    const files = await readdir(rendersDir);
+    const mp4 = files.find((f) => f.toLowerCase().endsWith(".mp4"));
+    if (!mp4) throw new Error("hyperframes_no_mp4_output");
+    return await readFile(join(rendersDir, mp4));
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+// ─── Motion graphic renderer ────────────────────────────────────────────────
+// Same Hyperframes pipeline as brolls — different HTML producer. The motion-
+// graphics shell renders 1080×1920 with a 5.5s loop + 1s hold tail per spec.
+
+export async function renderMotionGraphicMp4(opts: {
+  templateSlug: string;
+  filledSlots: Record<string, unknown>;
+  durationS: number;
+}): Promise<Buffer> {
+  const rendered = renderTemplate(opts.templateSlug, opts.filledSlots);
+  const html = buildMotionGraphicHtml({
+    templateSlug: opts.templateSlug,
+    durationS: opts.durationS,
+    rendered,
+  });
+
+  const tmpDir = await mkdtemp(join(tmpdir(), "mg-mp4-"));
+  try {
+    await writeFile(join(tmpDir, "index.html"), html, "utf-8");
+
+    const gsapSrc = resolveGsap();
+    if (!gsapSrc) throw new Error("gsap_min_js_not_found_in_node_modules");
+    await copyFile(gsapSrc, join(tmpDir, "gsap.min.js"));
+
+    // Same constraints as brolls: 1 worker + 24fps to keep peak memory low
+    // and avoid OOM on the encoding step. Quality "standard" matches brolls.
     await runHyperframes(tmpDir, {
       quality: "standard",
       workers: 1,

@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BrollManager from "@/components/app/BrollManager";
+import { AnimationManager } from "@/components/app/AnimationManager";
+import { dispatchOnDemandBrolls } from "@/lib/api/animations";
 import { useScript } from "@/hooks/useScript";
 import { useFormats } from "@/hooks/useFormats";
 import { useShapes } from "@/hooks/useShapes";
@@ -675,15 +677,22 @@ export default function ScriptEditor() {
           )}
 
           <div className="space-y-2 pt-4 border-t border-[var(--ll-border)]">
-            <Label style={{ color: "var(--ll-text-muted)" }}>B-rolls</Label>
-            <BrollManager
-              brolls={script.broll_suggestions}
+            <AnimationManager
               scriptId={script.id}
               scriptText={[script.hook, script.development, script.cta]
                 .filter(Boolean)
                 .join(" ")}
+              estimatedWpm={script.estimated_wpm}
             />
           </div>
+
+          <BrollsOnDemandSection
+            scriptId={script.id}
+            brolls={script.broll_suggestions}
+            scriptText={[script.hook, script.development, script.cta]
+              .filter(Boolean)
+              .join(" ")}
+          />
 
           <Button
             type="button"
@@ -866,6 +875,76 @@ function formatViews(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M views`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K views`;
   return `${n} views`;
+}
+
+// Brolls fueron desplazados a un flow on-demand cuando movimos el sistema
+// primario de overlays a Animations (motion graphics). El admin tiene que
+// pedir explícito que generen los brolls AI tipo NanoBanana/Kling — no se
+// crean automáticamente al generar el guion.
+function BrollsOnDemandSection({
+  scriptId,
+  brolls,
+  scriptText,
+}: {
+  scriptId: string;
+  brolls: import("@/lib/api/scripts").BrollSuggestion[];
+  scriptText: string;
+}) {
+  const [open, setOpen] = useState(brolls.length > 0);
+  const qc = useQueryClient();
+  const dispatchMutation = useMutation({
+    mutationFn: () => dispatchOnDemandBrolls(scriptId),
+    onSuccess: (data) => {
+      toast.success(`Generaron ${data.broll_count} brolls AI`);
+      qc.invalidateQueries({ queryKey: ["script", scriptId] });
+      qc.invalidateQueries({ queryKey: ["brolls", "queue"] });
+      setOpen(true);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <div className="space-y-2 pt-4 border-t border-[var(--ll-border)]">
+      <div className="flex items-baseline justify-between">
+        <Label style={{ color: "var(--ll-text-muted)" }}>
+          Brolls AI {brolls.length > 0 ? <span className="text-[10px]">({brolls.length})</span> : null}
+        </Label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => dispatchMutation.mutate()}
+          disabled={dispatchMutation.isPending}
+        >
+          {dispatchMutation.isPending ? (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          ) : null}
+          Crear Brolls
+        </Button>
+      </div>
+      {brolls.length === 0 ? (
+        <p className="text-[11px]" style={{ color: "var(--ll-text-dim)" }}>
+          Brolls de imagen/video generados con AI (NanoBanana → Kling). Tocá
+          "Crear Brolls" para generarlos a demanda — los Animations de arriba ya
+          cubren el grueso de overlays editoriales.
+        </p>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="text-[11px] underline"
+            style={{ color: "var(--ll-text-muted)" }}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {open ? "Ocultar" : `Mostrar ${brolls.length} brolls`}
+          </button>
+          {open ? (
+            <BrollManager brolls={brolls} scriptId={scriptId} scriptText={scriptText} />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
 }
 
 function Meta({ label, value }: { label: string; value: string }) {

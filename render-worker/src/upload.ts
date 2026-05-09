@@ -6,6 +6,7 @@ import { admin } from "./db.js";
 
 const CAROUSEL_BUCKET = "carousel-renders";
 const BROLL_BUCKET = "broll-renders";
+const MG_BUCKET = "motion-graphic-renders";
 
 /**
  * Path scheme: `{owner_id}/{carousel_id}/slide_{NN}.{ext}` (1-indexed, zero-padded).
@@ -81,4 +82,37 @@ export async function signBrollUrl(path: string, ttlSeconds = 60 * 60 * 24 * 30)
     throw new Error(`broll_sign_failed: ${error?.message ?? "no_signed_url"}`);
   }
   return data.signedUrl;
+}
+
+// ─── Motion graphic renders ─────────────────────────────────────────────────
+// Path scheme: `{owner_id}/{script_id}/{suggestion_id}.mp4`. Different from
+// brolls because animations group naturally under a script (1 script can have
+// 4-8 animations); brolls are flat under owner.
+
+export function motionGraphicPath(opts: {
+  ownerId: string;
+  scriptId: string;
+  suggestionId: string;
+}): string {
+  return `${opts.ownerId}/${opts.scriptId}/${opts.suggestionId}.mp4`;
+}
+
+export async function uploadMotionGraphic(opts: {
+  ownerId: string;
+  scriptId: string;
+  suggestionId: string;
+  buffer: Buffer;
+}): Promise<string> {
+  const path = motionGraphicPath(opts);
+  const { error } = await admin()
+    .storage.from(MG_BUCKET)
+    .upload(path, opts.buffer, {
+      contentType: "video/mp4",
+      upsert: true,
+      cacheControl: "31536000",
+    });
+  if (error) {
+    throw new Error(`mg_upload_failed: ${error.message}`);
+  }
+  return path;
 }

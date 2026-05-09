@@ -6,7 +6,11 @@
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import { verifyHmac } from "./auth.js";
-import { processCarouselJob, processBrollJob } from "./queue.js";
+import {
+  processCarouselJob,
+  processBrollJob,
+  processMotionGraphicJob,
+} from "./queue.js";
 import { shutdownBrowser } from "./render.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -92,6 +96,17 @@ const JobSchema = z.discriminatedUnion("kind", [
   BrollJobSchema,
 ]);
 
+// ─── Motion graphic schema (separate endpoint for clarity) ──────────────────
+const MotionGraphicJobSchema = z.object({
+  kind: z.literal("motion_graphic"),
+  suggestion_id: z.string().uuid(),
+  owner_id: z.string().uuid(),
+  script_id: z.string().uuid(),
+  template_slug: z.string().min(1).max(64),
+  duration_s: z.number().positive().max(30),
+  filled_slots: z.record(z.string(), z.unknown()),
+});
+
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
     ok: true,
@@ -161,6 +176,46 @@ app.post(
         console.error(`[broll=${job.broll_suggestion_id}] uncaught:`, err);
       });
     }
+  },
+);
+
+app.post(
+  "/render-motion-graphic",
+  async (
+    req: Request & { rawBody?: string },
+    res: Response,
+  ): Promise<void> => {
+    const verdict = verifyHmac(
+      req.header("Authorization") ?? undefined,
+      req.rawBody ?? "",
+      SECRET,
+    );
+    if (!verdict.ok) {
+      res.status(401).json({ error: verdict.reason });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    if (!body.kind) body.kind = "motion_graphic";
+
+    const parsed = MotionGraphicJobSchema.safeParse(body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "invalid_body",
+        detail: parsed.error.issues.slice(0, 5),
+      });
+      return;
+    }
+
+    const job = parsed.data;
+    res.status(202).json({
+      ok: true,
+      kind: "motion_graphic",
+      suggestion_id: job.suggestion_id,
+    });
+    processMotionGraphicJob(job).catch((err) => {
+      console.error(`[motion_graphic=${job.suggestion_id}] uncaught:`, err);
+    });
   },
 );
 
