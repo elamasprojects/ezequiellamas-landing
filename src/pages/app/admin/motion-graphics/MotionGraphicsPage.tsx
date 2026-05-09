@@ -19,6 +19,7 @@ import type {
   MotionGraphicCategory,
   MotionGraphicTemplate,
 } from "@/lib/api/animations";
+import { TemplatePreviewIframe } from "@/components/app/TemplatePreviewIframe";
 import { cn } from "@/lib/utils";
 
 export default function MotionGraphicsPage() {
@@ -165,6 +166,13 @@ function TemplateCard({ template }: { template: MotionGraphicTemplate }) {
       className="rounded-md border p-3 text-xs"
       style={{ borderColor: "var(--ll-border)", background: "var(--ll-surface-2)" }}
     >
+      <div className="mb-3 flex justify-center">
+        <TemplatePreviewIframe
+          templateSlug={template.slug}
+          durationS={Number(template.duration_s)}
+          width={180}
+        />
+      </div>
       <div className="flex flex-wrap items-baseline gap-2">
         <span
           className="font-mono text-[10px]"

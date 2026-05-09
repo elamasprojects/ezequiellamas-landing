@@ -1,20 +1,21 @@
-// Shared HTML+CSS+GSAP shell for the motion graphic templates.
-// Each template returns a body fragment + a GSAP timeline body. The shell
-// wraps them in a 1080x1920 stage with the brand fonts loaded inline (so
-// Hyperframes doesn't have to fetch from a CDN), the loop set to 5.5s, and
-// the cinematic ease applied as the timeline default.
+// Shared HTML+CSS+GSAP shell for motion graphic templates.
+// Lives in src/lib/ so both the frontend (TemplatePreviewIframe via srcDoc)
+// and the render-worker (Hyperframes via Playwright) consume the same module.
 //
-// NOTE on Hyperframes: it expects an `<div data-width="W" data-height="H">`
-// somewhere in the document and will use that as the producer viewport.
-// Animations run via a `<script src="./gsap.min.js">` that the worker copies
-// into the tmp dir before invoking the CLI.
-
-import { brandFontFaces } from "../fonts.js";
+// Two output modes:
+//   - "animated": worker rendering. Fonts are inlined via @font-face base64
+//     (the caller passes the CSS string), GSAP is a local file at ./gsap.min.js.
+//   - "preview": browser iframe. Fonts via Google Fonts <link>, GSAP via CDN.
+//     No build artefacts needed.
+//
+// Each template returns a body fragment + a GSAP timeline body. The shell
+// wraps them in a 1080x1920 stage with the brand fonts loaded, the loop set
+// to 5.5s, and the cinematic ease applied as the timeline default.
 
 export const STAGE_W = 1080;
 export const STAGE_H = 1920;
-export const LOOP_S = 5.5;          // canonical loop duration
-export const HOLD_TAIL_S = 1.0;     // freeze the final frame for 1s
+export const LOOP_S = 5.5;
+export const HOLD_TAIL_S = 1.0;
 
 export const BRAND = {
   bg: "#0A0A0A",
@@ -33,13 +34,8 @@ export const BRAND = {
   blue: "#60A5FA",
 } as const;
 
-// Cinematic ease used everywhere. GSAP's "power2.out" is the closest match to
-// the spec's `cubic-bezier(.22, 1, .36, 1)` — same shape, same feel.
 export const EASE = "power2.out";
 
-// Some templates render TEXT into a slot value. Collapse to safe HTML to avoid
-// surprise injection. We trust the agent + the admin (filled_slots is RLS
-// scoped) but escape anyway since slot values flow into innerHTML strings.
 export function escHtml(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value)
@@ -51,23 +47,41 @@ export function escHtml(value: unknown): string {
 }
 
 export interface RenderedTemplate {
-  body: string;       // inner HTML for the stage (everything inside <div id="stage">)
-  timeline: string;   // JS body for `function buildTimeline(tl){ ... }` — gets `tl` as the GSAP tl
-  cssExtra?: string;  // optional extra CSS appended to the global block
+  body: string;
+  timeline: string;
+  cssExtra?: string;
 }
+
+export type OutputMode = "animated" | "preview";
 
 export interface BuildHtmlOptions {
   templateSlug: string;
-  durationS: number;  // duration coming from the template metadata
+  durationS: number;
   rendered: RenderedTemplate;
+  outputMode: OutputMode;
+  /**
+   * For "animated" mode: inline @font-face CSS string the worker provides
+   * (brandFontFaces from render-worker/src/fonts.ts). For "preview" mode this
+   * is ignored — Google Fonts CDN is injected instead.
+   */
+  inlineFontFaces?: string;
+  /** Loop the timeline indefinitely. Default true for preview, false for worker. */
+  loop?: boolean;
 }
 
 export function buildMotionGraphicHtml(opts: BuildHtmlOptions): string {
-  const { templateSlug, durationS, rendered } = opts;
-  // Loop length is fixed at 5.5s by the spec, but the template's own visible
-  // motion happens within `durationS`. After that we hold the final frame for
-  // HOLD_TAIL_S so the MP4 ends gracefully.
+  const { templateSlug, durationS, rendered, outputMode, inlineFontFaces } = opts;
   const totalS = Math.max(durationS + HOLD_TAIL_S, LOOP_S);
+  const loop = opts.loop ?? (outputMode === "preview");
+
+  // Mode-specific font loading + GSAP source.
+  const fontsBlock = outputMode === "animated"
+    ? (inlineFontFaces ?? "")
+    : `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500;700&display=swap');`;
+
+  const gsapTag = outputMode === "animated"
+    ? `<script src="./gsap.min.js"></script>`
+    : `<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>`;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -75,7 +89,7 @@ export function buildMotionGraphicHtml(opts: BuildHtmlOptions): string {
 <meta charset="utf-8">
 <title>${escHtml(templateSlug)}</title>
 <style>
-${brandFontFaces()}
+${fontsBlock}
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
@@ -135,25 +149,26 @@ ${rendered.cssExtra ?? ""}
 </style>
 </head>
 <body>
-<div id="stage" data-width="${STAGE_W}" data-height="${STAGE_H}">
+<div id="stage" data-width="${STAGE_W}" data-height="${STAGE_H}" data-duration="${totalS.toFixed(2)}">
 ${rendered.body}
 </div>
-<script src="./gsap.min.js"></script>
+${gsapTag}
 <script>
 (function(){
-  // Wait for fonts so the first paint already has Instrument Serif + DM Sans.
-  document.fonts.ready.then(function(){
+  function start(){
     var tl = gsap.timeline({
-      defaults: { ease: ${JSON.stringify(EASE)}, duration: 0.6 }
+      defaults: { ease: ${JSON.stringify(EASE)}, duration: 0.6 },
+      repeat: ${loop ? -1 : 0},
+      repeatDelay: ${loop ? 0.5 : 0}
     });
     buildTimeline(tl);
-    // Hold the final state for HOLD_TAIL_S.
     tl.to({}, { duration: ${HOLD_TAIL_S} });
-    // The total duration of the produced MP4 is set by Hyperframes via the
-    // overall <div data-duration> attribute — we let it default to the
-    // timeline length above. Hyperframes auto-detects.
-  });
-
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(start);
+  } else {
+    start();
+  }
   function buildTimeline(tl){
     ${rendered.timeline}
   }

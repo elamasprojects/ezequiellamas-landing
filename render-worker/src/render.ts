@@ -12,8 +12,8 @@ import type { FormatSlug } from "../../src/lib/carousel/formats";
 import { buildBrollHtml } from "../../src/lib/broll/render";
 import type { BrollTemplate, BrollContent, BrollStyleConfig } from "../../src/lib/broll/types";
 import { brandFontFaces } from "./fonts.js";
-import { buildMotionGraphicHtml } from "./motion-graphics/shell.js";
-import { renderTemplate } from "./motion-graphics/templates.js";
+import { buildMotionGraphicHtml } from "../../src/lib/motion-graphics/shell";
+import { renderTemplate } from "../../src/lib/motion-graphics/templates";
 
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
@@ -196,6 +196,9 @@ export async function renderMotionGraphicMp4(opts: {
     templateSlug: opts.templateSlug,
     durationS: opts.durationS,
     rendered,
+    outputMode: "animated",
+    inlineFontFaces: brandFontFaces(),
+    loop: false,
   });
 
   const tmpDir = await mkdtemp(join(tmpdir(), "mg-mp4-"));

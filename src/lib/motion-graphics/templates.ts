@@ -1,8 +1,7 @@
-// Motion graphic template registry.
-//
-// Each template is a function `(slots) => RenderedTemplate` that produces the
-// inner HTML + GSAP timeline body. The shell wraps them with brand fonts and
-// a 1080x1920 stage. See shell.ts for the wrapper contract.
+// Motion graphic template registry — shared between the frontend (admin
+// preview iframe) and the render-worker (Hyperframes MP4 producer). Pure
+// HTML+CSS string emission with no Node-only deps so both runtimes can use
+// the same source of truth.
 //
 // Six representative templates are fully implemented (one per "pillar" use-
 // case): bento.dashboard, kinetic.stack, dataviz.percent, workflow.flow,
@@ -11,7 +10,7 @@
 // pipeline is observable end-to-end. Each is a TODO to port from
 // motion-lab-v2.jsx faithfully.
 
-import { BRAND, escHtml, type RenderedTemplate } from "./shell.js";
+import { BRAND, escHtml, type RenderedTemplate } from "./shell";
 
 type Slots = Record<string, unknown>;
 type RenderFn = (slots: Slots) => RenderedTemplate;
@@ -274,9 +273,6 @@ function metricCounter(s: Slots): RenderedTemplate {
   .mc-sub div + div { color: ${BRAND.textMuted}; }
   .mc-divider { width: 120px; height: 4px; background: ${BRAND.lime}; }
   .mc-foot { font-size: 26px; }`;
-  // Tick the number with a quick blur+fade swap (faithful counter-up requires
-  // numerical interpolation; for non-numeric strings like "30K" we just animate
-  // the entry).
   const timeline = `
     tl.from('.status-bar', { opacity: 0, duration: 0.3 }, 0);
     tl.from('.mc-prefix', { opacity: 0, x: -20, duration: 0.4 }, 0.3);
@@ -331,9 +327,6 @@ function stepsVertical(s: Slots): RenderedTemplate {
 }
 
 // ───────────────────────── STUB (for not-yet-ported templates) ─────────────
-// Renders the slug + first 4 slot key/value pairs in a clean placeholder card.
-// Lets the pipeline be observable end-to-end while the per-template HTML is
-// being ported from motion-lab-v2.jsx.
 
 function stubTemplate(slug: string, name: string): RenderFn {
   return (s: Slots): RenderedTemplate => {
@@ -410,8 +403,78 @@ export const TEMPLATE_REGISTRY: Record<string, RenderFn> = {
 export function renderTemplate(slug: string, slots: Slots): RenderedTemplate {
   const fn = TEMPLATE_REGISTRY[slug];
   if (!fn) {
-    // Truly unknown slug (not in catalog) — render a "missing" stub.
     return stubTemplate(slug, "Unknown template")(slots);
   }
   return fn(slots);
+}
+
+// ─── Sample slots (for previews when no real filled_slots is available) ────
+// One per template — the values pulled from each spec example.
+
+export const SAMPLE_SLOTS: Record<string, Slots> = {
+  "bento.dashboard": {
+    app_name: "UGC OS",
+    section_label: "AI STUDIO",
+    headline_l1: "Tu agencia",
+    headline_l2: "en piloto.",
+    card1: { label: "MRR", value: "$30K", delta: "+12%", accent: "lime" },
+    card2: { label: "CLIENTES", value: "100", delta: "+18", accent: "text" },
+    card3: { label: "SCRIPTS", value: "847", delta: "esta semana", accent: "orange" },
+    card4: { label: "AUTO", value: "12", delta: "workflows", accent: "text" },
+    chart_title: "REVENUE 90D",
+    chart_growth: "+247%",
+    pills: ["n8n", "Claude", "HeyGen", "Submagic"],
+  },
+  "kinetic.stack": {
+    line1: "100 clientes.",
+    line2: "$0 en fees.",
+    frase_punal: "Sistemas.",
+    tagline: "Construilo una vez. Te paga para siempre.",
+  },
+  "dataviz.percent": {
+    tag: "DATO 03",
+    headline_l1: "Tiempo en scripts",
+    headline_l2: "UGC por cliente.",
+    hero_pct: "64.9%",
+    hero_sub: "menos tiempo. mismo output.",
+    before_label: "ANTES",
+    before_value: "6h 12m",
+    after_label: "AHORA",
+    after_value: "2h 10m",
+    sparkline_title: "WEEKLY OUTPUT",
+    sparkline_growth: "3.2x",
+  },
+  "workflow.flow": {
+    tag: "WORKFLOW · LIVE",
+    headline_l1: "De lead a entrega.",
+    headline_l2: "Sin tocar nada.",
+    node1: { label: "LEAD", sub: "form fill", status: "lime" },
+    node2: { label: "SCRIPT AI", sub: "claude opus", status: "lime" },
+    node3: { label: "EDITOR", sub: "submagic", status: "lime" },
+    node4: { label: "ENTREGA", sub: "dm cliente", status: "orange" },
+  },
+  "metric.counter": {
+    tag: "MRR · OCT 26",
+    prefix: "$",
+    hero_number: "30K",
+    subtitle_l1: "100 clientes activos.",
+    subtitle_l2: "3 horas por dia.",
+    footer: "UGC STUDIO · LIVE",
+  },
+  "steps.vertical": {
+    tag: "FRAMEWORK · 4 PASOS",
+    headline_l1: "De cero a sistema.",
+    headline_l2: "En orden.",
+    steps: [
+      { n: "01", title: "Califica", desc: "Filtro automatico en form" },
+      { n: "02", title: "Cobra", desc: "Stripe link · 1 click" },
+      { n: "03", title: "Construi", desc: "AI hace el delivery" },
+      { n: "04", title: "Escala", desc: "n8n orquesta el resto" },
+    ],
+  },
+};
+
+/** Pull sample slots for a template, falling back to {} if the slug is a stub. */
+export function sampleSlotsFor(slug: string): Slots {
+  return SAMPLE_SLOTS[slug] ?? { _slug: slug, _note: "stub template — no sample data" };
 }

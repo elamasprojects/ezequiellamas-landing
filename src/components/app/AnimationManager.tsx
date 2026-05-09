@@ -25,6 +25,7 @@ import {
   type MotionGraphicSuggestionWithTemplate,
 } from "@/lib/api/animations";
 import { useAnimationsByScript } from "@/hooks/useAnimations";
+import { TemplatePreviewIframe } from "@/components/app/TemplatePreviewIframe";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<AnimationGenerationStatus, string> = {
@@ -290,16 +291,28 @@ function AnimationCard({ animation, scriptId }: AnimationCardProps) {
         </div>
       )}
 
-      {/* Output preview when done */}
+      {/* Live preview (HTML+GSAP, instant) vs rendered MP4 (worker output). */}
       {status === "done" && signedUrl ? (
         <video
-          className="mt-3 w-full max-w-[200px] rounded border"
+          className="mt-3 w-full max-w-[160px] rounded border"
           style={{ borderColor: "var(--ll-border)" }}
           src={signedUrl}
           controls
           loop
           muted
         />
+      ) : template?.slug ? (
+        <div className="mt-3 flex items-baseline gap-3">
+          <TemplatePreviewIframe
+            templateSlug={template.slug}
+            durationS={Number(template.duration_s ?? 4)}
+            filledSlots={(animation.filled_slots ?? {}) as Record<string, unknown>}
+            width={140}
+          />
+          <span className="text-[10px] italic" style={{ color: "var(--ll-text-dim)" }}>
+            preview en vivo
+          </span>
+        </div>
       ) : null}
       {status === "done" && signError ? (
         <div className="mt-2 text-[10px] text-red-300">No pude firmar URL: {signError}</div>
