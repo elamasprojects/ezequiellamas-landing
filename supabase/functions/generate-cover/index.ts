@@ -32,6 +32,9 @@ const GEMINI_PRO = "gemini-3-pro-image-preview";
 
 // ============================================================================
 // CAPA 1 — System prompt maestro (invariante de marca)
+// IMPORTANTE: el branding acá es el del landing real ezequiellamas.com,
+// no inventar paleta ni tipografías. Si alguien edita: comparar contra
+// `src/index.css` (--ll-* tokens) y los headings .landing.hero.
 // ============================================================================
 const MASTER_SYSTEM_PROMPT = `Sos un generador de portadas para videos cortos de @ezequiellamass.
 
@@ -47,21 +50,50 @@ Destilá el contenido a 2-4 palabras de máximo impacto. Es la promesa o insight
 
 ### 2. JERARQUÍA VISUAL
 - Sujeto principal (founder o producto) destacado por contraste sobre el fondo
-- Texto legible al 100%, jerarquía clara: headline > subtítulo
+- Texto legible al 100%, jerarquía clara: eyebrow > headline > sub
 - Composición guía el ojo hacia el punto focal
 
-### 3. BRANDING INVARIANTE
-- Tipografía Poppins: bold para headline, medium para cuerpo
-- Glow violeta/morado (#7c3aed) en texto clave y bordes de elementos
-- Estética: minimalista, dark, técnica, anti-guru
-- Paleta: fondo oscuro (#0a0a0a o gradiente dark), violeta como acento, blanco para texto
-- Sin emojis decorativos. Sin hype vacío. Sin clichés de coach.
+### 3. BRANDING — IDÉNTICO AL LANDING ezequiellamas.com (NO INVENTAR)
 
-### 4. OUTPUT ESPERADO
+PALETA EXACTA (hex literales, sin variaciones):
+- Fondo principal: deep matte black #0a0a0a
+- Superficies / cards: #111111 o #161616
+- Borde sutil: #1e1e1e
+- Texto principal: warm off-white #e8e4de (NO blanco puro #ffffff)
+- Texto secundario / muted: #8a8580
+- Texto dim: #5a5550
+- ACENTO PRIMARIO: electric lime / yellow-green #c8ff00. Usado SOLO en:
+  · italic emphasis words dentro del headline (palabra de énfasis)
+  · eyebrow / kicker tags en mono uppercase
+  · subtle radial-glow bloom de fondo a opacity baja (~10-15%)
+  · pequeños dots / markers / underlines
+- Acento secundario warm: orange #ff6b35. Usado para glow secundario en esquinas opuestas (mismo opacity bajo).
+- Acento blue (raro): #4a9eff
+- PROHIBIDO: violeta, magenta, morado, #7c3aed, neon excesivo, gradientes saturados de colores chillones.
+
+TIPOGRAFÍA EXACTA:
+- Headline / idea fuerza: 'Instrument Serif' (editorial serif, parecido a ITC Garamond italic). Italic para la palabra de énfasis. line-height 1, letter-spacing -0.04em (tight kerning). La palabra italic va coloreada en lime accent #c8ff00.
+- Eyebrow / kicker / tag: 'JetBrains Mono' (monospace), ALL CAPS, letter-spacing ~0.25em, tamaño chico, color lime accent #c8ff00.
+- Body / subtítulo / disclaimers: 'DM Sans' (geometric sans-serif), peso 300-400, color text-muted #8a8580.
+- PROHIBIDO: Poppins, Inter, Helvetica, Arial, Montserrat, Roboto. SIEMPRE Instrument Serif + DM Sans + JetBrains Mono. Si el modelo no tiene una de las tres, usar el sustituto MÁS cercano (serif editorial italic; geometric sans clean; tech monospace) — nunca caer a Poppins por default.
+
+ESTÉTICA / MOOD:
+- Editorial dark, minimalista, técnico, anti-guru, building-in-public
+- Suave bloom radial detrás del sujeto: lime accent (#c8ff00) en una esquina + orange (#ff6b35) en la opuesta, ambos a opacity baja, sin saturar
+- Sin emojis decorativos. Sin hype vacío. Sin clichés de coach. Sin glassmorphism. Sin neon glow excesivo.
+- Sensación de "press kit de agencia técnica anti-guru", NO de motivational guru ni de SaaS template.
+
+### 4. REFERENCIA DE LA CARA DEL FOUNDER
+Cuando el formato de la portada requiere mostrar al founder (Ezequiel Lamas), se va a adjuntar como REFERENCIA visual la foto real de su cara como primer attachment del prompt al modelo de imagen. En tu image_prompt:
+- Si la cobertura muestra al founder: instruí EXPLÍCITAMENTE al modelo "use the founder's face EXACTLY as shown in the reference image — same identity, same features, same skin tone, same facial structure. Do NOT generate a different face."
+- Si el formato es solo producto / dato / abstracto (sin founder en pantalla): no menciones la referencia, el modelo va a ignorarla.
+- Casi todos los formatos del catálogo muestran al founder, así que por default asumí que sí.
+
+### 5. OUTPUT ESPERADO
 Respondé SOLO con JSON sin ningún otro texto:
 {
   "idea_fuerza": "2-4 palabras de impacto",
-  "image_prompt": "prompt detallado en inglés para el modelo de imagen, que incluya: sujeto y composición, fondo y atmósfera, texto visible (la idea fuerza en Poppins bold), estilo y mood, specs técnicos (sharp, high contrast, professional thumbnail quality). Incluí explícitamente las palabras exactas que deben aparecer en pantalla entre comillas."
+  "image_prompt": "prompt detallado en inglés para el modelo de imagen, que incluya: sujeto y composición (cuando hay founder, especificar 'use the founder's face from the reference image'), fondo y atmósfera (deep matte black #0a0a0a + soft radial bloom of lime #c8ff00 + warm orange #ff6b35), texto visible (idea fuerza con la palabra de énfasis en italic 'Instrument Serif' coloreada en #c8ff00; eyebrow en 'JetBrains Mono' uppercase tracked-out 0.25em coloreada #c8ff00 si aplica), estilo y mood (editorial dark minimalista, anti-guru, técnico), specs técnicos (sharp, high contrast, professional thumbnail quality, vertical 9:16 si aplica). Incluí explícitamente las palabras exactas entre comillas, indicando cuáles van en italic-lime Instrument Serif y cuáles en mono-eyebrow JetBrains Mono."
 }
 
 El image_prompt debe ser auto-suficiente para que el modelo genere la imagen sin contexto adicional.`;
@@ -319,9 +351,42 @@ ${
       : "9:16";
     const imageSize = "2K";
 
-    // Si es edit y hay imagen previa, pasarla como inlineData (image-to-image).
+    // Construir parts del request a Gemini en este orden:
+    //   1. Cara del founder (cover_assets.asset_type='founder_photo' más reciente)
+    //      → pasada como inlineData de referencia para que el modelo use SU cara exacta
+    //      cuando el formato de la portada lo requiere (casi siempre).
+    //   2. Cover previa (solo en edit) → para preservar continuidad visual.
+    //   3. Texto del prompt (envuelto con notas que aclaran qué es cada attachment).
     const parts: Array<Record<string, unknown>> = [];
+    let usedFounderRef = false;
     let usedImageToImage = false;
+
+    // 1) Founder face reference — siempre que exista, lo adjuntamos.
+    const { data: founderAsset } = await admin
+      .from("cover_assets")
+      .select("storage_path")
+      .eq("owner_id", userId)
+      .eq("asset_type", "founder_photo")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (founderAsset?.storage_path) {
+      const { data: faceBlob, error: faceDlErr } = await admin.storage
+        .from("cover-assets")
+        .download(founderAsset.storage_path);
+      if (!faceDlErr && faceBlob) {
+        const faceBuf = new Uint8Array(await faceBlob.arrayBuffer());
+        parts.push({
+          inlineData: {
+            mimeType: faceBlob.type || "image/png",
+            data: bytesToBase64(faceBuf),
+          },
+        });
+        usedFounderRef = true;
+      }
+    }
+
+    // 2) Si es edit y hay imagen previa, pasarla como inlineData (image-to-image).
     if (instruction && cover.generated_image_path) {
       const { data: prevBlob, error: dlErr } = await admin.storage
         .from("cover-renders")
@@ -337,7 +402,24 @@ ${
         usedImageToImage = true;
       }
     }
-    parts.push({ text: imagePrompt });
+
+    // 3) Texto. Envolvemos con notas explicando qué es cada attachment para que el
+    // modelo no confunda la cara de referencia con la portada previa, etc.
+    const refNotes: string[] = [];
+    if (usedFounderRef) {
+      refNotes.push(
+        "[REFERENCE IMAGE — FOUNDER FACE] The first attached image is the actual face of the founder Ezequiel Lamas. When the cover features the founder, render his face EXACTLY as shown: same identity, same facial features, same skin tone, same hair. Do NOT invent a different face. If the cover does not feature the founder (product-only / abstract / data layout), ignore this reference.",
+      );
+    }
+    if (usedImageToImage) {
+      refNotes.push(
+        `[REFERENCE IMAGE — PREVIOUS COVER] The ${usedFounderRef ? "second" : "first"} attached image is the previous version of this cover. Apply the requested edit while preserving the established branding, layout, and any other elements not explicitly mentioned in the change.`,
+      );
+    }
+    const wrappedPrompt = refNotes.length > 0
+      ? `${refNotes.join("\n\n")}\n\n---\n\n${imagePrompt}`
+      : imagePrompt;
+    parts.push({ text: wrappedPrompt });
 
     const geminiModel = quality === "premium" ? GEMINI_PRO : GEMINI_FLASH;
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
@@ -414,6 +496,7 @@ ${
       idea_fuerza: ideaFuerza,
       model: geminiModel,
       image_to_image: usedImageToImage,
+      founder_ref: usedFounderRef,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
