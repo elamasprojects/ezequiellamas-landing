@@ -1,5 +1,7 @@
 // send-push: server-side web push fan-out using VAPID.
-// Service-role only (verify_jwt disabled; protect via service role bearer check).
+// Auth: verify_jwt:true at the gateway, then we require service-role inside —
+// accepting either an exact match against our env (covers same-project service
+// callers including sb_secret_… format) or any JWT with role=service_role.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import webpush from "npm:web-push@3.6.7";
@@ -18,17 +20,38 @@ function json(status: number, body: unknown): Response {
   });
 }
 
+function getJwtRole(authHeader: string): string | null {
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "===".slice((b64.length + 3) % 4);
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.role === "string" ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
+
+function isServiceRoleCaller(req: Request, serviceKey: string): boolean {
+  const auth = req.headers.get("Authorization") ?? "";
+  const apiKey = req.headers.get("apikey") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : auth;
+  if (token && token === serviceKey) return true;
+  if (apiKey && apiKey === serviceKey) return true;
+  if (getJwtRole(auth) === "service_role") return true;
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
   try {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const auth = req.headers.get("Authorization") ?? "";
-    if (auth !== `Bearer ${serviceKey}`) {
-      // Allow apikey-style for service callers
-      const apiKey = req.headers.get("apikey") ?? "";
-      if (apiKey !== serviceKey) return json(401, { error: "service_role_only" });
+    if (!isServiceRoleCaller(req, serviceKey)) {
+      return json(401, { error: "service_role_only" });
     }
 
     const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
@@ -82,14 +105,13 @@ Deno.serve(async (req) => {
         failed++;
         const err = e as { statusCode?: number; body?: string; message?: string };
         const status = err.statusCode ?? 0;
-        // Cleanup expired/invalid subscriptions
         if (status === 404 || status === 410) {
           await admin.from("web_push_subscriptions").delete().eq("id", s.id);
         } else {
           await admin
             .from("web_push_subscriptions")
             .update({
-              failed_count: 1, // simple bump; full counter would need rpc
+              failed_count: 1,
               last_error: err.message ?? `status_${status}`,
             })
             .eq("id", s.id);

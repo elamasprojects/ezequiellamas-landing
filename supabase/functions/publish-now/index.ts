@@ -1,6 +1,7 @@
 // publish-now (Zernio version): submits a scheduled_post to Zernio.
 // Videos can live in two places:
-//   - Bunny Stream → public CDN URL `/{videoId}/play_720p.mp4`
+//   - Bunny Stream → public CDN URL `/{videoId}/play_1080p.mp4` (HEAD-checked,
+//     falls back to play_720p.mp4 if 1080p has not finished encoding yet)
 //   - Supabase Storage (videos-final bucket) → signed URL with 24h TTL
 // Carousel slides live on Supabase Storage (carousel-renders bucket) and
 // are signed per-slide.
@@ -21,6 +22,30 @@ function json(status: number, body: unknown): Response {
     status,
     headers: { "Content-Type": "application/json", ...CORS },
   });
+}
+
+function getJwtRole(authHeader: string): string | null {
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "===".slice((b64.length + 3) % 4);
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.role === "string" ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
+
+function isServiceRoleCaller(req: Request, serviceKey: string): boolean {
+  const auth = req.headers.get("Authorization") ?? "";
+  const apiKey = req.headers.get("apikey") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : auth;
+  if (token && token === serviceKey) return true;
+  if (apiKey && apiKey === serviceKey) return true;
+  if (getJwtRole(auth) === "service_role") return true;
+  return false;
 }
 
 interface PostRow {
@@ -61,13 +86,24 @@ function effectiveCaption(post: PostRow, platform: Platform): string {
   return base;
 }
 
-function bunnyCdnUrl(bunnyVideoId: string): string {
+async function bunnyCdnUrl(bunnyVideoId: string): Promise<string> {
   const host = Deno.env.get("BUNNY_CDN_HOSTNAME");
   if (!host) throw new Error("BUNNY_CDN_HOSTNAME not set");
-  // Use the encoded MP4 fallback (always available when MP4 Fallback is enabled
-  // on the library) instead of /original (which requires Early-Play, off by
-  // default → 403). Whisper + IG/YT/TT all consume this fine.
-  return `https://${host}/${bunnyVideoId}/play_720p.mp4`;
+  // Prefer 1080p (Bunny library has it enabled). HEAD-check first because
+  // Bunny encodes resolutions in parallel and smaller ones finish earlier —
+  // a freshly-uploaded video may have 720p ready before 1080p. If 1080p is
+  // not ready (404) we fall back to 720p, which is always present when MP4
+  // Fallback is enabled. /original is intentionally avoided (requires the
+  // library's Early-Play flag, off by default → 403).
+  const url1080 = `https://${host}/${bunnyVideoId}/play_1080p.mp4`;
+  const url720 = `https://${host}/${bunnyVideoId}/play_720p.mp4`;
+  try {
+    const r = await fetch(url1080, { method: "HEAD" });
+    if (r.ok) return url1080;
+  } catch {
+    // network error → fall through
+  }
+  return url720;
 }
 
 async function signedImageUrl(admin: SupabaseClient, path: string): Promise<string> {
@@ -97,7 +133,7 @@ async function buildMediaItems(
       return [{ type: "video", url: await signedVideoUrl(admin, post.video_storage_path) }];
     }
     if (!post.bunny_video_id) throw new Error("missing_video_source");
-    return [{ type: "video", url: bunnyCdnUrl(post.bunny_video_id) }];
+    return [{ type: "video", url: await bunnyCdnUrl(post.bunny_video_id) }];
   }
 
   // Carousel: pull rendered slides from carousel_slides ordered by index
@@ -109,8 +145,6 @@ async function buildMediaItems(
     .order("index", { ascending: true });
   if (error) throw new Error(error.message);
   if (!slides || slides.length === 0) throw new Error("carousel_has_no_slides");
-  // Slide-level render_status canonical values: pending | queued | rendering | done | error.
-  // (Carousel-level `carousels.status` uses 'rendered' once all slides finish — different field.)
   const ready = slides.filter((s) => s.rendered_path && s.render_status === "done");
   if (ready.length === 0) throw new Error("carousel_not_rendered");
   if (ready.length > 10) throw new Error("carousel_max_10_slides");
@@ -192,7 +226,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
-    const isService = auth === `Bearer ${serviceKey}`;
+    const isService = isServiceRoleCaller(req, serviceKey);
 
     const admin = createClient(supabaseUrl, serviceKey);
 
