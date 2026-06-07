@@ -103,12 +103,18 @@ export async function resetPromptOverride(ownerId: string, slug: string): Promis
 }
 
 // The hardcoded defaults, served by the get-prompt-defaults edge function so the
-// UI shows the real deployed text (single source of truth).
+// UI shows the real deployed text (single source of truth). Degrades gracefully
+// to an empty map if the function isn't deployed yet — the tab still lets you
+// write overrides, it just won't pre-fill the default text.
 export async function fetchPromptDefaults(): Promise<Record<string, string>> {
-  const { data, error } = await supabase.functions.invoke<{ defaults: Record<string, string> }>(
-    "get-prompt-defaults",
-    { body: {} },
-  );
-  if (error) throw error;
-  return data?.defaults ?? {};
+  try {
+    const { data, error } = await supabase.functions.invoke<{ defaults: Record<string, string> }>(
+      "get-prompt-defaults",
+      { body: {} },
+    );
+    if (error) throw error;
+    return data?.defaults ?? {};
+  } catch {
+    return {};
+  }
 }
