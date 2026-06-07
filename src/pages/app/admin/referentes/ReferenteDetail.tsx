@@ -19,10 +19,12 @@ export default function ReferenteDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [platform, setPlatform] = useState<"all" | "instagram" | "youtube" | "tiktok">("all");
   const qc = useQueryClient();
 
-  // (M24) Filter the loaded videos by posted_at range (client-side).
+  // (M24/M25) Filter the loaded videos by posted_at range + platform (client-side).
   const filteredVideos = (videos ?? []).filter((v) => {
+    if (platform !== "all" && v.platform !== platform) return false;
     if (!fromDate && !toDate) return true;
     if (!v.posted_at) return false;
     const d = v.posted_at.slice(0, 10);
@@ -172,13 +174,36 @@ export default function ReferenteDetail() {
               style={{ color: "var(--ll-text)" }}
             />
           </div>
-          {(fromDate || toDate) && (
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Plataforma
+            </label>
+            <div className="flex gap-1">
+              {(["all", "instagram", "youtube", "tiktok"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPlatform(p)}
+                  className="rounded-md border px-2.5 py-1.5 text-xs capitalize"
+                  style={{
+                    borderColor: platform === p ? "var(--ll-accent)" : "var(--ll-border)",
+                    background: platform === p ? "var(--ll-accent-dim)" : "transparent",
+                    color: platform === p ? "var(--ll-accent)" : "var(--ll-text-muted)",
+                  }}
+                >
+                  {p === "all" ? "Todas" : p === "youtube" ? "YT" : p === "instagram" ? "IG" : "TT"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(fromDate || toDate || platform !== "all") && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setFromDate("");
                 setToDate("");
+                setPlatform("all");
               }}
             >
               Limpiar

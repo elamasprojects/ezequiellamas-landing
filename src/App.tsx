@@ -30,6 +30,7 @@ const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
 const Team = lazy(() => import("@/pages/app/admin/team/Team"));
 const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
 const CrearPage = lazy(() => import("@/pages/app/admin/crear/CrearPage"));
+const YoutubePage = lazy(() => import("@/pages/app/admin/youtube/YoutubePage"));
 const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
@@ -110,6 +111,7 @@ export default function App() {
                 <Route path="referentes" element={<ReferentesList />} />
                 <Route path="referentes/:id" element={<ReferenteDetail />} />
                 <Route path="referentes/:id/reportes/:reportId" element={<ReferentReportView />} />
+                <Route path="youtube" element={<YoutubePage />} />
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />

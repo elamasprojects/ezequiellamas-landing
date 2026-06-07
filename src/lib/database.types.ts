@@ -2617,6 +2617,144 @@ export type Database = {
           },
         ]
       }
+      youtube_connections: {
+        Row: {
+          access_token: string | null
+          channel_id: string | null
+          channel_thumbnail_url: string | null
+          channel_title: string | null
+          created_at: string
+          id: string
+          last_sync_error: string | null
+          last_synced_at: string | null
+          owner_id: string
+          refresh_token: string | null
+          scopes: string[] | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          owner_id: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          owner_id?: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      youtube_videos: {
+        Row: {
+          business_objective: string | null
+          comment_count: number | null
+          concept_error: string | null
+          concept_status: string
+          concept_summary: string | null
+          content_objectives: string[] | null
+          content_type: string | null
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          last_synced_at: string | null
+          like_count: number | null
+          main_topics: string[] | null
+          owner_id: string
+          published_at: string | null
+          raw: Json | null
+          thumbnail_url: string | null
+          title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
+          updated_at: string
+          view_count: number | null
+          youtube_video_id: string
+        }
+        Insert: {
+          business_objective?: string | null
+          comment_count?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          last_synced_at?: string | null
+          like_count?: number | null
+          main_topics?: string[] | null
+          owner_id: string
+          published_at?: string | null
+          raw?: Json | null
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          view_count?: number | null
+          youtube_video_id: string
+        }
+        Update: {
+          business_objective?: string | null
+          comment_count?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          last_synced_at?: string | null
+          like_count?: number | null
+          main_topics?: string[] | null
+          owner_id?: string
+          published_at?: string | null
+          raw?: Json | null
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          view_count?: number | null
+          youtube_video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
