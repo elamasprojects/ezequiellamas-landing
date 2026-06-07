@@ -29,6 +29,7 @@ import RecursoDetail from "@/pages/recursos/RecursoDetail";
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
 const Team = lazy(() => import("@/pages/app/admin/team/Team"));
 const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
+const CrearPage = lazy(() => import("@/pages/app/admin/crear/CrearPage"));
 const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
@@ -90,6 +91,7 @@ export default function App() {
             <Route path="admin" element={<RequireRole role="admin" />}>
               <Route element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="crear" element={<CrearPage />} />
                 <Route path="ideas" element={<IdeasInbox />} />
                 <Route path="ideas/new" element={<NewIdea />} />
                 <Route path="ideas/:id" element={<ScriptEditor />} />

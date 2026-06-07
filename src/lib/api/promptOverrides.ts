@@ -44,21 +44,18 @@ export const PROMPT_SLOTS: PromptSlot[] = [
     label: "Adaptar idea — Copiar",
     group: "Adaptar ideas",
     help: "Cómo replicar una idea de un competidor tal cual, sin cambios.",
-    comingSoon: true,
   },
   {
     slug: "adapt.voice",
     label: "Adaptar idea — A mi voz",
     group: "Adaptar ideas",
     help: "Cómo tomar una idea ajena y reescribirla con tu voz y tu perfil.",
-    comingSoon: true,
   },
   {
     slug: "adapt.instructions",
     label: "Adaptar idea — Con instrucciones",
     group: "Adaptar ideas",
     help: "Cómo adaptar una idea siguiendo instrucciones puntuales que escribís.",
-    comingSoon: true,
   },
   {
     slug: "youtube.structure",

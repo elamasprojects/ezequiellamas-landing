@@ -1817,8 +1817,47 @@ export type Database = {
           },
         ]
       }
+      script_ingredients: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          position: number
+          script_id: string
+          source_id: string
+          source_kind: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          position?: number
+          script_id: string
+          source_id: string
+          source_kind: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          position?: number
+          script_id?: string
+          source_id?: string
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_ingredients_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scripts: {
         Row: {
+          adapt_mode: string | null
           ai_summary: string | null
           audio_upload_id: string | null
           avatar_target: string | null
@@ -1861,6 +1900,7 @@ export type Database = {
           word_count: number | null
         }
         Insert: {
+          adapt_mode?: string | null
           ai_summary?: string | null
           audio_upload_id?: string | null
           avatar_target?: string | null
@@ -1903,6 +1943,7 @@ export type Database = {
           word_count?: number | null
         }
         Update: {
+          adapt_mode?: string | null
           ai_summary?: string | null
           audio_upload_id?: string | null
           avatar_target?: string | null

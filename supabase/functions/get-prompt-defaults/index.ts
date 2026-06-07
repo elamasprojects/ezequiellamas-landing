@@ -8,6 +8,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SCRIPT_PROMPT_DEFAULTS } from "../generate-script/prompt.ts";
+import { ADAPT_PROMPT_DEFAULTS } from "../generate-script/adapt-prompts.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -25,13 +26,8 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// Adapt-mode and YouTube defaults are reserved for upcoming milestones (M23/M26).
-// They live here so the UI can render the slots; generation functions will read
-// from the same place once built. Empty string = "no default yet, write your own".
+// YouTube long-form default is reserved for M26. Empty string = "no default yet".
 const RESERVED_DEFAULTS: Record<string, string> = {
-  "adapt.copy": "",
-  "adapt.voice": "",
-  "adapt.instructions": "",
   "youtube.structure": "",
 };
 
@@ -50,6 +46,7 @@ Deno.serve(async (req) => {
 
     const defaults: Record<string, string> = {
       ...SCRIPT_PROMPT_DEFAULTS,
+      ...ADAPT_PROMPT_DEFAULTS,
       ...RESERVED_DEFAULTS,
     };
     return json({ defaults });

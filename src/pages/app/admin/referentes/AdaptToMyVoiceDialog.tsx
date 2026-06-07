@@ -27,6 +27,7 @@ import { useShapes } from "@/hooks/useShapes";
 import { useSeries } from "@/hooks/useSeries";
 import { generateScript } from "@/lib/api/generation";
 import type { ReferentVideo } from "@/lib/api/referents";
+import ModeSelector, { type AdaptMode } from "@/pages/app/admin/crear/ModeSelector";
 
 const NO_VALUE = "__none__";
 
@@ -49,6 +50,7 @@ export default function AdaptToMyVoiceDialog({
   const { data: series } = useSeries();
 
   const [twist, setTwist] = useState("");
+  const [mode, setMode] = useState<AdaptMode>("voice");
   const [formatId, setFormatId] = useState<string>(NO_VALUE);
   const [shapeId, setShapeId] = useState<string>(NO_VALUE);
   const [seriesId, setSeriesId] = useState<string>(NO_VALUE);
@@ -58,6 +60,7 @@ export default function AdaptToMyVoiceDialog({
   useEffect(() => {
     if (open) {
       setTwist("");
+      setMode("voice");
       setFormatId(NO_VALUE);
       setShapeId(NO_VALUE);
       setSeriesId(NO_VALUE);
@@ -70,12 +73,12 @@ export default function AdaptToMyVoiceDialog({
       const partNum = partNumber.trim() ? parseInt(partNumber.trim(), 10) : NaN;
       return generateScript({
         referent_video_id: video.id,
+        adapt_mode: mode,
         raw_concept: twist.trim() || undefined,
         format_id: formatId === NO_VALUE ? undefined : formatId,
         shape_id: shapeId === NO_VALUE ? undefined : shapeId,
         series_id: seriesId === NO_VALUE ? undefined : seriesId,
         part_number: Number.isInteger(partNum) && partNum > 0 ? partNum : undefined,
-        reference_mode: "content_adapt",
       });
     },
     onSuccess: (result) => {
@@ -145,12 +148,21 @@ export default function AdaptToMyVoiceDialog({
 
         <form onSubmit={onSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
+            <Label style={{ color: "var(--ll-text-muted)" }}>Cómo adaptar</Label>
+            <ModeSelector value={mode} onChange={setMode} disabled={isPending} />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="adapt-twist" style={{ color: "var(--ll-text-muted)" }}>
-              Tu twist (opcional)
+              {mode === "instructions" ? "Instrucciones" : "Tu twist (opcional)"}
             </Label>
             <Textarea
               id="adapt-twist"
-              placeholder="Qué cambiarías del original, qué énfasis querés que tenga, qué ejemplos usar (UGC Studio, AdvantX, un cliente puntual...), qué evitar."
+              placeholder={
+                mode === "instructions"
+                  ? "Instrucciones puntuales: cambiá el enfoque, aplicá a otro nicho, agregá tu punto de vista…"
+                  : "Qué cambiarías del original, qué énfasis querés que tenga, qué ejemplos usar (UGC Studio, AdvantX, un cliente puntual...), qué evitar."
+              }
               value={twist}
               onChange={(e) => setTwist(e.target.value)}
               rows={4}
@@ -158,7 +170,11 @@ export default function AdaptToMyVoiceDialog({
               className="border-[var(--ll-border)] bg-[var(--ll-surface-2)] text-[var(--ll-text)]"
             />
             <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
-              Si lo dejás vacío, la IA traduce el video tal cual al manifiesto + voz tuya.
+              {mode === "copy"
+                ? "Modo Copiar: la IA replica la idea tal cual, traducida a tu español."
+                : mode === "instructions"
+                  ? "La IA adapta el video siguiendo tus instrucciones."
+                  : "Si lo dejás vacío, la IA traduce el video tal cual al manifiesto + voz tuya."}
             </p>
           </div>
 
@@ -240,7 +256,11 @@ export default function AdaptToMyVoiceDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" variant="brand" disabled={isPending}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isPending || (mode === "instructions" && !twist.trim())}
+            >
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
