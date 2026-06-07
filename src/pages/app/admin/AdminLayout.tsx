@@ -23,6 +23,7 @@ import DashboardShell, { type NavItem } from "@/components/app/DashboardShell";
 const NAV: NavItem[] = [
   { to: "/app/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, end: true },
   { to: "/app/admin/crear", label: "Crear de ideas", icon: <Wand2 className="h-4 w-4" /> },
+  { to: "/app/admin/studio", label: "YouTube Studio", icon: <Film className="h-4 w-4" /> },
   { to: "/app/admin/ideas", label: "Idea → Guion", icon: <Lightbulb className="h-4 w-4" /> },
   { to: "/app/admin/formats", label: "Formatos", icon: <Library className="h-4 w-4" /> },
   { to: "/app/admin/videos", label: "Videos", icon: <Video className="h-4 w-4" /> },

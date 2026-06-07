@@ -733,6 +733,7 @@ export type Database = {
           title: string | null
           updated_at: string
           video_id: string | null
+          youtube_project_id: string | null
         }
         Insert: {
           aspect_ratio?: string
@@ -752,6 +753,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           video_id?: string | null
+          youtube_project_id?: string | null
         }
         Update: {
           aspect_ratio?: string
@@ -771,6 +773,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           video_id?: string | null
+          youtube_project_id?: string | null
         }
         Relationships: [
           {
@@ -806,6 +809,13 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "covers_youtube_project_id_fkey"
+            columns: ["youtube_project_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2667,6 +2677,139 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      youtube_project_sections: {
+        Row: {
+          audio_mode: string | null
+          bunny_video_id: string | null
+          clone_error: string | null
+          clone_status: string
+          clone_video_url: string | null
+          created_at: string
+          duration_seconds: number | null
+          heygen_video_id: string | null
+          id: string
+          kind: string
+          owner_id: string
+          points: string | null
+          position: number
+          project_id: string
+          recorded_audio_path: string | null
+          recorder: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_mode?: string | null
+          bunny_video_id?: string | null
+          clone_error?: string | null
+          clone_status?: string
+          clone_video_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          heygen_video_id?: string | null
+          id?: string
+          kind?: string
+          owner_id: string
+          points?: string | null
+          position?: number
+          project_id: string
+          recorded_audio_path?: string | null
+          recorder?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_mode?: string | null
+          bunny_video_id?: string | null
+          clone_error?: string | null
+          clone_status?: string
+          clone_video_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          heygen_video_id?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          points?: string | null
+          position?: number
+          project_id?: string
+          recorded_audio_path?: string | null
+          recorder?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_project_sections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_projects: {
+        Row: {
+          audio_upload_id: string | null
+          chosen_thumbnail_cover_id: string | null
+          chosen_title: string | null
+          created_at: string
+          default_audio_mode: string
+          id: string
+          idea: string | null
+          length_tier: string
+          owner_id: string
+          status: string
+          structure_error: string | null
+          structure_status: string
+          title: string | null
+          title_options: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          audio_upload_id?: string | null
+          chosen_thumbnail_cover_id?: string | null
+          chosen_title?: string | null
+          created_at?: string
+          default_audio_mode?: string
+          id?: string
+          idea?: string | null
+          length_tier?: string
+          owner_id: string
+          status?: string
+          structure_error?: string | null
+          structure_status?: string
+          title?: string | null
+          title_options?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          audio_upload_id?: string | null
+          chosen_thumbnail_cover_id?: string | null
+          chosen_title?: string | null
+          created_at?: string
+          default_audio_mode?: string
+          id?: string
+          idea?: string | null
+          length_tier?: string
+          owner_id?: string
+          status?: string
+          structure_error?: string | null
+          structure_status?: string
+          title?: string | null
+          title_options?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_projects_audio_upload_id_fkey"
+            columns: ["audio_upload_id"]
+            isOneToOne: false
+            referencedRelation: "audio_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       youtube_videos: {
         Row: {

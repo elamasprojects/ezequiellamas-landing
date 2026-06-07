@@ -62,7 +62,6 @@ export const PROMPT_SLOTS: PromptSlot[] = [
     label: "Estructura long-form",
     group: "YouTube",
     help: "Cómo generar la estructura (intro, capítulos, CTA) de un video largo.",
-    comingSoon: true,
   },
 ];
 
