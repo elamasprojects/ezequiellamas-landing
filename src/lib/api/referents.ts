@@ -137,6 +137,27 @@ export async function scrapeReferentVideos(referentId: string): Promise<ScrapeRe
   return data;
 }
 
+// (M24) Dispatch bulk per-video analysis (transcript + concept + classification)
+// for a referent's pending videos. Fire-and-forget on the backend.
+export interface BulkAnalyzeResult {
+  ok: boolean;
+  dispatched: number;
+  ids: string[];
+}
+
+export async function bulkAnalyzeReferent(
+  referentId: string,
+  force = false,
+): Promise<BulkAnalyzeResult> {
+  const { data, error } = await supabase.functions.invoke<BulkAnalyzeResult>(
+    "bulk-analyze-referents",
+    { body: { referent_id: referentId, force } },
+  );
+  if (error) throw error;
+  if (!data) throw new Error("bulk-analyze-referents returned empty response");
+  return data;
+}
+
 export interface AnalyzeResult {
   ok: boolean;
   cached?: boolean;

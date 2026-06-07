@@ -1466,18 +1466,75 @@ export type Database = {
           },
         ]
       }
+      referent_reports: {
+        Row: {
+          covered_from: string | null
+          covered_through: string | null
+          created_at: string
+          error: string | null
+          id: string
+          markdown: string | null
+          owner_id: string
+          period_label: string | null
+          referent_id: string
+          status: string
+          updated_at: string
+          video_count: number
+        }
+        Insert: {
+          covered_from?: string | null
+          covered_through?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          markdown?: string | null
+          owner_id: string
+          period_label?: string | null
+          referent_id: string
+          status?: string
+          updated_at?: string
+          video_count?: number
+        }
+        Update: {
+          covered_from?: string | null
+          covered_through?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          markdown?: string | null
+          owner_id?: string
+          period_label?: string | null
+          referent_id?: string
+          status?: string
+          updated_at?: string
+          video_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referent_reports_referent_id_fkey"
+            columns: ["referent_id"]
+            isOneToOne: false
+            referencedRelation: "referents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referent_videos: {
         Row: {
           apify_short_code: string | null
+          business_objective: string | null
           caption: string | null
           comments: number | null
           concept_error: string | null
           concept_status: string
           concept_summary: string | null
+          content_objectives: string[] | null
+          content_type: string | null
           created_at: string
           id: string
           last_scraped_at: string | null
           likes: number | null
+          main_topics: string[] | null
           metrics_updated_at: string | null
           platform: Database["public"]["Enums"]["video_platform"]
           posted_at: string | null
@@ -1498,15 +1555,19 @@ export type Database = {
         }
         Insert: {
           apify_short_code?: string | null
+          business_objective?: string | null
           caption?: string | null
           comments?: number | null
           concept_error?: string | null
           concept_status?: string
           concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
           created_at?: string
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform: Database["public"]["Enums"]["video_platform"]
           posted_at?: string | null
@@ -1527,15 +1588,19 @@ export type Database = {
         }
         Update: {
           apify_short_code?: string | null
+          business_objective?: string | null
           caption?: string | null
           comments?: number | null
           concept_error?: string | null
           concept_status?: string
           concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
           created_at?: string
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform?: Database["public"]["Enums"]["video_platform"]
           posted_at?: string | null

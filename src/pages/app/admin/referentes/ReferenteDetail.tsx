@@ -10,13 +10,27 @@ import { scrapeReferentVideos, type Referent } from "@/lib/api/referents";
 import { PlatformBadges } from "@/pages/app/admin/referentes/ReferentesList";
 import ReferenteDialog from "@/pages/app/admin/referentes/ReferenteDialog";
 import ReferentVideoCard from "@/pages/app/admin/referentes/ReferentVideoCard";
+import ReferentStrategySection from "@/pages/app/admin/referentes/ReferentStrategySection";
 
 export default function ReferenteDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: referent, isLoading: refLoading } = useReferent(id);
   const { data: videos, isLoading: vidLoading } = useReferentVideos(id);
   const [editOpen, setEditOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const qc = useQueryClient();
+
+  // (M24) Filter the loaded videos by posted_at range (client-side).
+  const filteredVideos = (videos ?? []).filter((v) => {
+    if (!fromDate && !toDate) return true;
+    if (!v.posted_at) return false;
+    const d = v.posted_at.slice(0, 10);
+    if (fromDate && d < fromDate) return false;
+    if (toDate && d > toDate) return false;
+    return true;
+  });
+  const analyzedCount = (videos ?? []).filter((v) => v.concept_status === "done").length;
 
   const scrapeMutation = useMutation({
     mutationFn: () => scrapeReferentVideos(id!),
@@ -124,7 +138,59 @@ export default function ReferenteDetail() {
         </div>
       )}
 
-      <VideoGrid videos={videos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
+      {id && videos && videos.length > 0 && (
+        <ReferentStrategySection
+          referentId={id}
+          analyzedCount={analyzedCount}
+          totalCount={videos.length}
+        />
+      )}
+
+      {videos && videos.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Desde
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="block rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] px-3 py-1.5 text-sm"
+              style={{ color: "var(--ll-text)" }}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Hasta
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="block rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] px-3 py-1.5 text-sm"
+              style={{ color: "var(--ll-text)" }}
+            />
+          </div>
+          {(fromDate || toDate) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+              }}
+            >
+              Limpiar
+            </Button>
+          )}
+          <span className="ml-auto text-xs" style={{ color: "var(--ll-text-muted)" }}>
+            {filteredVideos.length} de {videos.length}
+          </span>
+        </div>
+      )}
+
+      <VideoGrid videos={filteredVideos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
 
       <ReferenteDialog
         open={editOpen}
