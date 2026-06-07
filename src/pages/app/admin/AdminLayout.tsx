@@ -15,6 +15,7 @@ import {
   ImagePlay,
   Sparkles,
   Wand2,
+  Settings,
 } from "lucide-react";
 import DashboardShell, { type NavItem } from "@/components/app/DashboardShell";
 
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { to: "/app/admin/motion-graphics", label: "Motion Graphics", icon: <Wand2 className="h-4 w-4" /> },
   { to: "/app/admin/brolls", label: "B-rolls", icon: <Film className="h-4 w-4" /> },
   { to: "/app/admin/covers", label: "Portadas", icon: <ImagePlay className="h-4 w-4" /> },
+  { to: "/app/admin/settings", label: "Perfil & IA", icon: <Settings className="h-4 w-4" /> },
   { to: "/app/admin/team", label: "Equipo", icon: <Users className="h-4 w-4" /> },
 ];
 

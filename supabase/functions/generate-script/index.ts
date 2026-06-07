@@ -8,11 +8,27 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
+  buildCreatorProfileBlock,
   buildMotionGraphicsCatalogBlock,
+  buildSystemPrompt,
+  type CreatorProfileRow,
   type MotionGraphicTemplateRow,
   SUBMIT_SCRIPT_TOOL,
-  SYSTEM_PROMPT,
 } from "./prompt.ts";
+
+// Slugs of the 4 overridable layers of the script system prompt.
+const SCRIPT_PROMPT_SLUGS = [
+  "script.system",
+  "script.manifesto",
+  "script.scripting_rules",
+  "script.hook_bank",
+] as const;
+
+interface SystemBlock {
+  type: "text";
+  text: string;
+  cache_control: { type: "ephemeral" };
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -217,6 +233,7 @@ interface ClaudeUsage {
 
 async function callClaude(
   messages: ClaudeMessage[],
+  systemBlocks: SystemBlock[],
 ): Promise<{ result: ClaudeToolResult; usage: ClaudeUsage }> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -228,14 +245,8 @@ async function callClaude(
     body: JSON.stringify({
       model: CLAUDE_MODEL,
       max_tokens: CLAUDE_MAX_TOKENS,
-      // System como bloques cacheables (los inputs estáticos del prompt)
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      // System como bloques cacheables: capa estática (con overrides) + perfil del creator.
+      system: systemBlocks,
       messages,
       tools: [SUBMIT_SCRIPT_TOOL],
       tool_choice: { type: "tool", name: "submit_script" },
@@ -550,6 +561,41 @@ function prepareAnimations(
     })
     .filter((x): x is PreparedAnimation => x !== null)
     .sort((a, b) => a.position - b.position);
+}
+
+// ---------------------------------------------------------------------------
+// Prompt overrides + creator profile loaders
+// ---------------------------------------------------------------------------
+// RLS already scopes both reads to the calling owner's rows; we pass the
+// userClient (JWT-bearing) so no service role is needed.
+
+// deno-lint-ignore no-explicit-any
+async function loadPromptOverrides(client: any, slugs: readonly string[]): Promise<Map<string, string>> {
+  const { data, error } = await client
+    .from("prompt_overrides")
+    .select("slug, content")
+    .in("slug", slugs as string[]);
+  if (error) {
+    console.warn(`generate-script: prompt_overrides load failed: ${error.message}`);
+    return new Map();
+  }
+  return new Map((data ?? []).map((r: { slug: string; content: string }) => [r.slug, r.content]));
+}
+
+// deno-lint-ignore no-explicit-any
+async function loadCreatorProfile(client: any, ownerId: string): Promise<CreatorProfileRow | null> {
+  const { data, error } = await client
+    .from("creator_profile")
+    .select(
+      "product_service, target_audience, short_form_strategy, long_form_strategy, aspirational_referents, who_am_i, my_story, what_i_transmit, why_i_create, desired_impact, skills_knowledge",
+    )
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+  if (error) {
+    console.warn(`generate-script: creator_profile load failed: ${error.message}`);
+    return null;
+  }
+  return (data as CreatorProfileRow | null) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -888,6 +934,20 @@ Deno.serve(async (req) => {
       motionGraphicsCatalogBlock,
     });
 
+    // -- System blocks: static layers (con overrides del owner) + perfil del creator
+    const [promptOverrides, creatorProfile] = await Promise.all([
+      loadPromptOverrides(userClient, SCRIPT_PROMPT_SLUGS),
+      loadCreatorProfile(userClient, user.id),
+    ]);
+    const systemText = buildSystemPrompt((slug) => promptOverrides.get(slug));
+    const profileBlock = buildCreatorProfileBlock(creatorProfile);
+    const systemBlocks: SystemBlock[] = [
+      { type: "text", text: systemText, cache_control: { type: "ephemeral" } },
+      ...(profileBlock
+        ? [{ type: "text", text: profileBlock, cache_control: { type: "ephemeral" } } as SystemBlock]
+        : []),
+    ];
+
     // -- Claude call (with one corrective retry on validation failure) -------
     const messages: ClaudeMessage[] = [{ role: "user", content: userPromptText }];
 
@@ -896,7 +956,7 @@ Deno.serve(async (req) => {
     let generationWarning: string | null = null;
 
     try {
-      const first = await callClaude(messages);
+      const first = await callClaude(messages, systemBlocks);
       result = first.result;
       usage = first.usage;
     } catch (err) {
@@ -929,7 +989,7 @@ Deno.serve(async (req) => {
       });
 
       try {
-        const second = await callClaude(messages);
+        const second = await callClaude(messages, systemBlocks);
         const validation2 = validateResult(second.result);
         if (validation2.ok) {
           result = second.result;

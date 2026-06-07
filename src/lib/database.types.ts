@@ -810,6 +810,60 @@ export type Database = {
           },
         ]
       }
+      creator_profile: {
+        Row: {
+          aspirational_referents: Json
+          created_at: string
+          desired_impact: string | null
+          id: string
+          long_form_strategy: string | null
+          my_story: string | null
+          owner_id: string
+          product_service: string | null
+          short_form_strategy: string | null
+          skills_knowledge: string | null
+          target_audience: string | null
+          updated_at: string
+          what_i_transmit: string | null
+          who_am_i: string | null
+          why_i_create: string | null
+        }
+        Insert: {
+          aspirational_referents?: Json
+          created_at?: string
+          desired_impact?: string | null
+          id?: string
+          long_form_strategy?: string | null
+          my_story?: string | null
+          owner_id: string
+          product_service?: string | null
+          short_form_strategy?: string | null
+          skills_knowledge?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          what_i_transmit?: string | null
+          who_am_i?: string | null
+          why_i_create?: string | null
+        }
+        Update: {
+          aspirational_referents?: Json
+          created_at?: string
+          desired_impact?: string | null
+          id?: string
+          long_form_strategy?: string | null
+          my_story?: string | null
+          owner_id?: string
+          product_service?: string | null
+          short_form_strategy?: string | null
+          skills_knowledge?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          what_i_transmit?: string | null
+          who_am_i?: string | null
+          why_i_create?: string | null
+        }
+        Relationships: []
+      }
       editor_assignments: {
         Row: {
           brolls_drive_url: string | null
@@ -1294,6 +1348,33 @@ export type Database = {
           tiktok_handle?: string | null
           updated_at?: string
           youtube_handle?: string | null
+        }
+        Relationships: []
+      }
+      prompt_overrides: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          owner_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }

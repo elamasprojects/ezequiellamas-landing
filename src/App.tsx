@@ -28,6 +28,7 @@ import RecursoDetail from "@/pages/recursos/RecursoDetail";
 // Lazy-loaded pages
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
 const Team = lazy(() => import("@/pages/app/admin/team/Team"));
+const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
 const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
@@ -120,6 +121,7 @@ export default function App() {
                 <Route path="publishing/connections" element={<Connections />} />
                 <Route path="publishing/:id" element={<ScheduledPostDetail />} />
                 <Route path="team" element={<Team />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
 
