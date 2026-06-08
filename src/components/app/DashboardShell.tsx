@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
 import NotificationBell from "@/components/app/NotificationBell";
 import PushPrompt from "@/components/app/PushPrompt";
+import InstallPrompt from "@/components/app/InstallPrompt";
+import BottomTabBar from "@/components/app/BottomTabBar";
+import QuickCaptureSheet from "@/components/app/QuickCaptureSheet";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,9 @@ interface Props {
 export default function DashboardShell({ role, roleLabel, navItems, children }: Props) {
   const { user } = useSession();
   const navigate = useNavigate();
+  const [captureOpen, setCaptureOpen] = useState(false);
+  // The thumb-zone bottom bar + quick-capture are the admin creator surface.
+  const showBottomBar = role === "admin";
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -113,18 +119,27 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
         </aside>
 
         <main
-          className="flex-1 px-4 py-6 md:px-10 md:py-8"
-          style={{
-            paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
-            minWidth: 0,
-          }}
+          className={cn(
+            "flex-1 px-4 py-6 md:px-10 md:py-8",
+            // Clear the bottom bar (mobile only; desktop has the sidebar).
+            showBottomBar ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8" : "pb-[calc(2rem+env(safe-area-inset-bottom,0px))]",
+          )}
+          style={{ minWidth: 0 }}
         >
           <div className="mx-auto max-w-6xl">
+            {role === "admin" && <InstallPrompt />}
             {role === "admin" && <PushPrompt />}
             {children}
           </div>
         </main>
       </div>
+
+      {showBottomBar && (
+        <>
+          <BottomTabBar onCapture={() => setCaptureOpen(true)} />
+          <QuickCaptureSheet open={captureOpen} onOpenChange={setCaptureOpen} />
+        </>
+      )}
     </div>
   );
 }
