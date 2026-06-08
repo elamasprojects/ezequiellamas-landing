@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, Heart, Loader2, MessageCircle, RefreshCw, Sparkles, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useYoutubeConnection, useYoutubeVideos } from "@/hooks/useYoutube";
 import {
   analyzeYoutubeVideo,
@@ -24,8 +25,9 @@ export default function YoutubePage() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const { data: connection, isLoading: connLoading } = useYoutubeConnection();
-  const connected = connection?.status === "connected";
+  const connected = connection?.status === "connected" || connection?.status === "apikey";
   const { data: videos, isLoading: vidLoading } = useYoutubeVideos(!!connected);
+  const [handle, setHandle] = useState("");
 
   const connect = useMutation({
     mutationFn: startYoutubeConnect,
@@ -45,7 +47,7 @@ export default function YoutubePage() {
   });
 
   const sync = useMutation({
-    mutationFn: syncYoutube,
+    mutationFn: (h?: string) => syncYoutube(h),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["youtube-videos"] });
       qc.invalidateQueries({ queryKey: ["youtube-connection"] });
@@ -93,20 +95,41 @@ export default function YoutubePage() {
       {connLoading ? (
         <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>Cargando…</p>
       ) : !connected ? (
-        <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--ll-accent-dim)" }}>
-            <Youtube className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
+        <div className="space-y-4 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--ll-accent-dim)" }}>
+              <Youtube className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
+            </div>
+            <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif" }}>Traé tu canal</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
+              Indicá tu canal (@handle o URL) y traemos tus videos públicos con sus métricas. Usa la
+              YouTube Data API (solo lectura, sin login).
+            </p>
           </div>
-          <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif" }}>Conectá tu canal</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Autorizá el acceso de solo lectura a tu canal de YouTube (YouTube Data API).
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Button variant="brand" onClick={() => connect.mutate()} disabled={connect.isPending || callback.isPending}>
-              {connect.isPending || callback.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
-              Conectar canal
+          <div className="mx-auto flex max-w-md gap-2">
+            <Input
+              placeholder="@tucanal o link del canal"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              disabled={sync.isPending}
+            />
+            <Button variant="brand" onClick={() => sync.mutate(handle.trim() || undefined)} disabled={sync.isPending || !handle.trim()}>
+              {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Sincronizar
             </Button>
           </div>
+          <p className="text-center text-xs" style={{ color: "var(--ll-text-dim)" }}>
+            ¿Querés datos privados (Analytics, videos ocultos)?{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => connect.mutate()}
+              disabled={connect.isPending || callback.isPending}
+              style={{ color: "var(--ll-text-muted)" }}
+            >
+              Conectar con OAuth
+            </button>
+          </p>
         </div>
       ) : (
         <>
@@ -124,7 +147,7 @@ export default function YoutubePage() {
                 </p>
               </div>
             </div>
-            <Button variant="brand" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            <Button variant="brand" onClick={() => sync.mutate(undefined)} disabled={sync.isPending}>
               {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Sincronizar
             </Button>

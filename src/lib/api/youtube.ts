@@ -57,8 +57,8 @@ export async function completeYoutubeConnect(code: string, state: string): Promi
   return invoke("youtube-connect-callback", { code, state });
 }
 
-export async function syncYoutube(): Promise<{ ok: boolean; synced: number; discovered: number }> {
-  return invoke("youtube-sync", {});
+export async function syncYoutube(channelHandle?: string): Promise<{ ok: boolean; synced: number; discovered: number }> {
+  return invoke("youtube-sync", channelHandle ? { channel_handle: channelHandle } : {});
 }
 
 export async function analyzeYoutubeVideo(rowId: string, force = false): Promise<{ ok: boolean; transcript_status?: string; concept_status?: string }> {
