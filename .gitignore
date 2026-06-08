@@ -43,3 +43,8 @@ tmp/
 
 # Claude Code per-machine settings (shared .claude/settings.json stays tracked)
 .claude/settings.local.json
+
+# Skills installed via `npx skills add` (local tooling, not committed app code)
+.agents/
+.claude/skills/
+skills-lock.json
