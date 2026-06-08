@@ -73,6 +73,33 @@ export async function updateSection(id: string, patch: YoutubeProjectSectionUpda
   if (error) throw error;
 }
 
+// (M27) HeyGen avatar looks for the per-section / project-default look picker.
+export interface HeygenAvatar {
+  avatar_id: string;
+  name: string;
+  gender: string | null;
+  preview_image_url: string | null;
+}
+
+export async function fetchHeygenAvatars(): Promise<HeygenAvatar[]> {
+  const { data, error } = await supabase.functions.invoke<{ avatars: HeygenAvatar[] } | { error: string }>(
+    "list-heygen-avatars",
+    { body: {} },
+  );
+  if (error) {
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const b = (await ctx.clone().json()) as { error?: string };
+        if (b?.error) throw new Error(b.error);
+      } catch { /* fall through */ }
+    }
+    throw new Error(error.message);
+  }
+  if (!data || "error" in data) throw new Error((data as { error: string })?.error ?? "Empty response");
+  return data.avatars;
+}
+
 // Clone: HeyGen avatar + (avatar voice | recorded | ElevenLabs) audio.
 export async function generateClone(sectionId: string): Promise<{ ok: boolean; heygen_video_id?: string }> {
   const { data, error } = await supabase.functions.invoke<{ ok: boolean; heygen_video_id?: string } | { error: string }>(

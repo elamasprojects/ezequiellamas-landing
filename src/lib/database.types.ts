@@ -2687,6 +2687,7 @@ export type Database = {
           clone_video_url: string | null
           created_at: string
           duration_seconds: number | null
+          heygen_avatar_id: string | null
           heygen_video_id: string | null
           id: string
           kind: string
@@ -2707,6 +2708,7 @@ export type Database = {
           clone_video_url?: string | null
           created_at?: string
           duration_seconds?: number | null
+          heygen_avatar_id?: string | null
           heygen_video_id?: string | null
           id?: string
           kind?: string
@@ -2727,6 +2729,7 @@ export type Database = {
           clone_video_url?: string | null
           created_at?: string
           duration_seconds?: number | null
+          heygen_avatar_id?: string | null
           heygen_video_id?: string | null
           id?: string
           kind?: string
@@ -2756,6 +2759,7 @@ export type Database = {
           chosen_title: string | null
           created_at: string
           default_audio_mode: string
+          default_heygen_avatar_id: string | null
           id: string
           idea: string | null
           length_tier: string
@@ -2773,6 +2777,7 @@ export type Database = {
           chosen_title?: string | null
           created_at?: string
           default_audio_mode?: string
+          default_heygen_avatar_id?: string | null
           id?: string
           idea?: string | null
           length_tier?: string
@@ -2790,6 +2795,7 @@ export type Database = {
           chosen_title?: string | null
           created_at?: string
           default_audio_mode?: string
+          default_heygen_avatar_id?: string | null
           id?: string
           idea?: string | null
           length_tier?: string

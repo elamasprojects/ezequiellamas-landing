@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    if (!HEYGEN_API_KEY || !HEYGEN_AVATAR_ID) {
-      return json({ error: "HEYGEN_API_KEY / HEYGEN_AVATAR_ID no configurados." }, 500);
+    if (!HEYGEN_API_KEY) {
+      return json({ error: "HEYGEN_API_KEY no configurado." }, 500);
     }
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Missing Authorization" }, 401);
@@ -69,10 +69,25 @@ Deno.serve(async (req) => {
 
     const { data: section, error: sErr } = await userClient
       .from("youtube_project_sections")
-      .select("id, owner_id, points, audio_mode, recorded_audio_path")
+      .select("id, owner_id, project_id, points, audio_mode, recorded_audio_path, heygen_avatar_id")
       .eq("id", sectionId)
       .single();
     if (sErr || !section) return json({ error: sErr?.message ?? "Section not found" }, 404);
+
+    // Resolve the look: section override → project default → env fallback.
+    let avatarId: string | null = section.heygen_avatar_id ?? null;
+    if (!avatarId && section.project_id) {
+      const { data: project } = await userClient
+        .from("youtube_projects")
+        .select("default_heygen_avatar_id")
+        .eq("id", section.project_id)
+        .maybeSingle();
+      avatarId = project?.default_heygen_avatar_id ?? null;
+    }
+    avatarId = avatarId ?? HEYGEN_AVATAR_ID ?? null;
+    if (!avatarId) {
+      return json({ error: "Elegí un look (avatar) para esta sección o configurá un look por defecto." }, 400);
+    }
 
     const text = (section.points ?? "").trim();
     const mode = section.audio_mode ?? "elevenlabs";
@@ -109,7 +124,7 @@ Deno.serve(async (req) => {
       headers: { "X-Api-Key": HEYGEN_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
         video_inputs: [{
-          character: { type: "avatar", avatar_id: HEYGEN_AVATAR_ID, avatar_style: "normal" },
+          character: { type: "avatar", avatar_id: avatarId, avatar_style: "normal" },
           voice,
         }],
         dimension: { width: 1280, height: 720 },

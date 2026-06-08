@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/hooks/useSession";
-import { useProjectSections, useProjectThumbnails, useYoutubeProject } from "@/hooks/useYoutubeStudio";
+import { useHeygenAvatars, useProjectSections, useProjectThumbnails, useYoutubeProject } from "@/hooks/useYoutubeStudio";
 import { getSignedCoverUrl } from "@/lib/api/covers";
 import {
   generateClone,
   generateProjectThumbnails,
   generateStructure,
+  type HeygenAvatar,
   updateSection,
   updateYoutubeProject,
   type YoutubeProjectSection,
 } from "@/lib/api/youtubeStudio";
+import LookPicker from "@/pages/app/admin/studio/LookPicker";
 
 const AUDIO_MODES = [
   { value: "avatar", label: "Voz del avatar" },
@@ -31,6 +33,14 @@ export default function ProjectEditor() {
   const { data: project, isLoading } = useYoutubeProject(id);
   const { data: sections } = useProjectSections(id);
   const { data: thumbnails } = useProjectThumbnails(id);
+  const hasClone = (sections ?? []).some((s) => s.recorder === "clone");
+  const { data: avatars, error: avatarsError } = useHeygenAvatars(hasClone);
+
+  const setDefaultLook = useMutation({
+    mutationFn: (avatarId: string | null) => updateYoutubeProject(id!, { default_heygen_avatar_id: avatarId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["youtube-project", id] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const setTitle = useMutation({
     mutationFn: (t: string) => updateYoutubeProject(id!, { chosen_title: t }),
@@ -144,11 +154,39 @@ export default function ProjectEditor() {
         </div>
       </section>
 
+      {/* Default look (HeyGen avatar) */}
+      {hasClone && (
+        <section className="space-y-2">
+          <Label>Look del avatar (por defecto)</Label>
+          {avatarsError ? (
+            <p className="text-xs" style={{ color: "var(--ll-warm)" }}>
+              No se pudieron cargar los looks de HeyGen: {avatarsError.message}
+            </p>
+          ) : !avatars ? (
+            <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>Cargando looks…</p>
+          ) : avatars.length === 0 ? (
+            <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>Tu cuenta de HeyGen no tiene avatares.</p>
+          ) : (
+            <LookPicker
+              avatars={avatars}
+              value={project.default_heygen_avatar_id}
+              onChange={(v) => setDefaultLook.mutate(v)}
+            />
+          )}
+        </section>
+      )}
+
       {/* Sections */}
       <section className="space-y-3">
         <Label>Secciones</Label>
         {(sections ?? []).map((s) => (
-          <SectionCard key={s.id} section={s} projectId={id!} defaultAudioMode={project.default_audio_mode} />
+          <SectionCard
+            key={s.id}
+            section={s}
+            projectId={id!}
+            defaultAudioMode={project.default_audio_mode}
+            avatars={avatars}
+          />
         ))}
       </section>
     </div>
@@ -216,7 +254,7 @@ function Thumb({ cover }: { cover: { id: string; status: string; generated_image
   );
 }
 
-function SectionCard({ section, projectId, defaultAudioMode }: { section: YoutubeProjectSection; projectId: string; defaultAudioMode: string }) {
+function SectionCard({ section, projectId, defaultAudioMode, avatars }: { section: YoutubeProjectSection; projectId: string; defaultAudioMode: string; avatars?: HeygenAvatar[] }) {
   const qc = useQueryClient();
   const [points, setPoints] = useState(section.points ?? "");
   const [duration, setDuration] = useState(section.duration_seconds?.toString() ?? "");
@@ -250,6 +288,12 @@ function SectionCard({ section, projectId, defaultAudioMode }: { section: Youtub
       qc.invalidateQueries({ queryKey: ["youtube-project-sections", projectId] });
       toast.success("Generando clon… te avisamos cuando esté.");
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setLook = useMutation({
+    mutationFn: (avatarId: string | null) => updateSection(section.id, { heygen_avatar_id: avatarId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["youtube-project-sections", projectId] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -310,6 +354,15 @@ function SectionCard({ section, projectId, defaultAudioMode }: { section: Youtub
           {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Guardar
         </Button>
       </div>
+
+      {recorder === "clone" && avatars && avatars.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+            Look
+          </span>
+          <LookPicker avatars={avatars} value={section.heygen_avatar_id} onChange={(v) => setLook.mutate(v)} allowDefault />
+        </div>
+      )}
 
       {recorder === "clone" && (
         <div className="flex items-center gap-3 border-t border-[var(--ll-border)] pt-3">
