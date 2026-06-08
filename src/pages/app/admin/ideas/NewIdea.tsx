@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AudioRecorder from "@/components/app/AudioRecorder";
+import MobileStickyBar from "@/components/app/MobileStickyBar";
 import { useFormats } from "@/hooks/useFormats";
 import { useShapes } from "@/hooks/useShapes";
 import { useSeries } from "@/hooks/useSeries";
@@ -441,24 +442,27 @@ export default function NewIdea() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 pt-2">
-          <div className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
-            {step === "uploading" && "Subiendo audio..."}
-            {step === "generating" && "Generando guion (puede tardar 10-30s)..."}
-            {step === "error" && (
-              <span className="text-red-400">Falló: {errorMsg}</span>
-            )}
+        <MobileStickyBar>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
+              {step === "uploading" && "Subiendo audio..."}
+              {step === "generating" && "Generando guion (puede tardar 10-30s)..."}
+              {step === "error" && (
+                <span className="text-red-400">Falló: {errorMsg}</span>
+              )}
+            </div>
+            <Button
+              onClick={onGenerate}
+              disabled={!canGenerate}
+              variant="brand"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
+              <Sparkles className="h-4 w-4" />
+              {step === "uploading" || step === "generating" ? "Generando..." : "Generar guion"}
+            </Button>
           </div>
-          <Button
-            onClick={onGenerate}
-            disabled={!canGenerate}
-            variant="brand"
-            size="lg"
-          >
-            <Sparkles className="h-4 w-4" />
-            {step === "uploading" || step === "generating" ? "Generando..." : "Generar guion"}
-          </Button>
-        </div>
+        </MobileStickyBar>
       </div>
     </div>
   );
