@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, ImagePlus, Loader2, Sparkles, Video } from "lucide-react";
+import { ArrowLeft, Check, Download, ImagePlus, Loader2, Sparkles, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -162,8 +162,35 @@ function Thumb({ cover }: { cover: { id: string; status: string; generated_image
     enabled: !!cover.generated_image_path,
     staleTime: 3 * 3600_000,
   });
+  const [downloading, setDownloading] = useState(false);
+
+  async function download() {
+    if (!url) return;
+    setDownloading(true);
+    try {
+      // Fetch the blob so it saves even though the signed URL is cross-origin
+      // (the <a download> attribute is ignored for cross-origin hrefs).
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const ext = cover.generated_image_path?.split(".").pop()?.split("?")[0] || "png";
+      const obj = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = obj;
+      a.download = `miniatura-${cover.id.slice(0, 8)}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(obj);
+    } catch {
+      toast.error("No se pudo descargar la miniatura");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface-2)]">
+    <div className="group relative overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface-2)]">
       <div className="flex aspect-video items-center justify-center">
         {url ? (
           <img src={url} alt="" className="h-full w-full object-cover" />
@@ -173,6 +200,18 @@ function Thumb({ cover }: { cover: { id: string; status: string; generated_image
           <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--ll-text-dim)" }} />
         )}
       </div>
+      {url && (
+        <button
+          type="button"
+          onClick={download}
+          disabled={downloading}
+          aria-label="Descargar miniatura"
+          className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-md border border-[var(--ll-border)] bg-black/60 backdrop-blur transition-opacity hover:bg-black/80 md:opacity-0 md:group-hover:opacity-100"
+          style={{ color: "var(--ll-text)" }}
+        >
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        </button>
+      )}
     </div>
   );
 }
