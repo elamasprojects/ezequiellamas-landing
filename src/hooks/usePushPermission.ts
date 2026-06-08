@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   pushSubscriptionToInsert,
   registerPushSubscription,
@@ -7,6 +8,22 @@ import {
 } from "@/lib/api/pushSubscriptions";
 
 export type PushPermissionStatus = "default" | "granted" | "denied" | "unsupported";
+
+// Wait for the push registration's own worker to activate. We can't use
+// navigator.serviceWorker.ready because the PWA SW is self-destroying, so no SW
+// controls the page scope and `ready` would never resolve.
+async function waitForActive(reg: ServiceWorkerRegistration): Promise<void> {
+  if (reg.active) return;
+  const sw = reg.installing ?? reg.waiting;
+  if (!sw) return;
+  await new Promise<void>((resolve) => {
+    const done = () => resolve();
+    sw.addEventListener("statechange", () => {
+      if (sw.state === "activated") done();
+    });
+    setTimeout(done, 5000); // safety: don't hang the UI
+  });
+}
 
 export function usePushPermission() {
   const [status, setStatus] = useState<PushPermissionStatus>("default");
@@ -42,7 +59,7 @@ export function usePushPermission() {
     const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
     const vapidKey = env?.VITE_VAPID_PUBLIC_KEY;
     if (!vapidKey) {
-      console.warn("VITE_VAPID_PUBLIC_KEY no configurada");
+      toast.error("Push no configurado: falta VITE_VAPID_PUBLIC_KEY en el build.");
       return;
     }
 
@@ -50,17 +67,20 @@ export function usePushPermission() {
     try {
       const perm = await Notification.requestPermission();
       setStatus(perm as PushPermissionStatus);
-      if (perm !== "granted") return;
+      if (perm !== "granted") {
+        if (perm === "denied") toast.error("Bloqueaste las notificaciones en el navegador.");
+        return;
+      }
 
-      // Use a dedicated push SW under its own scope so it doesn't collide with
-      // the PWA-generated workbox SW at /sw.js.
+      // Dedicated push SW under its own scope (the PWA workbox SW is
+      // self-destroying, so it can't host push).
       let reg = await navigator.serviceWorker.getRegistration("/push-handler/");
       if (!reg) {
         reg = await navigator.serviceWorker.register("/push-sw.js", {
           scope: "/push-handler/",
         });
       }
-      await navigator.serviceWorker.ready;
+      await waitForActive(reg);
 
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
@@ -73,6 +93,10 @@ export function usePushPermission() {
 
       await registerPushSubscription(pushSubscriptionToInsert(sub));
       setSubscribed(true);
+      toast.success("Notificaciones push activadas en este navegador.");
+    } catch (err) {
+      console.error("push subscribe failed", err);
+      toast.error(err instanceof Error ? err.message : "No se pudieron activar las notificaciones.");
     } finally {
       setBusy(false);
     }
