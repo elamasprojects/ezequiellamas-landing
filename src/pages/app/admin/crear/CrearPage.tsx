@@ -20,6 +20,7 @@ import { useSeries } from "@/hooks/useSeries";
 import { generateScript } from "@/lib/api/generation";
 import IngredientPicker, { type Ingredient } from "@/pages/app/admin/crear/IngredientPicker";
 import ModeSelector, { type AdaptMode } from "@/pages/app/admin/crear/ModeSelector";
+import MobileStickyBar from "@/components/app/MobileStickyBar";
 
 const NO_VALUE = "__none__";
 
@@ -208,19 +209,26 @@ export default function CrearPage() {
         </div>
       </section>
 
-      <div className="flex justify-end">
-        <Button variant="brand" onClick={() => generate.mutate()} disabled={!canGenerate}>
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Generando…
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" /> Generar guion
-            </>
-          )}
-        </Button>
-      </div>
+      <MobileStickyBar>
+        <div className="md:flex md:justify-end">
+          <Button
+            variant="brand"
+            onClick={() => generate.mutate()}
+            disabled={!canGenerate}
+            className="w-full md:w-auto"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Generando…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" /> Generar guion
+              </>
+            )}
+          </Button>
+        </div>
+      </MobileStickyBar>
     </div>
   );
 }

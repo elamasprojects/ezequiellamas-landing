@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, Share, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DISMISS_KEY = "ll.install_prompt_dismissed";
@@ -9,8 +9,11 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// Dismissible "install the app" banner (Android/desktop Chrome fire
-// beforeinstallprompt; iOS Safari doesn't, so we don't show it there).
+const isIos = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+// Dismissible "install the app" banner. Android/desktop Chrome fire
+// beforeinstallprompt → one-tap install; iOS Safari can't, so we show a hint to
+// use Share → "Agregar a inicio".
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "1");
@@ -27,10 +30,11 @@ export default function InstallPrompt() {
   // Already installed (standalone) → nothing to do.
   const standalone = typeof window !== "undefined" &&
     (window.matchMedia?.("(display-mode: standalone)").matches ||
-      // iOS
       (window.navigator as unknown as { standalone?: boolean }).standalone === true);
 
-  if (dismissed || standalone || !deferred) return null;
+  const showNative = !!deferred;
+  const showIos = isIos && !deferred;
+  if (dismissed || standalone || (!showNative && !showIos)) return null;
 
   async function install() {
     if (!deferred) return;
@@ -46,14 +50,18 @@ export default function InstallPrompt() {
 
   return (
     <div className="mb-6 flex items-center gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3">
-      <Download className="h-5 w-5 shrink-0" style={{ color: "var(--ll-accent)" }} />
+      {showIos ? <Share className="h-5 w-5 shrink-0" style={{ color: "var(--ll-accent)" }} /> : <Download className="h-5 w-5 shrink-0" style={{ color: "var(--ll-accent)" }} />}
       <div className="min-w-0 flex-1">
         <p className="text-sm" style={{ color: "var(--ll-text)" }}>Instalá la app</p>
         <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
-          Acceso directo + pantalla completa para capturar ideas al vuelo.
+          {showIos
+            ? "Tocá Compartir y elegí «Agregar a inicio» para acceso directo a pantalla completa."
+            : "Acceso directo + pantalla completa para capturar ideas al vuelo."}
         </p>
       </div>
-      <Button variant="brand" size="sm" onClick={install}>Instalar</Button>
+      {showNative && (
+        <Button variant="brand" size="sm" onClick={install}>Instalar</Button>
+      )}
       <Button variant="ghost" size="icon" className="h-8 w-8 text-[var(--ll-text-muted)]" onClick={dismiss} aria-label="Descartar">
         <X className="h-4 w-4" />
       </Button>

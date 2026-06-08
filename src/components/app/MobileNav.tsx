@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { NavItem } from "@/components/app/DashboardShell";
@@ -21,6 +22,8 @@ interface Props {
   navItems: NavItem[];
 }
 
+// Mobile menu: a bottom-sheet GALLERY (3 tiles per row, icon + title) instead of
+// a long vertical sidebar list — easier to scan on a phone.
 export default function MobileNav({ role, roleLabel, navItems }: Props) {
   const [open, setOpen] = useState(false);
   const { user } = useSession();
@@ -45,41 +48,44 @@ export default function MobileNav({ role, roleLabel, navItems }: Props) {
         </Button>
       </SheetTrigger>
       <SheetContent
-        side="left"
-        className="border-r border-[var(--ll-border)] bg-[var(--ll-bg)] p-0 text-[var(--ll-text)] sm:max-w-xs"
+        side="bottom"
+        className="max-h-[88vh] overflow-y-auto rounded-t-2xl border-[var(--ll-border)] bg-[var(--ll-bg)] p-0 text-[var(--ll-text)]"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        <div
-          className="flex items-center gap-3 border-b border-[var(--ll-border)] px-5 py-4"
-          style={{ fontFamily: "'Instrument Serif', serif" }}
-        >
-          <span className="text-base">
-            Ezequiel <span style={{ color: "var(--ll-accent)" }}>Lamas</span>
-          </span>
-          <Badge variant={role}>{roleLabel}</Badge>
-        </div>
+        <SheetHeader className="border-b border-[var(--ll-border)] px-5 py-4 text-left">
+          <SheetTitle
+            className="flex items-center gap-3 text-base font-normal"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            <span>
+              Ezequiel <span style={{ color: "var(--ll-accent)" }}>Lamas</span>
+            </span>
+            <Badge variant={role}>{roleLabel}</Badge>
+          </SheetTitle>
+        </SheetHeader>
 
-        <nav className="flex flex-col gap-1 p-3">
+        <nav className="grid grid-cols-3 gap-2 p-3">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end ?? false}
-              onClick={() => setOpen(false)}
+              onClick={() => !item.disabled && setOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors",
+                  "relative flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-xl border p-2 text-center transition-colors [&_svg]:h-6 [&_svg]:w-6",
                   item.disabled && "pointer-events-none opacity-40",
                   isActive
-                    ? "bg-[var(--ll-surface-2)] text-[var(--ll-accent)]"
-                    : "text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
+                    ? "border-[var(--ll-accent)] bg-[var(--ll-accent-dim)] text-[var(--ll-accent)]"
+                    : "border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text-muted)] active:bg-[var(--ll-surface-2)]",
                 )
               }
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span className="text-[11px] leading-tight">{item.label}</span>
               {item.disabled && (
                 <span
-                  className="ml-auto rounded-full border border-[var(--ll-border)] px-1.5 py-0.5 text-[9px] uppercase tracking-wider"
+                  className="absolute right-1.5 top-1.5 rounded-full border border-[var(--ll-border)] px-1 py-0.5 text-[8px] uppercase tracking-wider"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   Pronto
@@ -89,31 +95,22 @@ export default function MobileNav({ role, roleLabel, navItems }: Props) {
           ))}
         </nav>
 
-        <div
-          className="absolute inset-x-0 bottom-0 border-t border-[var(--ll-border)] p-4"
-          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
-        >
+        <div className="px-3 pb-2">
           {user?.email && (
             <div
-              className="mb-3 truncate text-xs"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: "var(--ll-text-muted)",
-              }}
+              className="mb-2 truncate px-1 text-xs"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
             >
               {user.email}
             </div>
           )}
-          <SheetClose asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              className="w-full border-[var(--ll-border)] text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"
-            >
-              <LogOut className="h-4 w-4" /> Cerrar sesión
-            </Button>
-          </SheetClose>
+          <Button
+            variant="outline"
+            onClick={signOut}
+            className="w-full border-[var(--ll-border)] text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"
+          >
+            <LogOut className="h-4 w-4" /> Cerrar sesión
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

@@ -7,6 +7,7 @@ import MobileNav from "@/components/app/MobileNav";
 import NotificationBell from "@/components/app/NotificationBell";
 import PushPrompt from "@/components/app/PushPrompt";
 import InstallPrompt from "@/components/app/InstallPrompt";
+import OfflineBanner from "@/components/app/OfflineBanner";
 import BottomTabBar from "@/components/app/BottomTabBar";
 import QuickCaptureSheet from "@/components/app/QuickCaptureSheet";
 import { supabase } from "@/lib/supabase";
@@ -84,6 +85,8 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
           </div>
         </div>
       </header>
+
+      <OfflineBanner />
 
       <div className="flex">
         <aside className="hidden w-60 shrink-0 border-r border-[var(--ll-border)] p-3 md:block">
