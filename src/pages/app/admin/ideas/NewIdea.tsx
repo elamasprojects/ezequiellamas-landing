@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Sparkles, Link2, Loader2, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,16 @@ export default function NewIdea() {
 
   const [step, setStep] = useState<GenStep>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // PWA share target (share_target → /app/admin/ideas/new?text&url&title): prefill.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const sharedUrl = searchParams.get("url");
+    const sharedText = searchParams.get("text") ?? searchParams.get("title");
+    if (sharedUrl) setReferenceUrl(sharedUrl);
+    if (sharedText) setRawConcept((prev) => prev || sharedText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasUserConcept = audioBlob !== null || rawConcept.trim().length > 0;
   const hasReference = reference !== null && reference.transcript_status === "done";

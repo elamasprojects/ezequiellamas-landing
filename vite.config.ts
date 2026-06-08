@@ -30,6 +30,18 @@ export default defineConfig({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // Long-press the installed icon → jump straight to a creator action.
+        shortcuts: [
+          { name: "Capturar idea", short_name: "Capturar", url: "/app/admin/ideas/new" },
+          { name: "Crear desde referente", short_name: "Crear", url: "/app/admin/crear" },
+          { name: "YouTube Studio", short_name: "Studio", url: "/app/admin/studio" },
+        ],
+        // Share a link/text from any app straight into the capture flow.
+        share_target: {
+          action: "/app/admin/ideas/new",
+          method: "GET",
+          params: { title: "title", text: "text", url: "url" },
+        },
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],

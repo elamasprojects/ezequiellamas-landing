@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile ergonomics utilities (used by the app shell + touch surfaces). */
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Opt-in minimum touch target on coarse pointers. */
+  @media (pointer: coarse) {
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
 /* ================================================================
    Shadcn (dark) HSL tokens — used by primitives copied into
    src/components/ui/. The default :root values are dark since
