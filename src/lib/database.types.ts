@@ -2763,6 +2763,7 @@ export type Database = {
           id: string
           idea: string | null
           length_tier: string
+          orientation: string
           owner_id: string
           status: string
           structure_error: string | null
@@ -2781,6 +2782,7 @@ export type Database = {
           id?: string
           idea?: string | null
           length_tier?: string
+          orientation?: string
           owner_id: string
           status?: string
           structure_error?: string | null
@@ -2799,6 +2801,7 @@ export type Database = {
           id?: string
           idea?: string | null
           length_tier?: string
+          orientation?: string
           owner_id?: string
           status?: string
           structure_error?: string | null
