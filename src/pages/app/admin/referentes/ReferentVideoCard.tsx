@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -174,6 +174,23 @@ export default function ReferentVideoCard({ video, readOnly = false, referentNam
           )}
         </div>
 
+        {(video.business_objective || video.content_type ||
+          (video.content_objectives && video.content_objectives.length > 0) ||
+          (video.main_topics && video.main_topics.length > 0)) && (
+          <div className="flex flex-wrap gap-1">
+            {video.business_objective && <ClassBadge accent>{video.business_objective}</ClassBadge>}
+            {video.content_type && <ClassBadge>{video.content_type}</ClassBadge>}
+            {(video.content_objectives ?? []).map((o) => (
+              <ClassBadge key={o}>{o}</ClassBadge>
+            ))}
+            {(video.main_topics ?? []).slice(0, 3).map((t) => (
+              <ClassBadge key={t} muted>
+                #{t}
+              </ClassBadge>
+            ))}
+          </div>
+        )}
+
         {!readOnly && !isDone && !isAnalyzing && (
           <Button
             variant="outline"
@@ -305,4 +322,28 @@ function relativeFromNow(iso: string): string | null {
   } catch {
     return null;
   }
+}
+
+// (M24) Small strategic-classification pill.
+function ClassBadge({
+  children,
+  accent,
+  muted,
+}: {
+  children: ReactNode;
+  accent?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider"
+      style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        background: accent ? "var(--ll-accent-dim)" : "var(--ll-surface-2)",
+        color: accent ? "var(--ll-accent)" : muted ? "var(--ll-text-dim)" : "var(--ll-text-muted)",
+      }}
+    >
+      {children}
+    </span>
+  );
 }

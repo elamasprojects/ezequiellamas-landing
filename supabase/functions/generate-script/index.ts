@@ -8,11 +8,28 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
+  buildCreatorProfileBlock,
   buildMotionGraphicsCatalogBlock,
+  buildSystemPrompt,
+  type CreatorProfileRow,
   type MotionGraphicTemplateRow,
   SUBMIT_SCRIPT_TOOL,
-  SYSTEM_PROMPT,
 } from "./prompt.ts";
+import { ADAPT_PROMPT_DEFAULTS, type AdaptMode } from "./adapt-prompts.ts";
+
+// Slugs of the 4 overridable layers of the script system prompt.
+const SCRIPT_PROMPT_SLUGS = [
+  "script.system",
+  "script.manifesto",
+  "script.scripting_rules",
+  "script.hook_bank",
+] as const;
+
+interface SystemBlock {
+  type: "text";
+  text: string;
+  cache_control: { type: "ephemeral" };
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -217,6 +234,7 @@ interface ClaudeUsage {
 
 async function callClaude(
   messages: ClaudeMessage[],
+  systemBlocks: SystemBlock[],
 ): Promise<{ result: ClaudeToolResult; usage: ClaudeUsage }> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -228,14 +246,8 @@ async function callClaude(
     body: JSON.stringify({
       model: CLAUDE_MODEL,
       max_tokens: CLAUDE_MAX_TOKENS,
-      // System como bloques cacheables (los inputs estáticos del prompt)
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      // System como bloques cacheables: capa estática (con overrides) + perfil del creator.
+      system: systemBlocks,
       messages,
       tools: [SUBMIT_SCRIPT_TOOL],
       tool_choice: { type: "tool", name: "submit_script" },
@@ -290,12 +302,18 @@ interface ReferenceBlockInput {
   referentName?: string | null;
   // Métricas del video, si están disponibles (helps Claude calibrate por qué funcionó).
   views?: number | null;
+  // (M23) Instrucciones del modo de adaptación (adapt.copy/voice/instructions),
+  // resueltas del override del owner o el default. Si está presente, reemplaza
+  // las instrucciones por defecto de `mode`.
+  adaptInstructions?: string | null;
 }
 
 function buildReferenceBlock(ref: ReferenceBlockInput): string {
   const transcript = (ref.transcript ?? "").slice(0, 8000);
   const conceptSummary = (ref.conceptSummary ?? "").slice(0, 4000);
-  const modeInstructions = ref.mode === "content_adapt"
+  const modeInstructions = ref.adaptInstructions && ref.adaptInstructions.trim().length > 0
+    ? ref.adaptInstructions
+    : ref.mode === "content_adapt"
     ? [
         "MODO: Adaptación de contenido.",
         "- El video referencia es el punto de partida del CONTENIDO. Adaptá tema, ejemplos y estructura a tu voz.",
@@ -335,6 +353,54 @@ function buildReferenceBlock(ref: ReferenceBlockInput): string {
     modeInstructions,
     "- Mantené siempre el MANIFIESTO + REGLAS DE SCRIPTING + BANCO DE HOOKS.",
     "- Si el video referencia no es argentino, traducí el tono al rioplatense casual técnico.",
+  ].filter(Boolean).join("\n");
+}
+
+// (M23) Combined reference block for 1+ "ingredient" ideas. When more than one
+// ingredient is present the model is told to fuse them into a single script.
+interface LoadedIngredient {
+  platform: string;
+  source_url: string;
+  title: string | null;
+  caption: string | null;
+  transcript: string;
+  conceptSummary?: string | null;
+  referentName?: string | null;
+  views?: number | null;
+}
+
+function buildIngredientsBlock(
+  items: LoadedIngredient[],
+  adaptInstructions: string,
+): string {
+  const blocks = items.map((it, i) => {
+    const transcript = (it.transcript ?? "").slice(0, 6000);
+    const conceptSummary = (it.conceptSummary ?? "").slice(0, 3000);
+    return [
+      `--- IDEA ${i + 1} (${it.platform}) ---`,
+      it.referentName ? `Creator original: ${it.referentName}` : "",
+      it.views != null ? `Views: ${it.views.toLocaleString("es-AR")}` : "",
+      it.title ? `Título: ${it.title}` : "",
+      it.caption ? `Caption: ${it.caption}` : "",
+      "Transcript:",
+      `"""\n${transcript}\n"""`,
+      conceptSummary
+        ? `Análisis de por qué performó (pista, no copiar):\n"""\n${conceptSummary}\n"""`
+        : "",
+    ].filter(Boolean).join("\n");
+  });
+  const combineNote = items.length > 1
+    ? "Estas son VARIAS ideas-ingrediente. Fusionalas en UN SOLO guion coherente (no las pegues una atrás de otra): tomá lo mejor de cada una y armá una sola pieza."
+    : "";
+  return [
+    "=== IDEAS REFERENCIA (ingredientes) ===",
+    ...blocks,
+    "",
+    "INSTRUCCIONES SOBRE LAS IDEAS:",
+    adaptInstructions,
+    combineNote,
+    "- Mantené siempre el MANIFIESTO + REGLAS DE SCRIPTING + BANCO DE HOOKS.",
+    "- Si las ideas no son argentinas, traducí el tono al rioplatense casual técnico.",
   ].filter(Boolean).join("\n");
 }
 
@@ -553,6 +619,41 @@ function prepareAnimations(
 }
 
 // ---------------------------------------------------------------------------
+// Prompt overrides + creator profile loaders
+// ---------------------------------------------------------------------------
+// RLS already scopes both reads to the calling owner's rows; we pass the
+// userClient (JWT-bearing) so no service role is needed.
+
+// deno-lint-ignore no-explicit-any
+async function loadPromptOverrides(client: any, slugs: readonly string[]): Promise<Map<string, string>> {
+  const { data, error } = await client
+    .from("prompt_overrides")
+    .select("slug, content")
+    .in("slug", slugs as string[]);
+  if (error) {
+    console.warn(`generate-script: prompt_overrides load failed: ${error.message}`);
+    return new Map();
+  }
+  return new Map((data ?? []).map((r: { slug: string; content: string }) => [r.slug, r.content]));
+}
+
+// deno-lint-ignore no-explicit-any
+async function loadCreatorProfile(client: any, ownerId: string): Promise<CreatorProfileRow | null> {
+  const { data, error } = await client
+    .from("creator_profile")
+    .select(
+      "product_service, target_audience, short_form_strategy, long_form_strategy, aspirational_referents, who_am_i, my_story, what_i_transmit, why_i_create, desired_impact, skills_knowledge",
+    )
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+  if (error) {
+    console.warn(`generate-script: creator_profile load failed: ${error.message}`);
+    return null;
+  }
+  return (data as CreatorProfileRow | null) ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -588,6 +689,22 @@ Deno.serve(async (req) => {
         ? (body.reference_mode as "structure_only" | "content_adapt")
         : null;
 
+    // (M23) adapt_mode + ingredients (crear a partir de ideas).
+    const adapt_mode: AdaptMode | null =
+      body?.adapt_mode === "copy" || body?.adapt_mode === "voice" || body?.adapt_mode === "instructions"
+        ? (body.adapt_mode as AdaptMode)
+        : null;
+    type IngredientInput = { kind: "referent_video" | "idea_reference"; id: string };
+    const ingredients: IngredientInput[] = Array.isArray(body?.ingredients)
+      ? (body.ingredients as unknown[])
+          .filter((x): x is IngredientInput =>
+            !!x && typeof x === "object" &&
+            ((x as IngredientInput).kind === "referent_video" ||
+              (x as IngredientInput).kind === "idea_reference") &&
+            typeof (x as IngredientInput).id === "string")
+          .map((x) => ({ kind: x.kind, id: x.id }))
+      : [];
+
     // Si es regeneración in-place (target_script_id) y no llegó concept, fallback al
     // raw_concept del script existente.
     let regenerationFallbackConcept: string | null = null;
@@ -620,10 +737,11 @@ Deno.serve(async (req) => {
       !raw_concept_input &&
       !idea_reference_id &&
       !referent_video_id &&
-      !regenerationFallbackConcept
+      !regenerationFallbackConcept &&
+      ingredients.length === 0
     ) {
       return json(
-        { error: "audio_upload_id, raw_concept, idea_reference_id or referent_video_id required" },
+        { error: "audio_upload_id, raw_concept, idea_reference_id, referent_video_id or ingredients required" },
         400,
       );
     }
@@ -687,8 +805,16 @@ Deno.serve(async (req) => {
     if (!concept && regenerationFallbackConcept) {
       concept = regenerationFallbackConcept.trim();
     }
-    if (!concept && !idea_reference_id && !referent_video_id) {
+    if (!concept && !idea_reference_id && !referent_video_id && ingredients.length === 0) {
       return json({ error: "Empty concept after transcription" }, 400);
+    }
+
+    // (M23) Resolve the adapt-mode instruction text (owner override or default).
+    let adaptInstructions: string | null = null;
+    if (adapt_mode) {
+      const slug = `adapt.${adapt_mode}`;
+      const ov = await loadPromptOverrides(userClient, [slug]);
+      adaptInstructions = ov.get(slug) ?? ADAPT_PROMPT_DEFAULTS[slug] ?? null;
     }
 
     // Resolve effective ids: explicit body wins, sino los del script existente (en regeneración).
@@ -729,6 +855,7 @@ Deno.serve(async (req) => {
         transcript: ref.transcript,
         mode: reference_mode,
         hasUserConcept,
+        adaptInstructions,
       });
     }
 
@@ -773,7 +900,61 @@ Deno.serve(async (req) => {
         conceptSummary: rv.concept_status === "done" ? rv.concept_summary : null,
         referentName,
         views: rv.views_total,
+        adaptInstructions,
       });
+    }
+
+    // -- (M23) Ingredients: 1+ ideas combined into one script ----------------
+    if (ingredients.length > 0) {
+      const loaded: LoadedIngredient[] = [];
+      for (const ing of ingredients) {
+        if (ing.kind === "referent_video") {
+          const { data: rv, error: rvErr } = await userClient
+            .from("referent_videos")
+            .select(
+              "id, source_url, platform, title, caption, views_total, transcript, transcript_status, concept_summary, concept_status, referents(name)",
+            )
+            .eq("id", ing.id)
+            .single();
+          if (rvErr || !rv) return json({ error: `Ingrediente no encontrado (${ing.id})` }, 404);
+          if (rv.transcript_status !== "done" || !rv.transcript) {
+            return json({ error: "Una idea del banco todavía no fue analizada. Analizala antes de combinar." }, 422);
+          }
+          const referentRow = rv.referents as { name?: string } | { name?: string }[] | null;
+          const referentName = Array.isArray(referentRow)
+            ? referentRow[0]?.name ?? null
+            : referentRow?.name ?? null;
+          loaded.push({
+            platform: rv.platform,
+            source_url: rv.source_url,
+            title: rv.title,
+            caption: rv.caption,
+            transcript: rv.transcript,
+            conceptSummary: rv.concept_status === "done" ? rv.concept_summary : null,
+            referentName,
+            views: rv.views_total,
+          });
+        } else {
+          const { data: ir, error: irErr } = await userClient
+            .from("idea_references")
+            .select("id, source_url, platform, title, caption, transcript, transcript_status")
+            .eq("id", ing.id)
+            .single();
+          if (irErr || !ir) return json({ error: `Ingrediente no encontrado (${ing.id})` }, 404);
+          if (ir.transcript_status !== "done" || !ir.transcript) {
+            return json({ error: "Una idea pegada por URL todavía se está transcribiendo. Esperá a que termine." }, 422);
+          }
+          loaded.push({
+            platform: ir.platform,
+            source_url: ir.source_url,
+            title: ir.title,
+            caption: ir.caption,
+            transcript: ir.transcript,
+          });
+        }
+      }
+      const instr = adaptInstructions ?? ADAPT_PROMPT_DEFAULTS["adapt.voice"];
+      referenceBlock = buildIngredientsBlock(loaded, instr);
     }
 
     // -- Format ---------------------------------------------------------------
@@ -888,6 +1069,20 @@ Deno.serve(async (req) => {
       motionGraphicsCatalogBlock,
     });
 
+    // -- System blocks: static layers (con overrides del owner) + perfil del creator
+    const [promptOverrides, creatorProfile] = await Promise.all([
+      loadPromptOverrides(userClient, SCRIPT_PROMPT_SLUGS),
+      loadCreatorProfile(userClient, user.id),
+    ]);
+    const systemText = buildSystemPrompt((slug) => promptOverrides.get(slug));
+    const profileBlock = buildCreatorProfileBlock(creatorProfile);
+    const systemBlocks: SystemBlock[] = [
+      { type: "text", text: systemText, cache_control: { type: "ephemeral" } },
+      ...(profileBlock
+        ? [{ type: "text", text: profileBlock, cache_control: { type: "ephemeral" } } as SystemBlock]
+        : []),
+    ];
+
     // -- Claude call (with one corrective retry on validation failure) -------
     const messages: ClaudeMessage[] = [{ role: "user", content: userPromptText }];
 
@@ -896,7 +1091,7 @@ Deno.serve(async (req) => {
     let generationWarning: string | null = null;
 
     try {
-      const first = await callClaude(messages);
+      const first = await callClaude(messages, systemBlocks);
       result = first.result;
       usage = first.usage;
     } catch (err) {
@@ -929,7 +1124,7 @@ Deno.serve(async (req) => {
       });
 
       try {
-        const second = await callClaude(messages);
+        const second = await callClaude(messages, systemBlocks);
         const validation2 = validateResult(second.result);
         if (validation2.ok) {
           result = second.result;
@@ -969,6 +1164,30 @@ Deno.serve(async (req) => {
     const story = result.storytelling ?? { setup: "", conflict: "", resolution: "" };
     const isStoryPopulated = !!(story.setup?.trim() || story.conflict?.trim() || story.resolution?.trim());
 
+    // (M23) Primary source ids for back-compat columns: explicit body wins,
+    // else the first ingredient of its kind (so the IdeasInbox badge still works).
+    const firstIngredient = ingredients[0];
+    const effective_referent_video_id = referent_video_id ??
+      (firstIngredient?.kind === "referent_video" ? firstIngredient.id : null);
+    const effective_idea_reference_id = idea_reference_id ??
+      (firstIngredient?.kind === "idea_reference" ? firstIngredient.id : null);
+
+    // (M23) Replace the script's ingredient rows with the current set.
+    const persistIngredients = async (scriptId: string) => {
+      if (ingredients.length === 0) return;
+      await userClient.from("script_ingredients").delete().eq("script_id", scriptId);
+      const { error: ingErr } = await userClient.from("script_ingredients").insert(
+        ingredients.map((ing, i) => ({
+          script_id: scriptId,
+          owner_id: user.id,
+          source_kind: ing.kind,
+          source_id: ing.id,
+          position: i,
+        })),
+      );
+      if (ingErr) console.warn(`generate-script: script_ingredients insert failed: ${ingErr.message}`);
+    };
+
     // -- Persistencia: regeneración in-place o RPC insert --------------------
     if (target_script_id) {
       const updatePayload: Record<string, unknown> = {
@@ -1003,16 +1222,18 @@ Deno.serve(async (req) => {
         storytelling_conflict: isStoryPopulated ? story.conflict || null : null,
         storytelling_resolution: isStoryPopulated ? story.resolution || null : null,
         generation_warning: generationWarning,
-        idea_reference_id: idea_reference_id,
-        reference_mode: idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
-        referent_video_id: referent_video_id,
+        idea_reference_id: effective_idea_reference_id,
+        reference_mode: effective_idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
+        referent_video_id: effective_referent_video_id,
       };
+      if (adapt_mode) updatePayload.adapt_mode = adapt_mode;
 
       const { error: updErr } = await userClient
         .from("scripts")
         .update(updatePayload)
         .eq("id", target_script_id);
       if (updErr) return json({ error: `Update failed: ${updErr.message}` }, 500);
+      await persistIngredients(target_script_id);
 
       // Reemplazar animations: borrar las viejas + insertar las nuevas. Las
       // brolls (sistema viejo) NO se tocan en regeneración — siguen siendo
@@ -1099,15 +1320,21 @@ Deno.serve(async (req) => {
         _storytelling_conflict: isStoryPopulated ? story.conflict || null : null,
         _storytelling_resolution: isStoryPopulated ? story.resolution || null : null,
         _generation_warning: generationWarning,
-        _idea_reference_id: idea_reference_id,
-        _reference_mode: idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
+        _idea_reference_id: effective_idea_reference_id,
+        _reference_mode: effective_idea_reference_id ? (reference_mode_input ?? "content_adapt") : null,
         _shape_id: effective_shape_id,
         _series_id: effective_series_id,
         _part_number: effective_part_number,
-        _referent_video_id: referent_video_id,
+        _referent_video_id: effective_referent_video_id,
       },
     );
     if (rpcErr) return json({ error: `RPC failed: ${rpcErr.message}` }, 500);
+
+    // (M23) The RPC doesn't take adapt_mode/ingredients — stamp them after insert.
+    if (adapt_mode && scriptId) {
+      await userClient.from("scripts").update({ adapt_mode }).eq("id", scriptId);
+    }
+    if (scriptId) await persistIngredients(scriptId as string);
 
     return json({
       ok: true,

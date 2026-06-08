@@ -733,6 +733,7 @@ export type Database = {
           title: string | null
           updated_at: string
           video_id: string | null
+          youtube_project_id: string | null
         }
         Insert: {
           aspect_ratio?: string
@@ -752,6 +753,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           video_id?: string | null
+          youtube_project_id?: string | null
         }
         Update: {
           aspect_ratio?: string
@@ -771,6 +773,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           video_id?: string | null
+          youtube_project_id?: string | null
         }
         Relationships: [
           {
@@ -808,7 +811,68 @@ export type Database = {
             referencedRelation: "videos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "covers_youtube_project_id_fkey"
+            columns: ["youtube_project_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_projects"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      creator_profile: {
+        Row: {
+          aspirational_referents: Json
+          created_at: string
+          desired_impact: string | null
+          id: string
+          long_form_strategy: string | null
+          my_story: string | null
+          owner_id: string
+          product_service: string | null
+          short_form_strategy: string | null
+          skills_knowledge: string | null
+          target_audience: string | null
+          updated_at: string
+          what_i_transmit: string | null
+          who_am_i: string | null
+          why_i_create: string | null
+        }
+        Insert: {
+          aspirational_referents?: Json
+          created_at?: string
+          desired_impact?: string | null
+          id?: string
+          long_form_strategy?: string | null
+          my_story?: string | null
+          owner_id: string
+          product_service?: string | null
+          short_form_strategy?: string | null
+          skills_knowledge?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          what_i_transmit?: string | null
+          who_am_i?: string | null
+          why_i_create?: string | null
+        }
+        Update: {
+          aspirational_referents?: Json
+          created_at?: string
+          desired_impact?: string | null
+          id?: string
+          long_form_strategy?: string | null
+          my_story?: string | null
+          owner_id?: string
+          product_service?: string | null
+          short_form_strategy?: string | null
+          skills_knowledge?: string | null
+          target_audience?: string | null
+          updated_at?: string
+          what_i_transmit?: string | null
+          who_am_i?: string | null
+          why_i_create?: string | null
+        }
+        Relationships: []
       }
       editor_assignments: {
         Row: {
@@ -1297,6 +1361,33 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_overrides: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          owner_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       publish_jobs: {
         Row: {
           attempt: number
@@ -1385,18 +1476,75 @@ export type Database = {
           },
         ]
       }
+      referent_reports: {
+        Row: {
+          covered_from: string | null
+          covered_through: string | null
+          created_at: string
+          error: string | null
+          id: string
+          markdown: string | null
+          owner_id: string
+          period_label: string | null
+          referent_id: string
+          status: string
+          updated_at: string
+          video_count: number
+        }
+        Insert: {
+          covered_from?: string | null
+          covered_through?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          markdown?: string | null
+          owner_id: string
+          period_label?: string | null
+          referent_id: string
+          status?: string
+          updated_at?: string
+          video_count?: number
+        }
+        Update: {
+          covered_from?: string | null
+          covered_through?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          markdown?: string | null
+          owner_id?: string
+          period_label?: string | null
+          referent_id?: string
+          status?: string
+          updated_at?: string
+          video_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referent_reports_referent_id_fkey"
+            columns: ["referent_id"]
+            isOneToOne: false
+            referencedRelation: "referents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referent_videos: {
         Row: {
           apify_short_code: string | null
+          business_objective: string | null
           caption: string | null
           comments: number | null
           concept_error: string | null
           concept_status: string
           concept_summary: string | null
+          content_objectives: string[] | null
+          content_type: string | null
           created_at: string
           id: string
           last_scraped_at: string | null
           likes: number | null
+          main_topics: string[] | null
           metrics_updated_at: string | null
           platform: Database["public"]["Enums"]["video_platform"]
           posted_at: string | null
@@ -1417,15 +1565,19 @@ export type Database = {
         }
         Insert: {
           apify_short_code?: string | null
+          business_objective?: string | null
           caption?: string | null
           comments?: number | null
           concept_error?: string | null
           concept_status?: string
           concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
           created_at?: string
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform: Database["public"]["Enums"]["video_platform"]
           posted_at?: string | null
@@ -1446,15 +1598,19 @@ export type Database = {
         }
         Update: {
           apify_short_code?: string | null
+          business_objective?: string | null
           caption?: string | null
           comments?: number | null
           concept_error?: string | null
           concept_status?: string
           concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
           created_at?: string
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform?: Database["public"]["Enums"]["video_platform"]
           posted_at?: string | null
@@ -1736,8 +1892,47 @@ export type Database = {
           },
         ]
       }
+      script_ingredients: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          position: number
+          script_id: string
+          source_id: string
+          source_kind: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          position?: number
+          script_id: string
+          source_id: string
+          source_kind: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          position?: number
+          script_id?: string
+          source_id?: string
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_ingredients_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scripts: {
         Row: {
+          adapt_mode: string | null
           ai_summary: string | null
           audio_upload_id: string | null
           avatar_target: string | null
@@ -1780,6 +1975,7 @@ export type Database = {
           word_count: number | null
         }
         Insert: {
+          adapt_mode?: string | null
           ai_summary?: string | null
           audio_upload_id?: string | null
           avatar_target?: string | null
@@ -1822,6 +2018,7 @@ export type Database = {
           word_count?: number | null
         }
         Update: {
+          adapt_mode?: string | null
           ai_summary?: string | null
           audio_upload_id?: string | null
           avatar_target?: string | null
@@ -2429,6 +2626,277 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      youtube_connections: {
+        Row: {
+          access_token: string | null
+          channel_id: string | null
+          channel_thumbnail_url: string | null
+          channel_title: string | null
+          created_at: string
+          id: string
+          last_sync_error: string | null
+          last_synced_at: string | null
+          owner_id: string
+          refresh_token: string | null
+          scopes: string[] | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          owner_id: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_sync_error?: string | null
+          last_synced_at?: string | null
+          owner_id?: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      youtube_project_sections: {
+        Row: {
+          audio_mode: string | null
+          bunny_video_id: string | null
+          clone_error: string | null
+          clone_status: string
+          clone_video_url: string | null
+          created_at: string
+          duration_seconds: number | null
+          heygen_video_id: string | null
+          id: string
+          kind: string
+          owner_id: string
+          points: string | null
+          position: number
+          project_id: string
+          recorded_audio_path: string | null
+          recorder: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_mode?: string | null
+          bunny_video_id?: string | null
+          clone_error?: string | null
+          clone_status?: string
+          clone_video_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          heygen_video_id?: string | null
+          id?: string
+          kind?: string
+          owner_id: string
+          points?: string | null
+          position?: number
+          project_id: string
+          recorded_audio_path?: string | null
+          recorder?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_mode?: string | null
+          bunny_video_id?: string | null
+          clone_error?: string | null
+          clone_status?: string
+          clone_video_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          heygen_video_id?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          points?: string | null
+          position?: number
+          project_id?: string
+          recorded_audio_path?: string | null
+          recorder?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_project_sections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_projects: {
+        Row: {
+          audio_upload_id: string | null
+          chosen_thumbnail_cover_id: string | null
+          chosen_title: string | null
+          created_at: string
+          default_audio_mode: string
+          id: string
+          idea: string | null
+          length_tier: string
+          owner_id: string
+          status: string
+          structure_error: string | null
+          structure_status: string
+          title: string | null
+          title_options: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          audio_upload_id?: string | null
+          chosen_thumbnail_cover_id?: string | null
+          chosen_title?: string | null
+          created_at?: string
+          default_audio_mode?: string
+          id?: string
+          idea?: string | null
+          length_tier?: string
+          owner_id: string
+          status?: string
+          structure_error?: string | null
+          structure_status?: string
+          title?: string | null
+          title_options?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          audio_upload_id?: string | null
+          chosen_thumbnail_cover_id?: string | null
+          chosen_title?: string | null
+          created_at?: string
+          default_audio_mode?: string
+          id?: string
+          idea?: string | null
+          length_tier?: string
+          owner_id?: string
+          status?: string
+          structure_error?: string | null
+          structure_status?: string
+          title?: string | null
+          title_options?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_projects_audio_upload_id_fkey"
+            columns: ["audio_upload_id"]
+            isOneToOne: false
+            referencedRelation: "audio_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_videos: {
+        Row: {
+          business_objective: string | null
+          comment_count: number | null
+          concept_error: string | null
+          concept_status: string
+          concept_summary: string | null
+          content_objectives: string[] | null
+          content_type: string | null
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          last_synced_at: string | null
+          like_count: number | null
+          main_topics: string[] | null
+          owner_id: string
+          published_at: string | null
+          raw: Json | null
+          thumbnail_url: string | null
+          title: string | null
+          transcript: string | null
+          transcript_error: string | null
+          transcript_language: string | null
+          transcript_status: string
+          updated_at: string
+          view_count: number | null
+          youtube_video_id: string
+        }
+        Insert: {
+          business_objective?: string | null
+          comment_count?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          last_synced_at?: string | null
+          like_count?: number | null
+          main_topics?: string[] | null
+          owner_id: string
+          published_at?: string | null
+          raw?: Json | null
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          view_count?: number | null
+          youtube_video_id: string
+        }
+        Update: {
+          business_objective?: string | null
+          comment_count?: number | null
+          concept_error?: string | null
+          concept_status?: string
+          concept_summary?: string | null
+          content_objectives?: string[] | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          last_synced_at?: string | null
+          like_count?: number | null
+          main_topics?: string[] | null
+          owner_id?: string
+          published_at?: string | null
+          raw?: Json | null
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript?: string | null
+          transcript_error?: string | null
+          transcript_language?: string | null
+          transcript_status?: string
+          updated_at?: string
+          view_count?: number | null
+          youtube_video_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

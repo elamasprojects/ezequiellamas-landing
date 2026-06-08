@@ -10,13 +10,29 @@ import { scrapeReferentVideos, type Referent } from "@/lib/api/referents";
 import { PlatformBadges } from "@/pages/app/admin/referentes/ReferentesList";
 import ReferenteDialog from "@/pages/app/admin/referentes/ReferenteDialog";
 import ReferentVideoCard from "@/pages/app/admin/referentes/ReferentVideoCard";
+import ReferentStrategySection from "@/pages/app/admin/referentes/ReferentStrategySection";
 
 export default function ReferenteDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: referent, isLoading: refLoading } = useReferent(id);
   const { data: videos, isLoading: vidLoading } = useReferentVideos(id);
   const [editOpen, setEditOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [platform, setPlatform] = useState<"all" | "instagram" | "youtube" | "tiktok">("all");
   const qc = useQueryClient();
+
+  // (M24/M25) Filter the loaded videos by posted_at range + platform (client-side).
+  const filteredVideos = (videos ?? []).filter((v) => {
+    if (platform !== "all" && v.platform !== platform) return false;
+    if (!fromDate && !toDate) return true;
+    if (!v.posted_at) return false;
+    const d = v.posted_at.slice(0, 10);
+    if (fromDate && d < fromDate) return false;
+    if (toDate && d > toDate) return false;
+    return true;
+  });
+  const analyzedCount = (videos ?? []).filter((v) => v.concept_status === "done").length;
 
   const scrapeMutation = useMutation({
     mutationFn: () => scrapeReferentVideos(id!),
@@ -124,7 +140,82 @@ export default function ReferenteDetail() {
         </div>
       )}
 
-      <VideoGrid videos={videos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
+      {id && videos && videos.length > 0 && (
+        <ReferentStrategySection
+          referentId={id}
+          analyzedCount={analyzedCount}
+          totalCount={videos.length}
+        />
+      )}
+
+      {videos && videos.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Desde
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="block rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] px-3 py-1.5 text-sm"
+              style={{ color: "var(--ll-text)" }}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Hasta
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="block rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] px-3 py-1.5 text-sm"
+              style={{ color: "var(--ll-text)" }}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              Plataforma
+            </label>
+            <div className="flex gap-1">
+              {(["all", "instagram", "youtube", "tiktok"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPlatform(p)}
+                  className="rounded-md border px-2.5 py-1.5 text-xs capitalize"
+                  style={{
+                    borderColor: platform === p ? "var(--ll-accent)" : "var(--ll-border)",
+                    background: platform === p ? "var(--ll-accent-dim)" : "transparent",
+                    color: platform === p ? "var(--ll-accent)" : "var(--ll-text-muted)",
+                  }}
+                >
+                  {p === "all" ? "Todas" : p === "youtube" ? "YT" : p === "instagram" ? "IG" : "TT"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(fromDate || toDate || platform !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+                setPlatform("all");
+              }}
+            >
+              Limpiar
+            </Button>
+          )}
+          <span className="ml-auto text-xs" style={{ color: "var(--ll-text-muted)" }}>
+            {filteredVideos.length} de {videos.length}
+          </span>
+        </div>
+      )}
+
+      <VideoGrid videos={filteredVideos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
 
       <ReferenteDialog
         open={editOpen}

@@ -33,12 +33,111 @@ REGLAS NO NEGOCIABLES:
 
 Si el concepto del usuario incluye una transcripción de audio cruda, ignora muletillas y dudas de habla — extraé la idea y dale forma de guion limpio.`;
 
-export const SYSTEM_PROMPT = [
-  SYSTEM_HEADER,
-  `=== MANIFIESTO DE MARCA ===\n${MANIFESTO_BRAND}`,
-  `=== REGLAS DE SCRIPTING ===\n${SCRIPTING_RULES}`,
-  `=== BANCO DE HOOKS ===\n${HOOK_BANK}`,
-].join("\n\n");
+// Defaults registry keyed by prompt slug. These are the hardcoded fallbacks
+// used when the owner has no row in `prompt_overrides` for that slug. The same
+// map is served to the client by the `get-prompt-defaults` edge function so the
+// "Prompts IA" settings tab shows the real default text and "reset" matches.
+export const SCRIPT_PROMPT_DEFAULTS: Record<string, string> = {
+  "script.system": SYSTEM_HEADER,
+  "script.manifesto": MANIFESTO_BRAND,
+  "script.scripting_rules": SCRIPTING_RULES,
+  "script.hook_bank": HOOK_BANK,
+};
+
+// Composes the static system prompt from the 4 layers, letting an owner override
+// any layer. `resolve(slug)` returns the owner's override text or undefined.
+export function buildSystemPrompt(
+  resolve: (slug: string) => string | undefined,
+): string {
+  const pick = (slug: string) => resolve(slug) ?? SCRIPT_PROMPT_DEFAULTS[slug];
+  return [
+    pick("script.system"),
+    `=== MANIFIESTO DE MARCA ===\n${pick("script.manifesto")}`,
+    `=== REGLAS DE SCRIPTING ===\n${pick("script.scripting_rules")}`,
+    `=== BANCO DE HOOKS ===\n${pick("script.hook_bank")}`,
+  ].join("\n\n");
+}
+
+// Back-compat: the fully-default system prompt (no overrides). Still exported in
+// case other callers import it; index.ts now uses buildSystemPrompt().
+export const SYSTEM_PROMPT = buildSystemPrompt(() => undefined);
+
+// ---------------------------------------------------------------------------
+// Creator profile context block
+// ---------------------------------------------------------------------------
+// The owner's brand profile + questionnaire (creator_profile row). Emitted as a
+// trailing cacheable system block so the model speaks in the configured voice.
+// Only populated fields are included; an empty/absent profile yields "" (no block).
+
+export interface CreatorProfileRow {
+  product_service?: string | null;
+  target_audience?: string | null;
+  short_form_strategy?: string | null;
+  long_form_strategy?: string | null;
+  aspirational_referents?: unknown;
+  who_am_i?: string | null;
+  my_story?: string | null;
+  what_i_transmit?: string | null;
+  why_i_create?: string | null;
+  desired_impact?: string | null;
+  skills_knowledge?: string | null;
+}
+
+export function buildCreatorProfileBlock(cp: CreatorProfileRow | null | undefined): string {
+  if (!cp) return "";
+  const lines: string[] = [];
+  const add = (label: string, val: string | null | undefined) => {
+    const v = (val ?? "").trim();
+    if (v) lines.push(`${label}: ${v}`);
+  };
+
+  add("PRODUCTO/SERVICIO", cp.product_service);
+  add("PÚBLICO OBJETIVO", cp.target_audience);
+  add("ESTRATEGIA SHORT-FORM", cp.short_form_strategy);
+  add("ESTRATEGIA LONG-FORM", cp.long_form_strategy);
+
+  const refs = Array.isArray(cp.aspirational_referents)
+    ? (cp.aspirational_referents as Array<Record<string, unknown>>)
+    : [];
+  const refLines = refs
+    .map((r) => {
+      const name = String(r?.name ?? "").trim();
+      const like = String(r?.what_i_like ?? "").trim();
+      const why = String(r?.why ?? "").trim();
+      if (!name && !like && !why) return null;
+      return `  - ${name || "(sin nombre)"}${like ? ` — me gusta: ${like}` : ""}${why ? ` · porque: ${why}` : ""}`;
+    })
+    .filter((x): x is string => x !== null);
+  if (refLines.length) {
+    lines.push("REFERENTES ASPIRACIONALES:");
+    lines.push(...refLines);
+  }
+
+  const q: string[] = [];
+  const addQ = (label: string, val: string | null | undefined) => {
+    const v = (val ?? "").trim();
+    if (v) q.push(`${label}: ${v}`);
+  };
+  addQ("QUIÉN SOY", cp.who_am_i);
+  addQ("MI HISTORIA", cp.my_story);
+  addQ("QUÉ TRANSMITO", cp.what_i_transmit);
+  addQ("POR QUÉ HAGO CONTENIDO", cp.why_i_create);
+  addQ("IMPACTO QUE BUSCO", cp.desired_impact);
+  addQ("SKILLS / CONOCIMIENTO / TRAYECTORIA", cp.skills_knowledge);
+  if (q.length) {
+    lines.push("--- CUESTIONARIO DEL CREATOR ---");
+    lines.push(...q);
+  }
+
+  if (lines.length === 0) return "";
+  return [
+    "=== PERFIL DEL CREATOR (contexto base) ===",
+    "Usá este perfil como la voz, el ángulo y el contexto de negocio del creador.",
+    "Si entra en conflicto con un ejemplo genérico, priorizá este perfil.",
+    "",
+    ...lines,
+  ].join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Catálogo de motion graphics — formatter

@@ -99,6 +99,28 @@ export async function fetchReferentVideos(referentId: string): Promise<ReferentV
   return data ?? [];
 }
 
+// (M23) An analyzed viral with its referent's name attached, for the
+// "Crear a partir de ideas" ingredient picker. Only transcript-done rows are
+// usable as ingredients (the generator needs the transcript).
+export type AnalyzedReferentVideo = ReferentVideo & { referent_name: string | null };
+
+export async function fetchAnalyzedReferentVideos(): Promise<AnalyzedReferentVideo[]> {
+  const { data, error } = await supabase
+    .from("referent_videos")
+    .select("*, referents(name)")
+    .eq("transcript_status", "done")
+    .order("views_total", { ascending: false, nullsFirst: false })
+    .limit(150);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const { referents, ...rest } = row as ReferentVideo & {
+      referents: { name: string | null } | { name: string | null }[] | null;
+    };
+    const ref = Array.isArray(referents) ? referents[0] : referents;
+    return { ...(rest as ReferentVideo), referent_name: ref?.name ?? null };
+  });
+}
+
 export interface ScrapeResult {
   ok: boolean;
   scraped: { instagram: number; youtube: number; tiktok: number };
@@ -112,6 +134,27 @@ export async function scrapeReferentVideos(referentId: string): Promise<ScrapeRe
   );
   if (error) throw error;
   if (!data) throw new Error("scrape-referent-videos returned empty response");
+  return data;
+}
+
+// (M24) Dispatch bulk per-video analysis (transcript + concept + classification)
+// for a referent's pending videos. Fire-and-forget on the backend.
+export interface BulkAnalyzeResult {
+  ok: boolean;
+  dispatched: number;
+  ids: string[];
+}
+
+export async function bulkAnalyzeReferent(
+  referentId: string,
+  force = false,
+): Promise<BulkAnalyzeResult> {
+  const { data, error } = await supabase.functions.invoke<BulkAnalyzeResult>(
+    "bulk-analyze-referents",
+    { body: { referent_id: referentId, force } },
+  );
+  if (error) throw error;
+  if (!data) throw new Error("bulk-analyze-referents returned empty response");
   return data;
 }
 

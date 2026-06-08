@@ -28,6 +28,11 @@ import RecursoDetail from "@/pages/recursos/RecursoDetail";
 // Lazy-loaded pages
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
 const Team = lazy(() => import("@/pages/app/admin/team/Team"));
+const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
+const CrearPage = lazy(() => import("@/pages/app/admin/crear/CrearPage"));
+const YoutubePage = lazy(() => import("@/pages/app/admin/youtube/YoutubePage"));
+const StudioList = lazy(() => import("@/pages/app/admin/studio/StudioList"));
+const StudioProjectEditor = lazy(() => import("@/pages/app/admin/studio/ProjectEditor"));
 const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
@@ -43,6 +48,7 @@ const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesLi
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
 const ReferentesList = lazy(() => import("@/pages/app/admin/referentes/ReferentesList"));
 const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/ReferenteDetail"));
+const ReferentReportView = lazy(() => import("@/pages/app/admin/referentes/ReferentReportView"));
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
@@ -89,6 +95,7 @@ export default function App() {
             <Route path="admin" element={<RequireRole role="admin" />}>
               <Route element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="crear" element={<CrearPage />} />
                 <Route path="ideas" element={<IdeasInbox />} />
                 <Route path="ideas/new" element={<NewIdea />} />
                 <Route path="ideas/:id" element={<ScriptEditor />} />
@@ -105,6 +112,10 @@ export default function App() {
                 <Route path="resources/:id" element={<ResourceEditor />} />
                 <Route path="referentes" element={<ReferentesList />} />
                 <Route path="referentes/:id" element={<ReferenteDetail />} />
+                <Route path="referentes/:id/reportes/:reportId" element={<ReferentReportView />} />
+                <Route path="youtube" element={<YoutubePage />} />
+                <Route path="studio" element={<StudioList />} />
+                <Route path="studio/:id" element={<StudioProjectEditor />} />
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
@@ -120,6 +131,7 @@ export default function App() {
                 <Route path="publishing/connections" element={<Connections />} />
                 <Route path="publishing/:id" element={<ScheduledPostDetail />} />
                 <Route path="team" element={<Team />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
 

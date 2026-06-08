@@ -194,6 +194,11 @@ interface ConceptToolResult {
   angle: string;
   cta: string;
   summary: string;
+  // (M24) strategic classification
+  business_objective?: "viralidad" | "nutricion" | "conversion";
+  content_objectives?: Array<"educar" | "entretener" | "inspirar">;
+  content_type?: string;
+  main_topics?: string[];
 }
 
 const CONCEPT_TOOL = {
@@ -222,8 +227,43 @@ const CONCEPT_TOOL = {
         type: "string",
         description: "2-3 párrafos densos en español rioplatense que sinteticen hook + formato + ángulo + CTA + por qué este video performó. Sin filler.",
       },
+      business_objective: {
+        type: "string",
+        enum: ["viralidad", "nutricion", "conversion"],
+        description:
+          "Objetivo de negocio del video: 'viralidad' (alcanzar nueva audiencia), 'nutricion' (educar sobre quién es y qué vende), 'conversion' (generar una venta directa).",
+      },
+      content_objectives: {
+        type: "array",
+        items: { type: "string", enum: ["educar", "entretener", "inspirar"] },
+        minItems: 1,
+        maxItems: 3,
+        description: "Objetivo(s) de contenido. Puede combinar 1, 2 o los 3.",
+      },
+      content_type: {
+        type: "string",
+        enum: ["educacional", "lifestyle", "rutina", "otros"],
+        description: "Tipo de contenido predominante.",
+      },
+      main_topics: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 1,
+        maxItems: 6,
+        description: "Temas principales que toca el video (sustantivos cortos, ej: 'ventas', 'mindset', 'n8n').",
+      },
     },
-    required: ["hook", "format", "angle", "cta", "summary"],
+    required: [
+      "hook",
+      "format",
+      "angle",
+      "cta",
+      "summary",
+      "business_objective",
+      "content_objectives",
+      "content_type",
+      "main_topics",
+    ],
   },
 } as const;
 
@@ -235,6 +275,11 @@ Reglas:
 - El "format" describe CÓMO está grabado, no de qué habla.
 - El "angle" describe la POSTURA o estrategia narrativa, no el tema.
 - El "summary" tiene 2-3 párrafos. Mencioná números de views si son notables.
+- Clasificá la estrategia del video:
+  · business_objective: viralidad (alcanzar nueva audiencia) / nutricion (educar sobre quién es y qué vende) / conversion (venta directa).
+  · content_objectives: educar / entretener / inspirar (1 a 3, las que apliquen).
+  · content_type: educacional / lifestyle / rutina / otros.
+  · main_topics: los temas concretos que toca (sustantivos cortos).
 - Nunca digas "imaginate", "te voy a explicar", "spoiler:", "esto lo cambia todo".`;
 
 async function extractConcept(input: {
@@ -301,6 +346,10 @@ async function setStatus(
     concept_summary: string | null;
     concept_status: string;
     concept_error: string | null;
+    business_objective: string | null;
+    content_objectives: string[] | null;
+    content_type: string | null;
+    main_topics: string[] | null;
   }>,
 ) {
   const { error } = await client.from("referent_videos").update(fields).eq("id", id);
@@ -449,6 +498,10 @@ Deno.serve(async (req) => {
       concept_summary: concept.summary,
       concept_status: "done",
       concept_error: null,
+      business_objective: concept.business_objective ?? null,
+      content_objectives: concept.content_objectives ?? null,
+      content_type: concept.content_type ?? null,
+      main_topics: concept.main_topics ?? null,
     });
 
     return json({

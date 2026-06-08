@@ -18,6 +18,19 @@ export interface GenerateScriptInput {
   referent_video_id?: string;
   reference_mode?: "structure_only" | "content_adapt";
   /**
+   * (M23) Modo de adaptación cuando se crea a partir de ideas de competidores.
+   * - copy: replicar la idea/estructura fielmente, traducida a es-AR limpia.
+   * - voice: reescribir con la voz/POV del creator usando el perfil (M22).
+   * - instructions: adaptar siguiendo las instrucciones del usuario (raw_concept).
+   * La edge function resuelve el prompt editable `adapt.<mode>` (override o default).
+   */
+  adapt_mode?: "copy" | "voice" | "instructions";
+  /**
+   * (M23) Ingredientes: una o más ideas fuente (virales del banco de referentes
+   * y/o idea_references scrapeadas) que se combinan en un solo guion.
+   */
+  ingredients?: Array<{ kind: "referent_video" | "idea_reference"; id: string }>;
+  /**
    * Si está seteado, en vez de crear un script nuevo, regenera el existente
    * in-place (overwrite de hook/development/cta/etc + reemplazo de brolls).
    * Mantiene el id, format/shape/series/part_number salvo que se sobreescriban
