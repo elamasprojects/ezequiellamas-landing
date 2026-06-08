@@ -42,6 +42,12 @@ export default function ProjectEditor() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const setOrientation = useMutation({
+    mutationFn: (o: string) => updateYoutubeProject(id!, { orientation: o }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["youtube-project", id] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const setTitle = useMutation({
     mutationFn: (t: string) => updateYoutubeProject(id!, { chosen_title: t }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["youtube-project", id] }),
@@ -130,6 +136,31 @@ export default function ProjectEditor() {
         ) : (
           <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>Generá 3 propuestas de miniatura (Gemini).</p>
         )}
+      </section>
+
+      {/* Orientation */}
+      <section className="space-y-2">
+        <Label>Orientación del video (clon)</Label>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { v: "vertical", l: "Vertical 9:16" },
+            { v: "horizontal", l: "Horizontal 16:9" },
+          ].map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setOrientation.mutate(o.v)}
+              className="rounded-md border px-3 py-1.5 text-xs"
+              style={{
+                borderColor: (project.orientation ?? "vertical") === o.v ? "var(--ll-accent)" : "var(--ll-border)",
+                background: (project.orientation ?? "vertical") === o.v ? "var(--ll-accent-dim)" : "transparent",
+                color: (project.orientation ?? "vertical") === o.v ? "var(--ll-accent)" : "var(--ll-text-muted)",
+              }}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Default audio mode */}
