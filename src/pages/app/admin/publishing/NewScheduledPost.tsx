@@ -55,7 +55,8 @@ export default function NewScheduledPost() {
   const [defaultCaption, setDefaultCaption] = useState("");
   const [captionsByPlatform, setCaptionsByPlatform] = useState<Record<string, string>>({});
   const [hashtagsRaw, setHashtagsRaw] = useState("");
-  const [platforms, setPlatforms] = useState<PublishPlatform[]>([]);
+  // Default to all platforms (post everywhere unless you deselect).
+  const [platforms, setPlatforms] = useState<PublishPlatform[]>(() => [...PUBLISH_PLATFORMS]);
   const [scheduledAt, setScheduledAt] = useState<string>(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() + 30);
@@ -64,7 +65,8 @@ export default function NewScheduledPost() {
   });
   const [scriptId, setScriptId] = useState<string | null>(null);
   const [formatId, setFormatId] = useState<string | null>(null);
-  const [publishImmediately, setPublishImmediately] = useState(false);
+  // Schedule by default; "Publicar ahora" switches to immediate publish.
+  const [mode, setMode] = useState<"now" | "schedule">("schedule");
 
   // AI caption generation
   const [transcribing, setTranscribing] = useState(false);
@@ -120,6 +122,8 @@ export default function NewScheduledPost() {
     setManualTranscriptDraft("");
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
+    } else {
+      setPlatforms([...PUBLISH_PLATFORMS]);
     }
   }
 
@@ -224,7 +228,7 @@ export default function NewScheduledPost() {
         caption_default: defaultCaption || null,
         captions: captionsByPlatform,
         hashtags,
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        scheduled_at: (mode === "now" ? new Date() : new Date(scheduledAt)).toISOString(),
         script_id: scriptId,
         format_id: formatId,
         platforms,
@@ -234,13 +238,13 @@ export default function NewScheduledPost() {
         transcript_language: cachedTranscriptLang,
         transcript_status: cachedTranscript ? "done" : "idle",
       });
-      if (publishImmediately) {
+      if (mode === "now") {
         await publishNow({ scheduled_post_id: post.id });
       }
       return post;
     },
     onSuccess: (post) => {
-      toast.success("Post programado");
+      toast.success(mode === "now" ? "Publicando…" : "Post programado");
       qc.invalidateQueries({ queryKey: ["scheduled-posts"] });
       navigate(`/app/admin/publishing/${post.id}`);
     },
@@ -618,18 +622,35 @@ export default function NewScheduledPost() {
 
       {/* Step 5: schedule */}
       <Section step="5" title="Programación">
-        <Field label="Fecha y hora">
-          <Input
-            type="datetime-local"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="bg-[var(--ll-surface)] border-[var(--ll-border)]"
-          />
-          <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
-            Zona horaria: America/Argentina/Buenos_Aires
+        <div className="flex gap-2">
+          {([
+            { v: "now", l: "Publicar ahora" },
+            { v: "schedule", l: "Programar" },
+          ] as const).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setMode(o.v)}
+              className="flex-1 rounded-md border px-3 py-2 text-sm"
+              style={{
+                borderColor: mode === o.v ? "var(--ll-accent)" : "var(--ll-border)",
+                background: mode === o.v ? "var(--ll-accent-dim)" : "transparent",
+                color: mode === o.v ? "var(--ll-accent)" : "var(--ll-text-muted)",
+              }}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+
+        {mode === "now" ? (
+          <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            Se publica al toque en las plataformas seleccionadas.
           </p>
-          {!publishImmediately && (
-            <div className="mt-2 space-y-1.5">
+        ) : (
+          <div className="space-y-3">
+            {/* Suggested optimal blocks first */}
+            <div className="space-y-1.5">
               <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
                 Próximo slot óptimo
               </span>
@@ -642,37 +663,45 @@ export default function NewScheduledPost() {
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {slotSuggestions.map((s, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      disabled={s.occupied}
-                      onClick={() => setScheduledAt(toLocalInputValue(s.date))}
-                      title={s.occupied ? "Ya tenés algo programado a esa hora" : "Usar este horario"}
-                      className="rounded-md border px-2.5 py-1.5 text-xs capitalize disabled:cursor-not-allowed"
-                      style={{
-                        borderColor: s.occupied ? "var(--ll-border)" : "var(--ll-accent)",
-                        background: s.occupied ? "transparent" : "var(--ll-accent-dim)",
-                        color: s.occupied ? "var(--ll-text-dim)" : "var(--ll-accent)",
-                      }}
-                    >
-                      {fmtSlot(s.date)}
-                      {s.occupied ? " · ocupado" : ""}
-                    </button>
-                  ))}
+                  {slotSuggestions.map((s, i) => {
+                    const selected = !s.occupied && toLocalInputValue(s.date) === scheduledAt;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        disabled={s.occupied}
+                        onClick={() => setScheduledAt(toLocalInputValue(s.date))}
+                        title={s.occupied ? "Ya tenés algo programado a esa hora" : "Usar este horario"}
+                        className="rounded-md border px-2.5 py-1.5 text-xs capitalize disabled:cursor-not-allowed"
+                        style={{
+                          borderColor: s.occupied ? "var(--ll-border)" : "var(--ll-accent)",
+                          background: selected || !s.occupied ? "var(--ll-accent-dim)" : "transparent",
+                          color: s.occupied ? "var(--ll-text-dim)" : "var(--ll-accent)",
+                          outline: selected ? "1px solid var(--ll-accent)" : undefined,
+                        }}
+                      >
+                        {fmtSlot(s.date)}
+                        {s.occupied ? " · ocupado" : ""}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
-        </Field>
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          <input
-            type="checkbox"
-            checked={publishImmediately}
-            onChange={(e) => setPublishImmediately(e.target.checked)}
-          />
-          Publicar inmediatamente (ignora la fecha)
-        </label>
+
+            <Field label="O elegí fecha y hora">
+              <Input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="bg-[var(--ll-surface)] border-[var(--ll-border)]"
+              />
+              <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
+                Zona horaria: America/Argentina/Buenos_Aires
+              </p>
+            </Field>
+          </div>
+        )}
       </Section>
 
       <footer className="flex justify-end gap-2 sticky bottom-0 -mx-4 border-t border-[var(--ll-border)] bg-[var(--ll-bg)]/95 px-4 py-3 backdrop-blur md:-mx-10 md:px-10">
@@ -685,7 +714,7 @@ export default function NewScheduledPost() {
           disabled={create.isPending || validation.length > 0 || platforms.length === 0}
         >
           {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {publishImmediately ? "Publicar ahora" : "Programar"}
+          {mode === "now" ? "Publicar ahora" : "Programar"}
         </Button>
       </footer>
     </div>
