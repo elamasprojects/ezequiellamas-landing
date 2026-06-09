@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { PlatformBadge } from "@/components/publishing/PlatformBadge";
 import {
   Select,
   SelectContent,
@@ -80,7 +82,13 @@ export default function BatchUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<FileItem[]>([]);
   const [platforms, setPlatforms] = useState<PublishPlatform[]>(() => [...PUBLISH_PLATFORMS]);
+  const [isClip, setIsClip] = useState(false);
   const [formatId, setFormatId] = useState<string | null>(null);
+
+  // Clips publish only to TikTok + YouTube Shorts (never Instagram); the
+  // Reel-proposal flow later decides what's worth taking to IG.
+  const CLIP_PLATFORMS: PublishPlatform[] = ["tiktok", "youtube"];
+  const effectivePlatforms = isClip ? CLIP_PLATFORMS : platforms;
   const [batchId, setBatchId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -173,10 +181,11 @@ export default function BatchUpload() {
             bunny_video_id: up.bunny_video_id,
             bunny_library_id: up.bunny_library_id,
             scheduled_at: slotIso,
-            platforms,
+            platforms: effectivePlatforms,
             format_id: formatId,
             title: item.file.name.replace(/\.[^.]+$/, ""),
             thumbnail_url: up.thumbnail_url,
+            is_clip: isClip,
           });
           patchItem(item.localId, { postId: post.id });
         } catch (e) {
@@ -239,14 +248,36 @@ export default function BatchUpload() {
 
       {/* Shared config */}
       <section className="space-y-4">
+        {/* Clips toggle */}
+        <div className="flex items-center justify-between rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">
+          <div className="space-y-0.5">
+            <Label>Estos son clips</Label>
+            <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              Se publican solo a TikTok + YouTube Shorts. A los días que configures, los que mejor
+              performen se proponen para subir a Instagram como Reels.
+            </p>
+          </div>
+          <Switch checked={isClip} onCheckedChange={setIsClip} aria-label="Marcar como clips" />
+        </div>
+
         <div className="space-y-2">
           <Label>Plataformas (para todos los videos)</Label>
-          <PlatformPicker
-            selected={platforms}
-            onChange={setPlatforms}
-            accounts={accounts ?? []}
-            assetKind="video"
-          />
+          {isClip ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3">
+              <PlatformBadge platform="tiktok" size="sm" />
+              <PlatformBadge platform="youtube" size="sm" />
+              <span className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                Instagram queda excluido (los Reels salen de las propuestas).
+              </span>
+            </div>
+          ) : (
+            <PlatformPicker
+              selected={platforms}
+              onChange={setPlatforms}
+              accounts={accounts ?? []}
+              assetKind="video"
+            />
+          )}
         </div>
         <div className="max-w-xs space-y-2">
           <Label>Formato (opcional)</Label>
@@ -363,7 +394,7 @@ export default function BatchUpload() {
         <Button
           variant="brand"
           size="lg"
-          disabled={items.length === 0 || running || !hasSlots || platforms.length === 0}
+          disabled={items.length === 0 || running || !hasSlots || effectivePlatforms.length === 0}
           onClick={handleStart}
         >
           {running ? (

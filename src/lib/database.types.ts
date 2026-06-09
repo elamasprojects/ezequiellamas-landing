@@ -604,6 +604,42 @@ export type Database = {
           },
         ]
       }
+      clip_analysis_settings: {
+        Row: {
+          absolute_min_views: number
+          created_at: string
+          enabled: boolean
+          id: string
+          maturity_days: number
+          min_history_clips: number
+          owner_id: string
+          relative_multiplier: number
+          updated_at: string
+        }
+        Insert: {
+          absolute_min_views?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          maturity_days?: number
+          min_history_clips?: number
+          owner_id: string
+          relative_multiplier?: number
+          updated_at?: string
+        }
+        Update: {
+          absolute_min_views?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          maturity_days?: number
+          min_history_clips?: number
+          owner_id?: string
+          relative_multiplier?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       corrections: {
         Row: {
           created_at: string
@@ -1506,6 +1542,87 @@ export type Database = {
         }
         Relationships: []
       }
+      reel_proposals: {
+        Row: {
+          baseline_median: number | null
+          batch_id: string | null
+          bunny_library_id: string | null
+          bunny_video_id: string | null
+          caption_snapshot: string | null
+          clip_total_views: number | null
+          created_at: string
+          hashtags: string[]
+          id: string
+          instagram_scheduled_post_id: string | null
+          justification: string | null
+          metrics: Json
+          owner_id: string
+          scheduled_post_id: string
+          score: number | null
+          status: string
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          baseline_median?: number | null
+          batch_id?: string | null
+          bunny_library_id?: string | null
+          bunny_video_id?: string | null
+          caption_snapshot?: string | null
+          clip_total_views?: number | null
+          created_at?: string
+          hashtags?: string[]
+          id?: string
+          instagram_scheduled_post_id?: string | null
+          justification?: string | null
+          metrics?: Json
+          owner_id: string
+          scheduled_post_id: string
+          score?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          baseline_median?: number | null
+          batch_id?: string | null
+          bunny_library_id?: string | null
+          bunny_video_id?: string | null
+          caption_snapshot?: string | null
+          clip_total_views?: number | null
+          created_at?: string
+          hashtags?: string[]
+          id?: string
+          instagram_scheduled_post_id?: string | null
+          justification?: string | null
+          metrics?: Json
+          owner_id?: string
+          scheduled_post_id?: string
+          score?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_proposals_instagram_scheduled_post_id_fkey"
+            columns: ["instagram_scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reel_proposals_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referent_reports: {
         Row: {
           covered_from: string | null
@@ -1775,16 +1892,20 @@ export type Database = {
           caption_default: string | null
           captions: Json
           carousel_id: string | null
+          clip_analysis_status: string
+          clip_total_views: number | null
           created_at: string
           cta: string | null
           format_id: string | null
           hashtags: string[]
           id: string
+          is_clip: boolean
           notes: string | null
           owner_id: string
           prep_attempts: number
           prep_error: string | null
           prep_status: string
+          published_at: string | null
           scheduled_at: string
           script_id: string | null
           status: Database["public"]["Enums"]["scheduled_post_status"]
@@ -1807,16 +1928,20 @@ export type Database = {
           caption_default?: string | null
           captions?: Json
           carousel_id?: string | null
+          clip_analysis_status?: string
+          clip_total_views?: number | null
           created_at?: string
           cta?: string | null
           format_id?: string | null
           hashtags?: string[]
           id?: string
+          is_clip?: boolean
           notes?: string | null
           owner_id: string
           prep_attempts?: number
           prep_error?: string | null
           prep_status?: string
+          published_at?: string | null
           scheduled_at: string
           script_id?: string | null
           status?: Database["public"]["Enums"]["scheduled_post_status"]
@@ -1839,16 +1964,20 @@ export type Database = {
           caption_default?: string | null
           captions?: Json
           carousel_id?: string | null
+          clip_analysis_status?: string
+          clip_total_views?: number | null
           created_at?: string
           cta?: string | null
           format_id?: string | null
           hashtags?: string[]
           id?: string
+          is_clip?: boolean
           notes?: string | null
           owner_id?: string
           prep_attempts?: number
           prep_error?: string | null
           prep_status?: string
+          published_at?: string | null
           scheduled_at?: string
           script_id?: string | null
           status?: Database["public"]["Enums"]["scheduled_post_status"]
@@ -2532,6 +2661,7 @@ export type Database = {
           created_at: string
           format_id: string | null
           id: string
+          is_clip: boolean
           multiplier: number | null
           notes: string | null
           owner_id: string
@@ -2552,6 +2682,7 @@ export type Database = {
           created_at?: string
           format_id?: string | null
           id?: string
+          is_clip?: boolean
           multiplier?: number | null
           notes?: string | null
           owner_id: string
@@ -2572,6 +2703,7 @@ export type Database = {
           created_at?: string
           format_id?: string | null
           id?: string
+          is_clip?: boolean
           multiplier?: number | null
           notes?: string | null
           owner_id?: string
@@ -3036,6 +3168,7 @@ export type Database = {
         Returns: string
       }
       dispatch_batch_tick: { Args: never; Returns: undefined }
+      dispatch_clip_analysis_tick: { Args: never; Returns: undefined }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {

@@ -160,6 +160,8 @@ export interface CreateBatchPostInput {
   format_id?: string | null;
   title?: string | null;
   thumbnail_url?: string | null;
+  /** Mark as a clip (TikTok + YouTube only; analyzed later for Reel proposals). */
+  is_clip?: boolean;
 }
 
 /**
@@ -185,6 +187,7 @@ export async function createBatchPost(
       status: "draft",
       prep_status: "queued",
       batch_id: input.batch_id,
+      is_clip: input.is_clip ?? false,
     })
     .select()
     .single();

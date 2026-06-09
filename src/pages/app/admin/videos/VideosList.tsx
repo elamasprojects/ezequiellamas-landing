@@ -277,11 +277,21 @@ export default function VideosList() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium" style={{ color: "var(--ll-text)" }}>
-                        {v.title || (
-                          <span style={{ color: "var(--ll-text-dim)" }} className="italic">
-                            sin título
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1.5">
+                          {v.title || (
+                            <span style={{ color: "var(--ll-text-dim)" }} className="italic">
+                              sin título
+                            </span>
+                          )}
+                          {v.is_clip && (
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 border-[var(--ll-accent)]/40 text-[var(--ll-accent)]"
+                            >
+                              Clip
+                            </Badge>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="inline-flex items-center gap-1.5">
@@ -389,11 +399,21 @@ function VideoCard({
                 </span>
               )}
             </h3>
-            {tier && video.multiplier !== null && (
-              <Badge variant="outline" className={cn("shrink-0 border", TIER_CLASS[tier])}>
-                {Number(video.multiplier).toFixed(1)}×
-              </Badge>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {video.is_clip && (
+                <Badge
+                  variant="outline"
+                  className="border-[var(--ll-accent)]/40 text-[var(--ll-accent)]"
+                >
+                  Clip
+                </Badge>
+              )}
+              {tier && video.multiplier !== null && (
+                <Badge variant="outline" className={cn("border", TIER_CLASS[tier])}>
+                  {Number(video.multiplier).toFixed(1)}×
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--ll-text-muted)" }}>
             {video.posts.map((p) => (
