@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -71,7 +71,10 @@ export default function ReferentVideoCard({ video, readOnly = false, referentNam
   const durationLabel = formatDuration(video.video_duration);
   const postedAtLabel = video.posted_at ? relativeFromNow(video.posted_at) : null;
   const isLongForm = (video.video_duration ?? 0) >= 180;
-  const longForm = parseLongFormBreakdown(video.long_form_breakdown);
+  const longForm = useMemo(
+    () => parseLongFormBreakdown(video.long_form_breakdown),
+    [video.long_form_breakdown],
+  );
   const canEmbed =
     !!video.apify_short_code &&
     (video.platform === "instagram" ||

@@ -587,12 +587,21 @@ Deno.serve(async (req) => {
       .single<ReferentVideoRow>();
     if (vErr || !video) return json({ error: vErr?.message ?? "Not found" }, 404);
 
+    // Long videos (>= 3 min) get the structure-oriented analysis; short clips
+    // keep the hook/format/angle concept.
+    const isLongForm = (video.video_duration ?? 0) >= LONG_FORM_MIN_SECONDS;
+
+    // Cache hit only if fully analyzed AND, for a long video, the long-form
+    // breakdown is present. This re-analyzes long videos that were processed
+    // under the old short-form path (pre-M32) without forcing a re-transcribe
+    // (the transcript is reused below).
     if (
       !force &&
       video.transcript_status === "done" &&
       video.concept_status === "done" &&
       video.transcript &&
-      video.concept_summary
+      video.concept_summary &&
+      (!isLongForm || video.long_form_breakdown)
     ) {
       return json({
         ok: true,
@@ -602,18 +611,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- Transcript ----
+    let transcript = video.transcript ?? null;
+    let transcriptLanguage: string | null = null;
+    // Only (re)transcribe when there's no transcript yet or force is set. When we
+    // reuse an existing transcript (e.g. re-analyzing a pre-M32 long video to fill
+    // its breakdown), leave transcript_status as-is so it doesn't get stuck pending.
+    const willTranscribe = !transcript || force;
+
     await setStatus(userClient, video.id, {
-      transcript_status: "pending",
-      transcript_error: null,
+      ...(willTranscribe ? { transcript_status: "pending", transcript_error: null } : {}),
       concept_status: "pending",
       concept_error: null,
     });
 
-    // ---- Transcript ----
-    let transcript = video.transcript ?? null;
-    let transcriptLanguage: string | null = null;
-
-    if (!transcript || force) {
+    if (willTranscribe) {
       if (!video.raw) {
         await setStatus(userClient, video.id, {
           transcript_status: "failed",
@@ -674,11 +686,8 @@ Deno.serve(async (req) => {
     }
 
     // ---- Concept ----
-    // Long videos (>= 3 min) get a structure-oriented breakdown; short clips
-    // keep the existing hook/format/angle concept. Both populate concept_summary
-    // + the M24 classification so the strategy report works unchanged.
-    const isLongForm = (video.video_duration ?? 0) >= LONG_FORM_MIN_SECONDS;
-
+    // Both paths populate concept_summary + the M24 classification so the
+    // strategy report works unchanged; the long path also fills long_form_breakdown.
     let conceptSummary: string;
     let classification: {
       business_objective?: string;
