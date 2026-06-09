@@ -146,7 +146,7 @@ function fmtVideo(v: VideoRow, i: number, withLongForm: boolean): string {
     v.title ? `Título: ${v.title}` : "",
     `Objetivo negocio: ${v.business_objective ?? "n/a"} · Objetivos contenido: ${(v.content_objectives ?? []).join(", ") || "n/a"} · Tipo: ${v.content_type ?? "n/a"}`,
     `Temas: ${(v.main_topics ?? []).join(", ") || "n/a"}`,
-    v.concept_summary ? `Análisis: ${v.concept_summary}` : "",
+    v.concept_summary ? `Análisis: ${v.concept_summary.slice(0, 1500)}` : "",
   ];
   if (withLongForm && v.long_form_breakdown) {
     const b = v.long_form_breakdown as LongFormBreakdown;
