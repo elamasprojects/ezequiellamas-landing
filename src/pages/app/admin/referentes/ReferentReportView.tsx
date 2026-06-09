@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReferentReport } from "@/hooks/useReferentReports";
+import { REPORT_MODE_LABEL, type ReportContentMode } from "@/lib/api/referentReports";
 
 export default function ReferentReportView() {
   const { id, reportId } = useParams<{ id: string; reportId: string }>();
@@ -45,7 +46,8 @@ export default function ReferentReportView() {
               className="text-[10px] uppercase tracking-[0.25em]"
               style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
             >
-              Informe estratégico {report.period_label ?? ""}
+              Informe estratégico · {REPORT_MODE_LABEL[(report.content_mode as ReportContentMode) ?? "short"]}{" "}
+              {report.period_label ?? ""}
             </div>
             <p className="text-xs" style={{ color: "var(--ll-text-dim)" }}>
               {report.video_count} video(s)
