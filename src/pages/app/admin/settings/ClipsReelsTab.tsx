@@ -13,6 +13,15 @@ import {
   upsertClipAnalysisSettings,
 } from "@/lib/api/clipAnalysisSettings";
 
+function safeInt(value: string, fallback: number): number {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+function safeFloat(value: string, fallback: number): number {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 interface NumField {
   key: keyof Omit<ClipSettingsPatch, "enabled">;
   label: string;
@@ -78,13 +87,21 @@ export default function ClipsReelsTab() {
       if (!user) throw new Error("not authenticated");
       const patch: ClipSettingsPatch = {
         enabled,
-        maturity_days: parseInt(values.maturity_days, 10) || CLIP_SETTINGS_DEFAULTS.maturity_days,
-        relative_multiplier:
-          parseFloat(values.relative_multiplier) || CLIP_SETTINGS_DEFAULTS.relative_multiplier,
-        min_history_clips:
-          parseInt(values.min_history_clips, 10) ?? CLIP_SETTINGS_DEFAULTS.min_history_clips,
-        absolute_min_views:
-          parseInt(values.absolute_min_views, 10) || CLIP_SETTINGS_DEFAULTS.absolute_min_views,
+        // Safe parse: fall back to the default on empty/NaN. Uses an explicit
+        // finite check (not `||`/`??`) so a legit 0 (e.g. min_history_clips) is kept.
+        maturity_days: safeInt(values.maturity_days, CLIP_SETTINGS_DEFAULTS.maturity_days),
+        relative_multiplier: safeFloat(
+          values.relative_multiplier,
+          CLIP_SETTINGS_DEFAULTS.relative_multiplier,
+        ),
+        min_history_clips: safeInt(
+          values.min_history_clips,
+          CLIP_SETTINGS_DEFAULTS.min_history_clips,
+        ),
+        absolute_min_views: safeInt(
+          values.absolute_min_views,
+          CLIP_SETTINGS_DEFAULTS.absolute_min_views,
+        ),
       };
       return upsertClipAnalysisSettings(user.id, patch);
     },
@@ -103,9 +120,9 @@ export default function ClipsReelsTab() {
     );
   }
 
-  const mult = parseFloat(values.relative_multiplier) || CLIP_SETTINGS_DEFAULTS.relative_multiplier;
-  const minHist = parseInt(values.min_history_clips, 10) || CLIP_SETTINGS_DEFAULTS.min_history_clips;
-  const absViews = parseInt(values.absolute_min_views, 10) || CLIP_SETTINGS_DEFAULTS.absolute_min_views;
+  const mult = safeFloat(values.relative_multiplier, CLIP_SETTINGS_DEFAULTS.relative_multiplier);
+  const minHist = safeInt(values.min_history_clips, CLIP_SETTINGS_DEFAULTS.min_history_clips);
+  const absViews = safeInt(values.absolute_min_views, CLIP_SETTINGS_DEFAULTS.absolute_min_views);
 
   return (
     <div className="max-w-2xl space-y-6">

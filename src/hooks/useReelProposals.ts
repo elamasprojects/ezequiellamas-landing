@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchReelProposals, type ReelProposalStatus } from "@/lib/api/reelProposals";
 import { supabase } from "@/lib/supabase";
@@ -7,6 +7,9 @@ import { useSession } from "@/hooks/useSession";
 export function useReelProposals(status?: ReelProposalStatus) {
   const { user } = useSession();
   const qc = useQueryClient();
+  // Unique per hook instance so the page list and the dashboard badge don't
+  // collide on a shared channel topic (one unmount would kill the other's sub).
+  const channelId = useId();
 
   const query = useQuery({
     queryKey: ["reel-proposals", status ?? "all"],
@@ -18,7 +21,7 @@ export function useReelProposals(status?: ReelProposalStatus) {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel("reel-proposals-realtime")
+      .channel(`reel-proposals-realtime:${channelId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reel_proposals", filter: `owner_id=eq.${user.id}` },
@@ -28,7 +31,7 @@ export function useReelProposals(status?: ReelProposalStatus) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, qc]);
+  }, [user?.id, qc, channelId]);
 
   return query;
 }

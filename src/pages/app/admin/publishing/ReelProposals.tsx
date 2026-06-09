@@ -16,10 +16,6 @@ import {
   type ReelProposalStatus,
 } from "@/lib/api/reelProposals";
 
-const TABS: { value: ReelProposalStatus | "pending"; label: string }[] = [
-  { value: "pending", label: "Pendientes" },
-];
-
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;

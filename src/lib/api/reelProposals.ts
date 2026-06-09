@@ -47,6 +47,11 @@ async function nextInstagramSlot(): Promise<Date> {
 }
 
 function buildInput(p: ReelProposal, ownerId: string, scheduledAtIso: string): CreateScheduledPostInput {
+  // Clips are always uploaded to Bunny, so this should always hold; guard anyway
+  // to surface a clear error instead of a CHECK-constraint 500.
+  if (!p.bunny_video_id) {
+    throw new Error("La propuesta no tiene el video de Bunny asociado; no se puede programar.");
+  }
   return {
     owner_id: ownerId,
     asset_kind: "video",
