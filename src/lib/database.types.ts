@@ -1691,6 +1691,7 @@ export type Database = {
           id: string
           last_scraped_at: string | null
           likes: number | null
+          long_form_breakdown: Json | null
           main_topics: string[] | null
           metrics_updated_at: string | null
           platform: Database["public"]["Enums"]["video_platform"]
@@ -1724,6 +1725,7 @@ export type Database = {
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          long_form_breakdown?: Json | null
           main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform: Database["public"]["Enums"]["video_platform"]
@@ -1757,6 +1759,7 @@ export type Database = {
           id?: string
           last_scraped_at?: string | null
           likes?: number | null
+          long_form_breakdown?: Json | null
           main_topics?: string[] | null
           metrics_updated_at?: string | null
           platform?: Database["public"]["Enums"]["video_platform"]

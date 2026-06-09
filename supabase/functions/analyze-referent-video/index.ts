@@ -14,6 +14,20 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const CLAUDE_MODEL = "claude-sonnet-4-6";
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
 
+// Videos at/above this duration get the long-form (structure-oriented) analysis.
+const LONG_FORM_MIN_SECONDS = 180;
+const SHORT_TRANSCRIPT_CAP = 12_000;
+const LONG_TRANSCRIPT_CAP = 48_000; // ~50 min of speech
+
+// Long transcripts get head (70%) + tail (30%) so the opening arc AND the
+// closing/offer (which usually lands near the end) both reach the model.
+function clipTranscriptForLong(t: string, cap: number): string {
+  if (t.length <= cap) return t;
+  const head = Math.floor(cap * 0.7);
+  const tail = cap - head - 10;
+  return `${t.slice(0, head)}\n[...]\n${t.slice(t.length - tail)}`;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -67,11 +81,13 @@ interface ReferentVideoRow {
   title: string | null;
   caption: string | null;
   views_total: number | null;
+  video_duration: number | null;
   raw: Record<string, unknown> | null;
   transcript: string | null;
   transcript_status: string;
   concept_status: string;
   concept_summary: string | null;
+  long_form_breakdown: Record<string, unknown> | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +348,177 @@ async function extractConcept(input: {
 }
 
 // ---------------------------------------------------------------------------
+// Long-form concept extraction (videos >= LONG_FORM_MIN_SECONDS)
+// ---------------------------------------------------------------------------
+
+interface LongFormSection {
+  title: string;
+  summary: string;
+}
+
+interface LongFormToolResult {
+  thesis: string;
+  structure: LongFormSection[];
+  key_arguments: string[];
+  offer_or_cta: string;
+  retention_tactics: string[];
+  summary: string;
+  // shared M24 strategic classification (also feeds the strategy report)
+  business_objective?: "viralidad" | "nutricion" | "conversion";
+  content_objectives?: Array<"educar" | "entretener" | "inspirar">;
+  content_type?: string;
+  main_topics?: string[];
+}
+
+const LONG_FORM_TOOL = {
+  name: "emit_long_form_concept",
+  description: "Devolvé el análisis estructurado de un video largo (YouTube long-form, charla, podcast).",
+  input_schema: {
+    type: "object",
+    properties: {
+      thesis: {
+        type: "string",
+        description: "La idea o tesis central del video en una o dos frases.",
+      },
+      structure: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Nombre del bloque/capítulo." },
+            summary: { type: "string", description: "Qué pasa en ese bloque en 1-2 frases." },
+          },
+          required: ["title", "summary"],
+        },
+        minItems: 2,
+        maxItems: 12,
+        description: "Los bloques del video EN ORDEN real (apertura → desarrollo → cierre). No inventes capítulos que no estén.",
+      },
+      key_arguments: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 1,
+        maxItems: 8,
+        description: "Los argumentos, puntos o ideas clave que sostiene el video.",
+      },
+      offer_or_cta: {
+        type: "string",
+        description: "Qué ofrece o vende y dónde aparece (mencioná el momento aprox. si se infiere). Si no hay, 'sin oferta explícita'.",
+      },
+      retention_tactics: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 0,
+        maxItems: 6,
+        description: "Recursos para sostener la atención: loops, historias, cambios de ritmo, cliffhangers, ejemplos, etc.",
+      },
+      summary: {
+        type: "string",
+        description: "2-3 párrafos densos en español rioplatense: de qué va, cómo está construido y por qué funciona. Sin filler.",
+      },
+      business_objective: {
+        type: "string",
+        enum: ["viralidad", "nutricion", "conversion"],
+        description: "Objetivo de negocio: 'viralidad' (alcanzar nueva audiencia), 'nutricion' (educar sobre quién es y qué vende), 'conversion' (venta directa).",
+      },
+      content_objectives: {
+        type: "array",
+        items: { type: "string", enum: ["educar", "entretener", "inspirar"] },
+        minItems: 1,
+        maxItems: 3,
+        description: "Objetivo(s) de contenido. Puede combinar 1, 2 o los 3.",
+      },
+      content_type: {
+        type: "string",
+        enum: ["educacional", "lifestyle", "rutina", "otros"],
+        description: "Tipo de contenido predominante.",
+      },
+      main_topics: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 1,
+        maxItems: 6,
+        description: "Temas principales (sustantivos cortos, ej: 'ventas', 'mindset', 'n8n').",
+      },
+    },
+    required: [
+      "thesis",
+      "structure",
+      "key_arguments",
+      "offer_or_cta",
+      "retention_tactics",
+      "summary",
+      "business_objective",
+      "content_objectives",
+      "content_type",
+      "main_topics",
+    ],
+  },
+} as const;
+
+const LONG_FORM_SYSTEM = `Sos un analista de contenido de video LARGO (YouTube long-form, charlas, podcasts). Te paso el transcript y metadata de un video de un referente. Tu tarea: extraer la estructura y la estrategia usando la tool emit_long_form_concept.
+
+Reglas:
+- Español rioplatense, denso, sin filler.
+- "thesis": la idea central, no un resumen genérico.
+- "structure": reflejá el ORDEN real del video (apertura → desarrollo → cierre). No inventes capítulos. Si el transcript viene cortado (verás un marcador [...]), inferí el cierre desde la parte final.
+- "key_arguments": los puntos que el creador defiende o demuestra.
+- "offer_or_cta": clave. Identificá si vende/ofrece algo (curso, comunidad, lead magnet, suscripción) y dónde cae. Si no hay, 'sin oferta explícita'.
+- "retention_tactics": cómo sostiene la atención a lo largo de un video largo.
+- Clasificá igual que short-form: business_objective / content_objectives / content_type / main_topics.
+- Nunca uses "imaginate", "te voy a explicar", "spoiler:", "esto lo cambia todo".`;
+
+async function extractLongFormConcept(input: {
+  transcript: string;
+  caption: string | null;
+  title: string | null;
+  views: number | null;
+}): Promise<LongFormToolResult> {
+  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  const userMsg = [
+    `Plataforma: youtube (video largo)`,
+    `Views: ${input.views ?? "n/a"}`,
+    input.title ? `Title: ${input.title}` : "",
+    input.caption ? `Caption: ${input.caption}` : "",
+    "",
+    "Transcript:",
+    clipTranscriptForLong(input.transcript, LONG_TRANSCRIPT_CAP),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 2500,
+      system: LONG_FORM_SYSTEM,
+      tools: [LONG_FORM_TOOL],
+      tool_choice: { type: "tool", name: "emit_long_form_concept" },
+      messages: [{ role: "user", content: userMsg }],
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Claude ${res.status}: ${t.slice(0, 500)}`);
+  }
+  const data = (await res.json()) as {
+    content: Array<{ type: string; name?: string; input?: LongFormToolResult }>;
+  };
+  const toolUse = data.content.find(
+    (b) => b.type === "tool_use" && b.name === "emit_long_form_concept",
+  );
+  if (!toolUse || !toolUse.input) throw new Error("Claude did not emit long-form concept");
+  return decodeUnicodeEscapes(toolUse.input);
+}
+
+// ---------------------------------------------------------------------------
 // DB helpers
 // ---------------------------------------------------------------------------
 
@@ -350,6 +537,7 @@ async function setStatus(
     content_objectives: string[] | null;
     content_type: string | null;
     main_topics: string[] | null;
+    long_form_breakdown: Record<string, unknown> | null;
   }>,
 ) {
   const { error } = await client.from("referent_videos").update(fields).eq("id", id);
@@ -393,18 +581,27 @@ Deno.serve(async (req) => {
     const { data: video, error: vErr } = await userClient
       .from("referent_videos")
       .select(
-        "id, referent_id, platform, source_url, title, caption, views_total, raw, transcript, transcript_status, concept_status, concept_summary",
+        "id, referent_id, platform, source_url, title, caption, views_total, video_duration, raw, transcript, transcript_status, concept_status, concept_summary, long_form_breakdown",
       )
       .eq("id", videoId)
       .single<ReferentVideoRow>();
     if (vErr || !video) return json({ error: vErr?.message ?? "Not found" }, 404);
 
+    // Long videos (>= 3 min) get the structure-oriented analysis; short clips
+    // keep the hook/format/angle concept.
+    const isLongForm = (video.video_duration ?? 0) >= LONG_FORM_MIN_SECONDS;
+
+    // Cache hit only if fully analyzed AND, for a long video, the long-form
+    // breakdown is present. This re-analyzes long videos that were processed
+    // under the old short-form path (pre-M32) without forcing a re-transcribe
+    // (the transcript is reused below).
     if (
       !force &&
       video.transcript_status === "done" &&
       video.concept_status === "done" &&
       video.transcript &&
-      video.concept_summary
+      video.concept_summary &&
+      (!isLongForm || video.long_form_breakdown)
     ) {
       return json({
         ok: true,
@@ -414,18 +611,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- Transcript ----
+    let transcript = video.transcript ?? null;
+    let transcriptLanguage: string | null = null;
+    // Only (re)transcribe when there's no transcript yet or force is set. When we
+    // reuse an existing transcript (e.g. re-analyzing a pre-M32 long video to fill
+    // its breakdown), leave transcript_status as-is so it doesn't get stuck pending.
+    const willTranscribe = !transcript || force;
+
     await setStatus(userClient, video.id, {
-      transcript_status: "pending",
-      transcript_error: null,
+      ...(willTranscribe ? { transcript_status: "pending", transcript_error: null } : {}),
       concept_status: "pending",
       concept_error: null,
     });
 
-    // ---- Transcript ----
-    let transcript = video.transcript ?? null;
-    let transcriptLanguage: string | null = null;
-
-    if (!transcript || force) {
+    if (willTranscribe) {
       if (!video.raw) {
         await setStatus(userClient, video.id, {
           transcript_status: "failed",
@@ -486,22 +686,54 @@ Deno.serve(async (req) => {
     }
 
     // ---- Concept ----
-    const concept = await extractConcept({
-      transcript,
-      platform: video.platform,
-      caption: video.caption,
-      title: video.title,
-      views: video.views_total,
-    });
+    // Both paths populate concept_summary + the M24 classification so the
+    // strategy report works unchanged; the long path also fills long_form_breakdown.
+    let conceptSummary: string;
+    let classification: {
+      business_objective?: string;
+      content_objectives?: string[];
+      content_type?: string;
+      main_topics?: string[];
+    };
+    let longFormBreakdown: Record<string, unknown> | null = null;
+
+    if (isLongForm) {
+      const lf = await extractLongFormConcept({
+        transcript,
+        caption: video.caption,
+        title: video.title,
+        views: video.views_total,
+      });
+      conceptSummary = lf.summary;
+      classification = lf;
+      longFormBreakdown = {
+        thesis: lf.thesis,
+        structure: lf.structure,
+        key_arguments: lf.key_arguments,
+        offer_or_cta: lf.offer_or_cta,
+        retention_tactics: lf.retention_tactics,
+      };
+    } else {
+      const concept = await extractConcept({
+        transcript,
+        platform: video.platform,
+        caption: video.caption,
+        title: video.title,
+        views: video.views_total,
+      });
+      conceptSummary = concept.summary;
+      classification = concept;
+    }
 
     await setStatus(userClient, video.id, {
-      concept_summary: concept.summary,
+      concept_summary: conceptSummary,
       concept_status: "done",
       concept_error: null,
-      business_objective: concept.business_objective ?? null,
-      content_objectives: concept.content_objectives ?? null,
-      content_type: concept.content_type ?? null,
-      main_topics: concept.main_topics ?? null,
+      business_objective: classification.business_objective ?? null,
+      content_objectives: classification.content_objectives ?? null,
+      content_type: classification.content_type ?? null,
+      main_topics: classification.main_topics ?? null,
+      long_form_breakdown: longFormBreakdown,
     });
 
     return json({
@@ -509,6 +741,7 @@ Deno.serve(async (req) => {
       cached: false,
       transcript_status: "done",
       concept_status: "done",
+      long_form: isLongForm,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
