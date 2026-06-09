@@ -28,7 +28,8 @@ export default function SettingsPage() {
       </header>
 
       <Tabs defaultValue="brand">
-        <TabsList>
+        {/* Scrolls horizontally on narrow phones instead of overflowing. */}
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="brand">Marca</TabsTrigger>
           <TabsTrigger value="questionnaire">Cuestionario</TabsTrigger>
           <TabsTrigger value="prompts">Prompts IA</TabsTrigger>
