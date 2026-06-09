@@ -7,6 +7,43 @@ export type ReferentInsert = TablesInsert<"referents">;
 export type ReferentUpdate = TablesUpdate<"referents">;
 export type ReferentVideo = Tables<"referent_videos">;
 
+// (M32) Structured long-form analysis stored in referent_videos.long_form_breakdown
+// (jsonb) for videos >= 180s. Null for short-form.
+export interface LongFormSection {
+  title: string;
+  summary: string;
+}
+export interface LongFormBreakdown {
+  thesis: string;
+  structure: LongFormSection[];
+  key_arguments: string[];
+  offer_or_cta: string;
+  retention_tactics: string[];
+}
+
+export function parseLongFormBreakdown(value: unknown): LongFormBreakdown | null {
+  if (!value || typeof value !== "object") return null;
+  const o = value as Record<string, unknown>;
+  if (typeof o.thesis !== "string") return null;
+  const structure = Array.isArray(o.structure)
+    ? o.structure
+        .map((s) => {
+          const r = (s ?? {}) as Record<string, unknown>;
+          return { title: String(r.title ?? ""), summary: String(r.summary ?? "") };
+        })
+        .filter((s) => s.title || s.summary)
+    : [];
+  const toStrArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : [];
+  return {
+    thesis: o.thesis,
+    structure,
+    key_arguments: toStrArr(o.key_arguments),
+    offer_or_cta: typeof o.offer_or_cta === "string" ? o.offer_or_cta : "",
+    retention_tactics: toStrArr(o.retention_tactics),
+  };
+}
+
 export interface ReferentInputFields {
   name: string;
   note: string | null;

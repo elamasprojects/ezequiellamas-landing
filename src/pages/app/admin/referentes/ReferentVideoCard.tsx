@@ -20,7 +20,12 @@ import {
   Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { analyzeReferentVideo, type ReferentVideo } from "@/lib/api/referents";
+import {
+  analyzeReferentVideo,
+  parseLongFormBreakdown,
+  type LongFormBreakdown,
+  type ReferentVideo,
+} from "@/lib/api/referents";
 import ReferentVideoEmbedDialog from "@/components/referentes/ReferentVideoEmbedDialog";
 import AdaptToMyVoiceDialog from "@/pages/app/admin/referentes/AdaptToMyVoiceDialog";
 
@@ -65,6 +70,8 @@ export default function ReferentVideoCard({ video, readOnly = false, referentNam
 
   const durationLabel = formatDuration(video.video_duration);
   const postedAtLabel = video.posted_at ? relativeFromNow(video.posted_at) : null;
+  const isLongForm = (video.video_duration ?? 0) >= 180;
+  const longForm = parseLongFormBreakdown(video.long_form_breakdown);
   const canEmbed =
     !!video.apify_short_code &&
     (video.platform === "instagram" ||
@@ -124,6 +131,20 @@ export default function ReferentVideoCard({ video, readOnly = false, referentNam
             style={{ color: "var(--ll-text)", fontFamily: "'JetBrains Mono', monospace" }}
           >
             {durationLabel}
+          </div>
+        )}
+
+        {/* Top-left: long-form marker */}
+        {isLongForm && (
+          <div
+            className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] backdrop-blur"
+            style={{
+              background: "var(--ll-accent-dim)",
+              color: "var(--ll-accent)",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            LARGO
           </div>
         )}
 
@@ -269,10 +290,16 @@ export default function ReferentVideoCard({ video, readOnly = false, referentNam
               </button>
             </div>
             <div
-              className="max-h-60 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed"
+              className="max-h-72 overflow-y-auto text-xs leading-relaxed"
               style={{ color: "var(--ll-text)" }}
             >
-              {tab === "concept" ? video.concept_summary : video.transcript}
+              {tab === "transcript" ? (
+                <span className="whitespace-pre-wrap">{video.transcript}</span>
+              ) : longForm ? (
+                <LongFormView breakdown={longForm} summary={video.concept_summary} />
+              ) : (
+                <span className="whitespace-pre-wrap">{video.concept_summary}</span>
+              )}
             </div>
           </div>
         )}
@@ -322,6 +349,81 @@ function relativeFromNow(iso: string): string | null {
   } catch {
     return null;
   }
+}
+
+// (M32) Structured long-form analysis view shown in the "Concepto" tab.
+function LongFormView({
+  breakdown,
+  summary,
+}: {
+  breakdown: LongFormBreakdown;
+  summary: string | null;
+}) {
+  return (
+    <div className="space-y-3">
+      {summary && <p className="whitespace-pre-wrap">{summary}</p>}
+
+      <LongFormBlock label="Tesis">
+        <p>{breakdown.thesis}</p>
+      </LongFormBlock>
+
+      {breakdown.structure.length > 0 && (
+        <LongFormBlock label="Estructura">
+          <ol className="space-y-1">
+            {breakdown.structure.map((s, i) => (
+              <li key={i} className="flex gap-1.5">
+                <span style={{ color: "var(--ll-accent)" }}>{i + 1}.</span>
+                <span>
+                  <strong>{s.title}</strong>
+                  {s.summary ? ` — ${s.summary}` : ""}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </LongFormBlock>
+      )}
+
+      {breakdown.key_arguments.length > 0 && (
+        <LongFormBlock label="Argumentos">
+          <ul className="list-disc space-y-0.5 pl-4">
+            {breakdown.key_arguments.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </LongFormBlock>
+      )}
+
+      {breakdown.offer_or_cta && (
+        <LongFormBlock label="Oferta / CTA">
+          <p>{breakdown.offer_or_cta}</p>
+        </LongFormBlock>
+      )}
+
+      {breakdown.retention_tactics.length > 0 && (
+        <LongFormBlock label="Retención">
+          <ul className="list-disc space-y-0.5 pl-4">
+            {breakdown.retention_tactics.map((t, i) => (
+              <li key={i}>{t}</li>
+            ))}
+          </ul>
+        </LongFormBlock>
+      )}
+    </div>
+  );
+}
+
+function LongFormBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <div
+        className="text-[10px] uppercase tracking-wider"
+        style={{ color: "var(--ll-text-dim)", fontFamily: "'JetBrains Mono', monospace" }}
+      >
+        {label}
+      </div>
+      <div style={{ color: "var(--ll-text)" }}>{children}</div>
+    </div>
+  );
 }
 
 // (M24) Small strategic-classification pill.
