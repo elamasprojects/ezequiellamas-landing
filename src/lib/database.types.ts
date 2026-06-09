@@ -1476,6 +1476,36 @@ export type Database = {
           },
         ]
       }
+      publishing_slots: {
+        Row: {
+          active: boolean
+          created_at: string
+          hour: number
+          id: string
+          minute: number
+          owner_id: string
+          weekday: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          hour: number
+          id?: string
+          minute?: number
+          owner_id: string
+          weekday: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          hour?: number
+          id?: string
+          minute?: number
+          owner_id?: string
+          weekday?: number
+        }
+        Relationships: []
+      }
       referent_reports: {
         Row: {
           covered_from: string | null

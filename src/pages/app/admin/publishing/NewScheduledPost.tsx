@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, FileText, Loader2, Mic, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,11 @@ import { PlatformPicker } from "@/components/publishing/PlatformPicker";
 import { CaptionEditor } from "@/components/publishing/CaptionEditor";
 import {
   createScheduledPost,
+  fetchScheduledPosts,
   type ScheduledPostAssetKind,
 } from "@/lib/api/scheduledPosts";
+import { usePublishingSlots } from "@/hooks/usePublishingSlots";
+import { nextOptimalSlots } from "@/lib/api/publishingSlots";
 import { publishNow } from "@/lib/api/publishing";
 import {
   transcribeBunnyVideo,
@@ -80,6 +83,28 @@ export default function NewScheduledPost() {
         .map((t) => t.trim().replace(/^#/, ""))
         .filter(Boolean),
     [hashtagsRaw],
+  );
+
+  // Optimal-slot suggestions: from the weekly best-hours, skipping times already
+  // taken by an upcoming scheduled post.
+  const { data: slots } = usePublishingSlots();
+  const { data: upcomingPosts } = useQuery({
+    queryKey: ["scheduled-upcoming"],
+    queryFn: () => fetchScheduledPosts({ from: new Date().toISOString() }),
+    staleTime: 30_000,
+  });
+  const occupiedTimes = useMemo(
+    () => (upcomingPosts ?? []).filter((p) => p.status !== "cancelled").map((p) => new Date(p.scheduled_at)),
+    [upcomingPosts],
+  );
+  const slotSuggestions = useMemo(
+    () =>
+      nextOptimalSlots(
+        (slots ?? []).map((s) => ({ weekday: s.weekday, hour: s.hour, minute: s.minute, active: s.active })),
+        occupiedTimes,
+        { count: 4 },
+      ),
+    [slots, occupiedTimes],
   );
 
   // Reset selections when switching kind
@@ -603,6 +628,42 @@ export default function NewScheduledPost() {
           <p className="text-[10px]" style={{ color: "var(--ll-text-dim)" }}>
             Zona horaria: America/Argentina/Buenos_Aires
           </p>
+          {!publishImmediately && (
+            <div className="mt-2 space-y-1.5">
+              <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+                Próximo slot óptimo
+              </span>
+              {slotSuggestions.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                  No configuraste horarios.{" "}
+                  <Link to="/app/admin/publishing/slots" className="underline" style={{ color: "var(--ll-accent)" }}>
+                    Configurar
+                  </Link>
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {slotSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={s.occupied}
+                      onClick={() => setScheduledAt(toLocalInputValue(s.date))}
+                      title={s.occupied ? "Ya tenés algo programado a esa hora" : "Usar este horario"}
+                      className="rounded-md border px-2.5 py-1.5 text-xs capitalize disabled:cursor-not-allowed"
+                      style={{
+                        borderColor: s.occupied ? "var(--ll-border)" : "var(--ll-accent)",
+                        background: s.occupied ? "transparent" : "var(--ll-accent-dim)",
+                        color: s.occupied ? "var(--ll-text-dim)" : "var(--ll-accent)",
+                      }}
+                    >
+                      {fmtSlot(s.date)}
+                      {s.occupied ? " · ocupado" : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </Field>
         <label className="flex items-center gap-2 text-sm" style={{ color: "var(--ll-text-muted)" }}>
           <input
@@ -722,4 +783,14 @@ function KindButton({
 function toLocalInputValue(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtSlot(d: Date): string {
+  return d.toLocaleString("es-AR", {
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
