@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BrandProfileTab from "@/pages/app/admin/settings/BrandProfileTab";
 import QuestionnaireTab from "@/pages/app/admin/settings/QuestionnaireTab";
 import PromptsTab from "@/pages/app/admin/settings/PromptsTab";
+import ClipsReelsTab from "@/pages/app/admin/settings/ClipsReelsTab";
 
 export default function SettingsPage() {
   return (
@@ -31,6 +32,7 @@ export default function SettingsPage() {
           <TabsTrigger value="brand">Marca</TabsTrigger>
           <TabsTrigger value="questionnaire">Cuestionario</TabsTrigger>
           <TabsTrigger value="prompts">Prompts IA</TabsTrigger>
+          <TabsTrigger value="clips">Clips & Reels</TabsTrigger>
         </TabsList>
 
         <TabsContent value="brand" className="mt-6">
@@ -41,6 +43,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="prompts" className="mt-6">
           <PromptsTab />
+        </TabsContent>
+        <TabsContent value="clips" className="mt-6">
+          <ClipsReelsTab />
         </TabsContent>
       </Tabs>
     </div>

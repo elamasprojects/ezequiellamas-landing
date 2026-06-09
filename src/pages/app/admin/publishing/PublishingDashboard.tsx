@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calendar as CalendarIcon, Clock, Plug, Sparkles, Layers } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Clock, Plug, Sparkles, Layers, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { ScheduledPostCard } from "@/components/publishing/ScheduledPostCard";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import { usePendingReelProposalsCount } from "@/hooks/useReelProposals";
 import type { ScheduledPostFilters, ScheduledPostStatus } from "@/lib/api/scheduledPosts";
 import type { PublishPlatform } from "@/lib/publishing/platformLimits";
 
@@ -27,6 +28,7 @@ export default function PublishingDashboard() {
   };
 
   const { data: posts, isLoading } = useScheduledPosts(filters);
+  const pendingReels = usePendingReelProposalsCount();
 
   return (
     <div className="space-y-8">
@@ -72,6 +74,19 @@ export default function PublishingDashboard() {
           <Button asChild variant="outline" className="border-[var(--ll-border)]">
             <Link to="/app/admin/publishing/batch">
               <Layers className="h-4 w-4" /> Subida en lote
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="relative border-[var(--ll-border)]">
+            <Link to="/app/admin/publishing/reels">
+              <Film className="h-4 w-4" /> Propuestas de Reels
+              {pendingReels > 0 && (
+                <span
+                  className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold"
+                  style={{ background: "var(--ll-accent)", color: "var(--ll-bg)" }}
+                >
+                  {pendingReels}
+                </span>
+              )}
             </Link>
           </Button>
           <Button asChild variant="brand">
