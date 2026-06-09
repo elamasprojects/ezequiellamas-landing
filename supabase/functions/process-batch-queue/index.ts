@@ -24,9 +24,16 @@ const CORS = {
 // encoding for the first few ticks (transcribe-bunny-video returns an error
 // until status=4), so we retry across minutes before marking failed.
 const MAX_ATTEMPTS = 8;
-// How many queued rows to process per tick — keeps us well under the function
-// timeout even when each one does a Whisper + Claude round-trip.
-const BATCH_LIMIT = 4;
+// How many rows to process per tick — kept small so we stay well under the
+// function timeout even when each one does a Bunny-encode poll + Whisper + Claude
+// round-trip (each can take ~60-90s).
+const BATCH_LIMIT = 2;
+
+// A row claimed (queued → captioning) whose updated_at is older than this is
+// considered abandoned (the worker crashed/timed out mid-claim) and is eligible
+// to be re-picked. Comfortably larger than the worst-case single-row time so we
+// never steal a row that's genuinely still being processed by a live tick.
+const STALE_CAPTIONING_MS = 8 * 60 * 1000;
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -74,28 +81,52 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Pick the oldest queued rows.
-    const { data: queued, error } = await admin
-      .from("scheduled_posts")
-      .select("id, owner_id, format_id, prep_attempts")
-      .eq("prep_status", "queued")
-      .order("created_at", { ascending: true })
-      .limit(BATCH_LIMIT);
-    if (error) return json(500, { error: error.message });
+    // Candidates = queued rows + any 'captioning' rows abandoned by a crashed/
+    // timed-out tick (so a row can never get stuck mid-claim forever). Two simple
+    // queries (no nested filter encoding), merged and de-duped.
+    const staleBefore = new Date(Date.now() - STALE_CAPTIONING_MS).toISOString();
+    const [queuedRes, staleRes] = await Promise.all([
+      admin
+        .from("scheduled_posts")
+        .select("id, owner_id, format_id, prep_attempts, updated_at")
+        .eq("prep_status", "queued")
+        .order("created_at", { ascending: true })
+        .limit(BATCH_LIMIT),
+      admin
+        .from("scheduled_posts")
+        .select("id, owner_id, format_id, prep_attempts, updated_at")
+        .eq("prep_status", "captioning")
+        .lt("updated_at", staleBefore)
+        .order("created_at", { ascending: true })
+        .limit(BATCH_LIMIT),
+    ]);
+    if (queuedRes.error) return json(500, { error: queuedRes.error.message });
+    if (staleRes.error) return json(500, { error: staleRes.error.message });
+
+    const seen = new Set<string>();
+    const candidates: NonNullable<typeof queuedRes.data> = [];
+    for (const p of [...(queuedRes.data ?? []), ...(staleRes.data ?? [])]) {
+      if (seen.has(p.id) || candidates.length >= BATCH_LIMIT) continue;
+      seen.add(p.id);
+      candidates.push(p);
+    }
 
     let processed = 0;
     let ready = 0;
     let failed = 0;
     let requeued = 0;
 
-    for (const post of queued ?? []) {
-      // Atomically claim: queued → captioning (also bump attempts).
+    for (const post of candidates) {
+      // Atomically claim → captioning. Optimistic lock on updated_at: the trigger
+      // bumps updated_at on every write, so if any concurrent tick touched this
+      // row since we read it, the CAS matches nothing and we skip it. This wins
+      // for both queued and reclaimed-stale rows without re-checking prep_status.
       const nextAttempts = (post.prep_attempts ?? 0) + 1;
       const { data: claimed, error: cErr } = await admin
         .from("scheduled_posts")
         .update({ prep_status: "captioning", prep_attempts: nextAttempts })
         .eq("id", post.id)
-        .eq("prep_status", "queued")
+        .eq("updated_at", post.updated_at)
         .select("id")
         .maybeSingle();
       if (cErr || !claimed) continue;
@@ -140,6 +171,19 @@ Deno.serve(async (req) => {
         captionError = e instanceof Error ? e.message : String(e);
       }
 
+      // Don't trust the 2xx alone: confirm generate-captions actually persisted a
+      // non-empty caption onto the row before scheduling it. Otherwise a silent
+      // regression (or empty copy) would publish a video with no caption.
+      if (!captionError) {
+        const { data: check } = await admin
+          .from("scheduled_posts")
+          .select("caption_default")
+          .eq("id", post.id)
+          .maybeSingle();
+        const caption = (check?.caption_default ?? "").trim();
+        if (!caption) captionError = "captions_not_persisted";
+      }
+
       if (!captionError) {
         // Captions persisted by generate-captions. Flip to scheduled so
         // scheduler-tick publishes it at scheduled_at.
@@ -179,7 +223,7 @@ Deno.serve(async (req) => {
 
     return json(200, {
       ok: true,
-      scanned: queued?.length ?? 0,
+      scanned: candidates.length,
       processed,
       ready,
       failed,
