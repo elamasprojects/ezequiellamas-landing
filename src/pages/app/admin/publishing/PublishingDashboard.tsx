@@ -1,7 +1,22 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calendar as CalendarIcon, Clock, Plug, Sparkles, Layers, Film } from "lucide-react";
+import {
+  Plus,
+  Calendar as CalendarIcon,
+  Clock,
+  Plug,
+  Sparkles,
+  Layers,
+  Film,
+  MoreHorizontal,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -56,21 +71,35 @@ export default function PublishingDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" className="border-[var(--ll-border)]">
-            <Link to="/app/admin/publishing/calendar">
-              <CalendarIcon className="h-4 w-4" /> Calendario
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="border-[var(--ll-border)]">
-            <Link to="/app/admin/publishing/connections">
-              <Plug className="h-4 w-4" /> Conexiones
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="border-[var(--ll-border)]">
-            <Link to="/app/admin/publishing/slots">
-              <Clock className="h-4 w-4" /> Horarios
-            </Link>
-          </Button>
+          {/* Secondary navigation tucked into a "Más" menu so the header stays
+              thumb-friendly on mobile (and tidy on desktop). */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-[var(--ll-border)]">
+                <MoreHorizontal className="h-4 w-4" /> Más
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]"
+            >
+              <DropdownMenuItem asChild>
+                <Link to="/app/admin/publishing/calendar">
+                  <CalendarIcon className="h-4 w-4" /> Calendario
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/app/admin/publishing/connections">
+                  <Plug className="h-4 w-4" /> Conexiones
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/app/admin/publishing/slots">
+                  <Clock className="h-4 w-4" /> Horarios
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button asChild variant="outline" className="border-[var(--ll-border)]">
             <Link to="/app/admin/publishing/batch">
               <Layers className="h-4 w-4" /> Subida en lote
@@ -78,7 +107,7 @@ export default function PublishingDashboard() {
           </Button>
           <Button asChild variant="outline" className="relative border-[var(--ll-border)]">
             <Link to="/app/admin/publishing/reels">
-              <Film className="h-4 w-4" /> Propuestas de Reels
+              <Film className="h-4 w-4" /> Reels
               {pendingReels > 0 && (
                 <span
                   className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-semibold"
