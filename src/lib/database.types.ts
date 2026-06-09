@@ -1625,6 +1625,7 @@ export type Database = {
       }
       referent_reports: {
         Row: {
+          content_mode: string
           covered_from: string | null
           covered_through: string | null
           created_at: string
@@ -1639,6 +1640,7 @@ export type Database = {
           video_count: number
         }
         Insert: {
+          content_mode?: string
           covered_from?: string | null
           covered_through?: string | null
           created_at?: string
@@ -1653,6 +1655,7 @@ export type Database = {
           video_count?: number
         }
         Update: {
+          content_mode?: string
           covered_from?: string | null
           covered_through?: string | null
           created_at?: string

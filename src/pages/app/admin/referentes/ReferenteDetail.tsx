@@ -19,12 +19,15 @@ export default function ReferenteDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [platform, setPlatform] = useState<"all" | "instagram" | "youtube" | "tiktok">("all");
+  // (M33) Platform/format mode: "short" = IG + TikTok, "youtube" = the channel.
+  const [mode, setMode] = useState<"short" | "youtube">("short");
   const qc = useQueryClient();
 
-  // (M24/M25) Filter the loaded videos by posted_at range + platform (client-side).
-  const filteredVideos = (videos ?? []).filter((v) => {
-    if (platform !== "all" && v.platform !== platform) return false;
+  const modePlatforms = mode === "youtube" ? ["youtube"] : ["instagram", "tiktok"];
+  const modeVideos = (videos ?? []).filter((v) => modePlatforms.includes(v.platform));
+
+  // Within the active mode, filter by posted_at range (client-side).
+  const filteredVideos = modeVideos.filter((v) => {
     if (!fromDate && !toDate) return true;
     if (!v.posted_at) return false;
     const d = v.posted_at.slice(0, 10);
@@ -32,7 +35,8 @@ export default function ReferenteDetail() {
     if (toDate && d > toDate) return false;
     return true;
   });
-  const analyzedCount = (videos ?? []).filter((v) => v.concept_status === "done").length;
+  const analyzedCount = modeVideos.filter((v) => v.concept_status === "done").length;
+  const hasYoutube = !!referent?.youtube_url;
 
   const scrapeMutation = useMutation({
     mutationFn: () => scrapeReferentVideos(id!),
@@ -140,11 +144,48 @@ export default function ReferenteDetail() {
         </div>
       )}
 
+      {/* (M33) Mode toggle: short ecosystem (IG · TikTok) vs the YouTube channel. */}
+      {videos && videos.length > 0 && (
+        <div
+          className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-1"
+        >
+          {([
+            { value: "short", label: "Redes cortas · IG · TikTok" },
+            { value: "youtube", label: "YouTube" },
+          ] as const).map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => setMode(m.value)}
+              className="shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors"
+              style={{
+                background: mode === m.value ? "var(--ll-accent-dim)" : "transparent",
+                color: mode === m.value ? "var(--ll-accent)" : "var(--ll-text-muted)",
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mode === "youtube" && !hasYoutube && (
+        <div className="flex flex-col gap-2 rounded-md border border-[var(--ll-warm)]/40 bg-[var(--ll-warm)]/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span style={{ color: "var(--ll-text-muted)" }}>
+            Este referente no tiene canal de YouTube vinculado. Agregalo para analizar su contenido largo.
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4" /> Vincular canal
+          </Button>
+        </div>
+      )}
+
       {id && videos && videos.length > 0 && (
         <ReferentStrategySection
           referentId={id}
+          mode={mode}
           analyzedCount={analyzedCount}
-          totalCount={videos.length}
+          totalCount={modeVideos.length}
         />
       )}
 
@@ -174,43 +215,20 @@ export default function ReferenteDetail() {
               style={{ color: "var(--ll-text)" }}
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-[0.2em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
-              Plataforma
-            </label>
-            <div className="flex gap-1">
-              {(["all", "instagram", "youtube", "tiktok"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPlatform(p)}
-                  className="rounded-md border px-2.5 py-1.5 text-xs capitalize"
-                  style={{
-                    borderColor: platform === p ? "var(--ll-accent)" : "var(--ll-border)",
-                    background: platform === p ? "var(--ll-accent-dim)" : "transparent",
-                    color: platform === p ? "var(--ll-accent)" : "var(--ll-text-muted)",
-                  }}
-                >
-                  {p === "all" ? "Todas" : p === "youtube" ? "YT" : p === "instagram" ? "IG" : "TT"}
-                </button>
-              ))}
-            </div>
-          </div>
-          {(fromDate || toDate || platform !== "all") && (
+          {(fromDate || toDate) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setFromDate("");
                 setToDate("");
-                setPlatform("all");
               }}
             >
               Limpiar
             </Button>
           )}
           <span className="ml-auto text-xs" style={{ color: "var(--ll-text-muted)" }}>
-            {filteredVideos.length} de {videos.length}
+            {filteredVideos.length} de {modeVideos.length}
           </span>
         </div>
       )}

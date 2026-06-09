@@ -1,8 +1,12 @@
-// analyze-referent-strategy — (M24) sintetiza un informe estratégico en Markdown
-// de un referente a partir de sus videos ya analizados (concept + clasificación).
-// Cubre: estrategia general, mix de objetivos de negocio/contenido, temas, la
-// EVOLUCIÓN en el tiempo (§2.7) y la inferencia del NEGOCIO del referente (§2.9).
-// Incremental: por default sólo procesa videos posteriores al último informe.
+// analyze-referent-strategy — (M24 + M33) sintetiza informes estratégicos en
+// Markdown de un referente a partir de sus videos analizados.
+//
+// content_mode:
+//   'short'    → Instagram + TikTok (estrategia short-form). Incremental.
+//   'youtube'  → el canal de YouTube (estrategia de contenido largo; lee el
+//                desglose estructurado long_form_breakdown). Incremental.
+//   'combined' → síntesis cross-formato: cómo usa cada plataforma/formato y
+//                cómo lleva tráfico entre ellas. Se regenera completo cada vez.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
@@ -44,16 +48,20 @@ function decodeUnicodeEscapes<T>(value: T): T {
   return value;
 }
 
+type ContentMode = "short" | "youtube" | "combined";
+
 interface VideoRow {
   posted_at: string | null;
   platform: string;
   views_total: number | null;
   title: string | null;
+  video_duration: number | null;
   business_objective: string | null;
   content_objectives: string[] | null;
   content_type: string | null;
   main_topics: string[] | null;
   concept_summary: string | null;
+  long_form_breakdown: Record<string, unknown> | null;
 }
 
 const REPORT_TOOL = {
@@ -65,11 +73,7 @@ const REPORT_TOOL = {
       report_markdown: {
         type: "string",
         description:
-          "Informe completo en Markdown (con encabezados ##). DEBE incluir, en este orden, secciones: " +
-          "'## Resumen estratégico', '## Objetivos de negocio' (mix viralidad/nutrición/conversión con %), " +
-          "'## Objetivos y tipos de contenido', '## Temas principales', " +
-          "'## Evolución en el tiempo' (qué cambió en temas/formato/estilo, qué dejó de hacer y qué empezó a hacer), " +
-          "y '## El negocio del referente' (¿tiene producto propio? ¿qué vende? ¿cómo lo vende? ¿cómo usa el contenido como herramienta de venta?). " +
+          "Informe completo en Markdown (con encabezados ##). Seguí EXACTAMENTE las secciones que indica el system prompt, en ese orden. " +
           "Español rioplatense, denso, accionable, sin filler. Citá números de views cuando sean relevantes.",
       },
     },
@@ -77,22 +81,85 @@ const REPORT_TOOL = {
   },
 } as const;
 
-const REPORT_SYSTEM =
-  `Sos un analista de estrategia de contenido. Te paso el catálogo de videos virales ya analizados de un referente (con su clasificación estratégica y un resumen por video, ordenados por fecha). ` +
-  `Tu tarea: producir un informe estratégico completo en Markdown vía la tool emit_strategy_report. ` +
-  `Pensá como un estratega que quiere ahorrarle años de prueba y error a otro creador: identificá patrones, qué funcionó y qué no, y cómo evolucionó el referente. ` +
-  `Inferí el modelo de negocio a partir de lo que el referente dice y promociona en sus videos. ` +
-  `Español rioplatense, denso, sin filler. Nunca digas "imaginate", "te voy a explicar", "spoiler:", "esto lo cambia todo".`;
+const BASE_TONE =
+  `Español rioplatense, denso, accionable, sin filler. Pensá como un estratega que quiere ahorrarle años de prueba y error a otro creador: identificá patrones, qué funcionó y qué no. ` +
+  `Inferí el modelo de negocio a partir de lo que el referente dice y promociona. Nunca digas "imaginate", "te voy a explicar", "spoiler:", "esto lo cambia todo".`;
 
-function fmtVideo(v: VideoRow, i: number): string {
+const SYSTEM_SHORT =
+  `Sos un analista de estrategia de contenido SHORT-FORM. Te paso el catálogo de videos cortos (Instagram + TikTok) ya analizados de un referente, ordenados por fecha. ` +
+  `Producí un informe en Markdown vía la tool emit_strategy_report con estas secciones EN ORDEN: ` +
+  `'## Resumen estratégico', '## Objetivos de negocio' (mix viralidad/nutrición/conversión con %), '## Objetivos y tipos de contenido', '## Temas principales', ` +
+  `'## Evolución en el tiempo' (qué cambió en temas/formato/estilo, qué dejó y qué empezó a hacer), ` +
+  `'## El negocio del referente' (¿producto propio? ¿qué vende? ¿cómo usa el contenido corto como herramienta de venta?). ${BASE_TONE}`;
+
+const SYSTEM_YOUTUBE =
+  `Sos un analista de estrategia de contenido LARGO (canal de YouTube). Te paso los videos del canal ya analizados de un referente, ordenados por fecha. Muchos vienen con un desglose estructurado (tesis, estructura por capítulos, argumentos, oferta/CTA, tácticas de retención). ` +
+  `Producí un informe en Markdown vía la tool emit_strategy_report con estas secciones EN ORDEN: ` +
+  `'## Resumen estratégico (YouTube)', ` +
+  `'## Arquitectura del contenido largo' (cómo abren/desarrollan/cierran sus videos, duración típica, formatos recurrentes), ` +
+  `'## Series y pilares de contenido' (temáticas y series que repite), ` +
+  `'## Objetivos de negocio' (mix viralidad/nutrición/conversión), ` +
+  `'## Dónde y cómo monetiza' (dónde caen las ofertas/CTAs dentro de los videos largos, qué vende), ` +
+  `'## Retención y enganche' (tácticas para sostener la atención en formato largo), ` +
+  `'## Uso de Shorts' (si el canal tiene Shorts, cómo los usa: anzuelo, repurpose, funnel; si no hay, decilo), ` +
+  `'## Evolución en el tiempo'. ${BASE_TONE}`;
+
+const SYSTEM_COMBINED =
+  `Sos un analista de estrategia OMNICANAL. Te paso TODO el contenido analizado de un referente — sus videos cortos (Instagram + TikTok) y los de su canal de YouTube (con desglose estructurado) — más, si existen, sus informes previos de corto y de YouTube. ` +
+  `Tu tarea: una SÍNTESIS cross-formato que explique la jugada completa. Producí un informe en Markdown vía la tool emit_strategy_report con estas secciones EN ORDEN: ` +
+  `'## Síntesis estratégica' (la jugada completa en pocas frases), ` +
+  `'## Rol de cada plataforma y formato' (qué objetivo cumple IG/TikTok vs YouTube, corto vs largo), ` +
+  `'## Flujo de tráfico y embudo' (cómo lleva audiencia entre plataformas/formatos: corto → largo → oferta; dónde está la conversión real), ` +
+  `'## Dónde está el negocio' (producto, método de venta, qué formato cierra la venta), ` +
+  `'## Qué replicar' (lo accionable y priorizado para otro creador). ${BASE_TONE}`;
+
+const SYSTEM_BY_MODE: Record<ContentMode, string> = {
+  short: SYSTEM_SHORT,
+  youtube: SYSTEM_YOUTUBE,
+  combined: SYSTEM_COMBINED,
+};
+
+const PLATFORMS_BY_MODE: Record<ContentMode, string[]> = {
+  short: ["instagram", "tiktok"],
+  youtube: ["youtube"],
+  combined: ["instagram", "tiktok", "youtube"],
+};
+
+const MODE_LABEL: Record<ContentMode, string> = {
+  short: "Redes cortas (IG · TikTok)",
+  youtube: "YouTube",
+  combined: "Síntesis cross-formato",
+};
+
+interface LongFormBreakdown {
+  thesis?: string;
+  structure?: Array<{ title?: string }>;
+  offer_or_cta?: string;
+  retention_tactics?: string[];
+}
+
+function fmtVideo(v: VideoRow, i: number, withLongForm: boolean): string {
   const date = v.posted_at ? v.posted_at.slice(0, 10) : "s/f";
-  return [
-    `### Video ${i + 1} — ${date} · ${v.platform} · ${v.views_total ?? "n/a"} views`,
+  const dur = v.video_duration ? ` · ${Math.round(v.video_duration / 60)}min` : "";
+  const lines = [
+    `### Video ${i + 1} — ${date} · ${v.platform}${dur} · ${v.views_total ?? "n/a"} views`,
     v.title ? `Título: ${v.title}` : "",
     `Objetivo negocio: ${v.business_objective ?? "n/a"} · Objetivos contenido: ${(v.content_objectives ?? []).join(", ") || "n/a"} · Tipo: ${v.content_type ?? "n/a"}`,
     `Temas: ${(v.main_topics ?? []).join(", ") || "n/a"}`,
     v.concept_summary ? `Análisis: ${v.concept_summary}` : "",
-  ].filter(Boolean).join("\n");
+  ];
+  if (withLongForm && v.long_form_breakdown) {
+    const b = v.long_form_breakdown as LongFormBreakdown;
+    const struct = (b.structure ?? []).map((s) => s?.title).filter(Boolean).join(" → ");
+    const parts = [
+      b.thesis ? `Tesis: ${b.thesis}` : "",
+      struct ? `Estructura: ${struct}` : "",
+      b.offer_or_cta ? `Oferta/CTA: ${b.offer_or_cta}` : "",
+      (b.retention_tactics ?? []).length ? `Retención: ${(b.retention_tactics ?? []).join("; ")}` : "",
+    ].filter(Boolean);
+    if (parts.length) lines.push(`Desglose largo — ${parts.join(" | ")}`);
+  }
+  return lines.filter(Boolean).join("\n");
 }
 
 Deno.serve(async (req) => {
@@ -113,9 +180,14 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const referent_id = typeof body?.referent_id === "string" ? body.referent_id : null;
     const force = !!body?.force;
+    const rawMode = typeof body?.content_mode === "string" ? body.content_mode : "short";
+    const content_mode: ContentMode = (["short", "youtube", "combined"] as const).includes(
+      rawMode as ContentMode,
+    )
+      ? (rawMode as ContentMode)
+      : "short";
     if (!referent_id) return json({ error: "referent_id is required" }, 400);
 
-    // Referent (RLS ensures the caller owns it) — for name + owner_id.
     const { data: referent, error: rErr } = await userClient
       .from("referents")
       .select("id, name, owner_id")
@@ -123,13 +195,18 @@ Deno.serve(async (req) => {
       .single();
     if (rErr || !referent) return json({ error: rErr?.message ?? "Referent not found" }, 404);
 
-    // Incremental window: since the last done report's covered_through (unless force).
+    const platforms = PLATFORMS_BY_MODE[content_mode];
+    const withLongForm = content_mode === "youtube" || content_mode === "combined";
+
+    // Incremental window: since the last done report OF THE SAME MODE. The
+    // combined synthesis always regenerates over everything.
     let since: string | null = null;
-    if (!force) {
+    if (!force && content_mode !== "combined") {
       const { data: last } = await userClient
         .from("referent_reports")
         .select("covered_through")
         .eq("referent_id", referent_id)
+        .eq("content_mode", content_mode)
         .eq("status", "done")
         .order("covered_through", { ascending: false, nullsFirst: false })
         .limit(1)
@@ -140,10 +217,11 @@ Deno.serve(async (req) => {
     let vq = userClient
       .from("referent_videos")
       .select(
-        "posted_at, platform, views_total, title, business_objective, content_objectives, content_type, main_topics, concept_summary",
+        "posted_at, platform, views_total, title, video_duration, business_objective, content_objectives, content_type, main_topics, concept_summary, long_form_breakdown",
       )
       .eq("referent_id", referent_id)
       .eq("concept_status", "done")
+      .in("platform", platforms)
       .order("posted_at", { ascending: true, nullsFirst: false });
     if (since) vq = vq.gt("posted_at", since);
     const { data: videos, error: vErr } = await vq;
@@ -151,12 +229,16 @@ Deno.serve(async (req) => {
 
     const rows = (videos ?? []) as VideoRow[];
     if (rows.length === 0) {
+      const empty =
+        content_mode === "youtube"
+          ? "No hay videos de YouTube analizados todavía. Vinculá el canal y analizá su contenido."
+          : content_mode === "combined"
+            ? "No hay videos analizados todavía para sintetizar."
+            : "No hay videos cortos (IG/TikTok) analizados todavía.";
       return json({
         ok: true,
         skipped: true,
-        reason: since
-          ? "No hay videos nuevos analizados desde el último informe."
-          : "No hay videos analizados todavía. Analizá los virales del referente primero.",
+        reason: since ? "No hay videos nuevos analizados desde el último informe." : empty,
       });
     }
 
@@ -164,12 +246,40 @@ Deno.serve(async (req) => {
     const covered_from = since ?? (datedRows[0]?.posted_at ?? null);
     const covered_through = datedRows.length ? datedRows[datedRows.length - 1].posted_at : null;
 
+    // For the combined synthesis, feed the latest short + youtube reports as context.
+    let priorContext = "";
+    if (content_mode === "combined") {
+      const { data: priors } = await userClient
+        .from("referent_reports")
+        .select("content_mode, markdown, created_at")
+        .eq("referent_id", referent_id)
+        .in("content_mode", ["short", "youtube"])
+        .eq("status", "done")
+        .order("created_at", { ascending: false });
+      const latestByMode = new Map<string, string>();
+      for (const p of priors ?? []) {
+        if (p.markdown && !latestByMode.has(p.content_mode)) {
+          latestByMode.set(p.content_mode, p.markdown as string);
+        }
+      }
+      const blocks: string[] = [];
+      if (latestByMode.get("short")) {
+        blocks.push(`### Informe de redes cortas (previo)\n${latestByMode.get("short")}`);
+      }
+      if (latestByMode.get("youtube")) {
+        blocks.push(`### Informe de YouTube (previo)\n${latestByMode.get("youtube")}`);
+      }
+      if (blocks.length) priorContext = `\n\nINFORMES PREVIOS COMO CONTEXTO:\n\n${blocks.join("\n\n")}`;
+    }
+
     const userMsg = [
       `Referente: ${referent.name}`,
-      `Videos analizados en esta ventana: ${rows.length}`,
+      `Modo: ${MODE_LABEL[content_mode]}`,
+      `Videos en esta ventana: ${rows.length}`,
       since ? `(informe incremental: sólo videos posteriores a ${since.slice(0, 10)})` : "(informe completo)",
       "",
-      ...rows.map(fmtVideo),
+      ...rows.map((v, i) => fmtVideo(v, i, withLongForm)),
+      priorContext,
     ].join("\n\n");
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -182,7 +292,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: 4000,
-        system: REPORT_SYSTEM,
+        system: SYSTEM_BY_MODE[content_mode],
         tools: [REPORT_TOOL],
         tool_choice: { type: "tool", name: "emit_strategy_report" },
         messages: [{ role: "user", content: userMsg }],
@@ -209,6 +319,7 @@ Deno.serve(async (req) => {
       .insert({
         referent_id,
         owner_id: referent.owner_id,
+        content_mode,
         period_label,
         markdown,
         covered_from,
@@ -220,7 +331,7 @@ Deno.serve(async (req) => {
       .single();
     if (insErr) return json({ error: `Insert failed: ${insErr.message}` }, 500);
 
-    return json({ ok: true, report_id: report.id, video_count: rows.length, period_label });
+    return json({ ok: true, report_id: report.id, content_mode, video_count: rows.length, period_label });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
