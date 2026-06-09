@@ -1768,6 +1768,7 @@ export type Database = {
       scheduled_posts: {
         Row: {
           asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          batch_id: string | null
           bunny_library_id: string | null
           bunny_video_id: string | null
           cancelled_at: string | null
@@ -1781,6 +1782,9 @@ export type Database = {
           id: string
           notes: string | null
           owner_id: string
+          prep_attempts: number
+          prep_error: string | null
+          prep_status: string
           scheduled_at: string
           script_id: string | null
           status: Database["public"]["Enums"]["scheduled_post_status"]
@@ -1796,6 +1800,7 @@ export type Database = {
         }
         Insert: {
           asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          batch_id?: string | null
           bunny_library_id?: string | null
           bunny_video_id?: string | null
           cancelled_at?: string | null
@@ -1809,6 +1814,9 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_id: string
+          prep_attempts?: number
+          prep_error?: string | null
+          prep_status?: string
           scheduled_at: string
           script_id?: string | null
           status?: Database["public"]["Enums"]["scheduled_post_status"]
@@ -1824,6 +1832,7 @@ export type Database = {
         }
         Update: {
           asset_kind?: Database["public"]["Enums"]["scheduled_post_asset_kind"]
+          batch_id?: string | null
           bunny_library_id?: string | null
           bunny_video_id?: string | null
           cancelled_at?: string | null
@@ -1837,6 +1846,9 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_id?: string
+          prep_attempts?: number
+          prep_error?: string | null
+          prep_status?: string
           scheduled_at?: string
           script_id?: string | null
           status?: Database["public"]["Enums"]["scheduled_post_status"]
@@ -3023,6 +3035,7 @@ export type Database = {
         }
         Returns: string
       }
+      dispatch_batch_tick: { Args: never; Returns: undefined }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {
