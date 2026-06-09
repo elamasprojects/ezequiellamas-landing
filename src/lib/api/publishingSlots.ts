@@ -95,3 +95,34 @@ export function nextOptimalSlots(
     occupied: occupied.some((o) => Math.abs(o.getTime() - date.getTime()) < tol),
   }));
 }
+
+// Assigns `n` distinct upcoming optimal datetimes for a batch, skipping slots
+// already taken by an existing scheduled post AND slots assigned earlier in the
+// same batch (so two videos never land on the same block). Returns up to `n`
+// dates; if the horizon runs out of free slots it returns fewer.
+export function assignBatchSlots(
+  slots: { weekday: number; hour: number; minute: number; active?: boolean }[],
+  occupied: Date[],
+  n: number,
+  opts: { horizonDays?: number; toleranceMin?: number } = {},
+): Date[] {
+  if (n <= 0) return [];
+  const horizonDays = opts.horizonDays ?? 60;
+  // Pull a generous candidate window (free + occupied), then walk it picking
+  // only free blocks until we have n.
+  const suggestions = nextOptimalSlots(slots, occupied, {
+    count: Number.MAX_SAFE_INTEGER,
+    horizonDays,
+    toleranceMin: opts.toleranceMin,
+  });
+  const tol = (opts.toleranceMin ?? 30) * 60_000;
+  const assigned: Date[] = [];
+  for (const s of suggestions) {
+    if (assigned.length >= n) break;
+    if (s.occupied) continue;
+    // Also skip if it collides with one we already picked this batch.
+    if (assigned.some((a) => Math.abs(a.getTime() - s.date.getTime()) < tol)) continue;
+    assigned.push(s.date);
+  }
+  return assigned;
+}

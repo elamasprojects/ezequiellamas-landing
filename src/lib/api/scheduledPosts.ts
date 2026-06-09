@@ -150,6 +150,66 @@ export async function createScheduledPost(
   return { ...post, publish_jobs: jobs ?? [] };
 }
 
+export interface CreateBatchPostInput {
+  owner_id: string;
+  batch_id: string;
+  bunny_video_id: string;
+  bunny_library_id: string;
+  scheduled_at: string; // assigned optimal slot (ISO)
+  platforms: PublishPlatform[];
+  format_id?: string | null;
+  title?: string | null;
+  thumbnail_url?: string | null;
+}
+
+/**
+ * Creates one queued batch post: a draft scheduled_posts row with
+ * prep_status='queued' (the process-batch-queue worker will caption it and flip
+ * it to 'scheduled') plus its publish_jobs. Captions are intentionally left
+ * empty — the worker fills them server-side.
+ */
+export async function createBatchPost(
+  input: CreateBatchPostInput,
+): Promise<ScheduledPostWithJobs> {
+  const { data: post, error: pErr } = await supabase
+    .from("scheduled_posts")
+    .insert({
+      owner_id: input.owner_id,
+      asset_kind: "video",
+      bunny_video_id: input.bunny_video_id,
+      bunny_library_id: input.bunny_library_id,
+      scheduled_at: input.scheduled_at,
+      format_id: input.format_id ?? null,
+      title: input.title ?? null,
+      thumbnail_url: input.thumbnail_url ?? null,
+      status: "draft",
+      prep_status: "queued",
+      batch_id: input.batch_id,
+    })
+    .select()
+    .single();
+
+  if (pErr || !post) throw pErr ?? new Error("Insert into scheduled_posts failed");
+
+  const { data: jobs, error: jErr } = await supabase
+    .from("publish_jobs")
+    .insert(
+      input.platforms.map((p) => ({
+        scheduled_post_id: post.id,
+        platform: p,
+        status: "pending" as const,
+      })),
+    )
+    .select();
+
+  if (jErr) {
+    await supabase.from("scheduled_posts").delete().eq("id", post.id);
+    throw jErr;
+  }
+
+  return { ...post, publish_jobs: jobs ?? [] };
+}
+
 export async function updateScheduledPost(
   id: string,
   input: ScheduledPostUpdate,

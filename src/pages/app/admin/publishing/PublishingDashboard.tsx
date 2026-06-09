@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calendar as CalendarIcon, Clock, Plug, Sparkles } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Clock, Plug, Sparkles, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -67,6 +67,11 @@ export default function PublishingDashboard() {
           <Button asChild variant="outline" className="border-[var(--ll-border)]">
             <Link to="/app/admin/publishing/slots">
               <Clock className="h-4 w-4" /> Horarios
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="border-[var(--ll-border)]">
+            <Link to="/app/admin/publishing/batch">
+              <Layers className="h-4 w-4" /> Subida en lote
             </Link>
           </Button>
           <Button asChild variant="brand">

@@ -60,6 +60,7 @@ const NewCover = lazy(() => import("@/pages/app/admin/covers/NewCover"));
 const CoverDetail = lazy(() => import("@/pages/app/admin/covers/CoverDetail"));
 const PublishingDashboard = lazy(() => import("@/pages/app/admin/publishing/PublishingDashboard"));
 const NewScheduledPost = lazy(() => import("@/pages/app/admin/publishing/NewScheduledPost"));
+const BatchUpload = lazy(() => import("@/pages/app/admin/publishing/BatchUpload"));
 const ScheduledPostDetail = lazy(() => import("@/pages/app/admin/publishing/ScheduledPostDetail"));
 const PublishingCalendar = lazy(() => import("@/pages/app/admin/publishing/PublishingCalendar"));
 const Connections = lazy(() => import("@/pages/app/admin/publishing/Connections"));
@@ -128,6 +129,7 @@ export default function App() {
                 <Route path="covers/:id" element={<CoverDetail />} />
                 <Route path="publishing" element={<PublishingDashboard />} />
                 <Route path="publishing/new" element={<NewScheduledPost />} />
+                <Route path="publishing/batch" element={<BatchUpload />} />
                 <Route path="publishing/calendar" element={<PublishingCalendar />} />
                 <Route path="publishing/connections" element={<Connections />} />
                 <Route path="publishing/slots" element={<PublishingSlots />} />

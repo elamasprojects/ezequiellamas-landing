@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import * as tus from "tus-js-client";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
 import { BunnyLibraryPicker } from "./BunnyLibraryPicker";
 import type { BunnyVideoRow } from "@/hooks/useBunnyVideos";
+import { probeVideoDuration, uploadToBunny } from "@/lib/api/bunnyUpload";
 
 /** Discriminated state returned by the uploader once a video is in place. */
 export type VideoUploaderState = {
@@ -33,20 +33,6 @@ interface Props {
 const ACCEPTED = "video/mp4,video/quicktime,video/webm";
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
-interface CreateBunnyResponse {
-  ok: true;
-  bunny_videos_id: string | null;
-  video_id: string;
-  library_id: string;
-  upload_url: string;
-  auth_signature: string;
-  auth_expiration_time: number;
-  cdn_url: string;
-  hls_url?: string;
-  thumbnail_url?: string;
-  cdn_hostname: string;
-}
-
 type Mode = "upload" | "library";
 
 export function VideoUploader({ state, onUploaded, onCleared }: Props) {
@@ -65,92 +51,38 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     };
   }, [previewUrl]);
 
-  async function probeDuration(file: File): Promise<number | null> {
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(file);
-      const v = document.createElement("video");
-      v.preload = "metadata";
-      v.onloadedmetadata = () => {
-        const d = isFinite(v.duration) ? v.duration : null;
-        URL.revokeObjectURL(url);
-        resolve(d);
-      };
-      v.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(null);
-      };
-      v.src = url;
-    });
-  }
-
-  async function uploadToBunny(file: File, duration: number | null) {
-    let createResp: CreateBunnyResponse;
+  async function startUpload(file: File, duration: number | null) {
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke<
-        CreateBunnyResponse | { error: string }
-      >("bunny-create-video", {
-        body: { filename: file.name, title: file.name.replace(/\.[^.]+$/, "") },
+      const result = await uploadToBunny(file, {
+        duration,
+        onStart: (u) => {
+          tusUploadRef.current = u;
+        },
+        onProgress: (pct) => setProgress(pct),
       });
-      if (fnErr) throw new Error(fnErr.message);
-      if (!data) throw new Error("empty_response");
-      if ("error" in data) throw new Error(data.error);
-      createResp = data;
+      setProgress(100);
+      tusUploadRef.current = null;
+      // Refresh the library list so the new row shows up immediately
+      qc.invalidateQueries({ queryKey: ["bunny_videos"] });
+      onUploaded({
+        provider: "bunny",
+        bunny_video_id: result.bunny_video_id,
+        bunny_library_id: result.bunny_library_id,
+        cdn_url: result.cdn_url,
+        thumbnail_url: result.thumbnail_url,
+        duration_seconds: result.duration_seconds,
+        mime_type: result.mime_type || file.type,
+        from_library: false,
+        status: "encoding",
+      });
+      toast.success("Video subido. Se está codificando…");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "create_video_failed";
+      const msg = e instanceof Error ? e.message : "upload_failed";
       setError(msg);
       setProgress(null);
-      toast.error(`Falló crear el video en Bunny: ${msg}`);
-      return;
+      tusUploadRef.current = null;
+      toast.error(`Upload falló: ${msg}`);
     }
-
-    const upload = new tus.Upload(file, {
-      endpoint: createResp.upload_url,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        AuthorizationSignature: createResp.auth_signature,
-        AuthorizationExpire: String(createResp.auth_expiration_time),
-        VideoId: createResp.video_id,
-        LibraryId: createResp.library_id,
-      },
-      metadata: {
-        filetype: file.type,
-        title: file.name,
-      },
-      chunkSize: 15 * 1024 * 1024,
-      parallelUploads: 1,
-      onError: (err) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
-        setProgress(null);
-        tusUploadRef.current = null;
-        toast.error(`Upload falló: ${msg}`);
-      },
-      onProgress: (bytesUploaded, bytesTotal) => {
-        const pct = (bytesUploaded / bytesTotal) * 100;
-        setProgress(pct);
-      },
-      onSuccess: () => {
-        setProgress(100);
-        tusUploadRef.current = null;
-        // Refresh the library list so the new row shows up immediately
-        qc.invalidateQueries({ queryKey: ["bunny_videos"] });
-        onUploaded({
-          provider: "bunny",
-          bunny_video_id: createResp.video_id,
-          bunny_library_id: createResp.library_id,
-          cdn_url: createResp.cdn_url,
-          thumbnail_url: createResp.thumbnail_url ?? null,
-          duration_seconds: duration,
-          mime_type: file.type,
-          from_library: false,
-          status: "encoding",
-        });
-        toast.success("Video subido. Se está codificando…");
-      },
-    });
-
-    tusUploadRef.current = upload;
-    upload.start();
   }
 
   async function handleFile(file: File) {
@@ -165,10 +97,10 @@ export function VideoUploader({ state, onUploaded, onCleared }: Props) {
     setError(null);
     setProgress(0);
 
-    const duration = await probeDuration(file);
+    const duration = await probeVideoDuration(file);
     setPreviewUrl(URL.createObjectURL(file));
 
-    await uploadToBunny(file, duration);
+    await startUpload(file, duration);
   }
 
   function handlePickFromLibrary(video: BunnyVideoRow) {
