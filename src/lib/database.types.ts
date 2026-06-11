@@ -2028,6 +2028,7 @@ export type Database = {
           comment_automation_match_mode: string
           comment_automation_reply: string | null
           comment_automation_status: string
+          cover_id: string | null
           created_at: string
           cta: string | null
           format_id: string | null
@@ -2074,6 +2075,7 @@ export type Database = {
           comment_automation_match_mode?: string
           comment_automation_reply?: string | null
           comment_automation_status?: string
+          cover_id?: string | null
           created_at?: string
           cta?: string | null
           format_id?: string | null
@@ -2120,6 +2122,7 @@ export type Database = {
           comment_automation_match_mode?: string
           comment_automation_reply?: string | null
           comment_automation_status?: string
+          cover_id?: string | null
           created_at?: string
           cta?: string | null
           format_id?: string | null
@@ -2152,6 +2155,13 @@ export type Database = {
             columns: ["carousel_id"]
             isOneToOne: false
             referencedRelation: "carousels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_cover_id_fkey"
+            columns: ["cover_id"]
+            isOneToOne: false
+            referencedRelation: "covers"
             referencedColumns: ["id"]
           },
           {
