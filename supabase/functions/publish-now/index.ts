@@ -131,6 +131,7 @@ async function resolveCoverThumbUrl(admin: SupabaseClient, post: PostRow): Promi
       .from("covers")
       .select("generated_image_path, status")
       .eq("id", post.cover_id)
+      .eq("owner_id", post.owner_id)
       .maybeSingle();
     const path = cover?.generated_image_path as string | null | undefined;
     if (path && cover?.status === "done") {

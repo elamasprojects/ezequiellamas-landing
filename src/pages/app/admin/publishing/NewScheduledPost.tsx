@@ -136,6 +136,7 @@ export default function NewScheduledPost() {
     setTranscriptSource(null);
     setShowManualTranscript(false);
     setManualTranscriptDraft("");
+    setCoverId(null);
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
     } else {
