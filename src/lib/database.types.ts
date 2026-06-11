@@ -2019,6 +2019,15 @@ export type Database = {
           carousel_id: string | null
           clip_analysis_status: string
           clip_total_views: number | null
+          comment_automation_button_title: string | null
+          comment_automation_dm_message: string | null
+          comment_automation_enabled: boolean
+          comment_automation_error: string | null
+          comment_automation_keywords: string[] | null
+          comment_automation_link_url: string | null
+          comment_automation_match_mode: string
+          comment_automation_reply: string | null
+          comment_automation_status: string
           created_at: string
           cta: string | null
           format_id: string | null
@@ -2043,6 +2052,7 @@ export type Database = {
           transcript_status: string
           updated_at: string
           video_storage_path: string | null
+          zernio_automation_id: string | null
         }
         Insert: {
           asset_kind: Database["public"]["Enums"]["scheduled_post_asset_kind"]
@@ -2055,6 +2065,15 @@ export type Database = {
           carousel_id?: string | null
           clip_analysis_status?: string
           clip_total_views?: number | null
+          comment_automation_button_title?: string | null
+          comment_automation_dm_message?: string | null
+          comment_automation_enabled?: boolean
+          comment_automation_error?: string | null
+          comment_automation_keywords?: string[] | null
+          comment_automation_link_url?: string | null
+          comment_automation_match_mode?: string
+          comment_automation_reply?: string | null
+          comment_automation_status?: string
           created_at?: string
           cta?: string | null
           format_id?: string | null
@@ -2079,6 +2098,7 @@ export type Database = {
           transcript_status?: string
           updated_at?: string
           video_storage_path?: string | null
+          zernio_automation_id?: string | null
         }
         Update: {
           asset_kind?: Database["public"]["Enums"]["scheduled_post_asset_kind"]
@@ -2091,6 +2111,15 @@ export type Database = {
           carousel_id?: string | null
           clip_analysis_status?: string
           clip_total_views?: number | null
+          comment_automation_button_title?: string | null
+          comment_automation_dm_message?: string | null
+          comment_automation_enabled?: boolean
+          comment_automation_error?: string | null
+          comment_automation_keywords?: string[] | null
+          comment_automation_link_url?: string | null
+          comment_automation_match_mode?: string
+          comment_automation_reply?: string | null
+          comment_automation_status?: string
           created_at?: string
           cta?: string | null
           format_id?: string | null
@@ -2115,6 +2144,7 @@ export type Database = {
           transcript_status?: string
           updated_at?: string
           video_storage_path?: string | null
+          zernio_automation_id?: string | null
         }
         Relationships: [
           {
@@ -3490,6 +3520,24 @@ export type Database = {
       insert_brolls_for_script: {
         Args: { _brolls: Json; _script_id: string }
         Returns: number
+      }
+      replace_publishing_slots: {
+        Args: { _slots: Json }
+        Returns: {
+          active: boolean
+          created_at: string
+          hour: number
+          id: string
+          minute: number
+          owner_id: string
+          weekday: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "publishing_slots"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
     }
     Enums: {

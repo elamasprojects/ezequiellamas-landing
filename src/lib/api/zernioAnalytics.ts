@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { invokeFn } from "@/lib/api/invokeFn";
 import type { Tables } from "@/lib/database.types";
 
 export type ZernioAccountStats = Tables<"zernio_account_stats">;
@@ -54,12 +55,9 @@ export interface ZernioSyncResult {
 
 // Manual refresh — invokes the same edge function the cron runs.
 export async function triggerZernioAnalyticsSync(): Promise<ZernioSyncResult> {
-  const { data, error } = await supabase.functions.invoke<ZernioSyncResult>(
-    "zernio-analytics-sync",
-    { body: {} },
-  );
-  if (error) throw error;
-  return data ?? { ok: false };
+  const res = await invokeFn<ZernioSyncResult>("zernio-analytics-sync", {});
+  if (!res.ok) return { ok: false, errors: [res.error ?? "sync_failed"] };
+  return res.data ?? { ok: false };
 }
 
 // ── Derived helpers for the dashboard ───────────────────────────────────────

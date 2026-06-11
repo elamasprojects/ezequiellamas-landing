@@ -28,6 +28,7 @@ import {
 
 const FILTERS: { value: EngagementReplyStatus; label: string }[] = [
   { value: "pending", label: "Pendientes" },
+  { value: "failed", label: "Con error" },
   { value: "sent", label: "Enviadas" },
   { value: "rejected", label: "Rechazadas" },
 ];
@@ -181,7 +182,8 @@ function PlatformIcon({ platform, className }: { platform: string; className?: s
 function ReplyCard({ reply }: { reply: EngagementReply }) {
   const qc = useQueryClient();
   const [text, setText] = useState(reply.edited_text ?? reply.ai_draft ?? "");
-  const isPending = reply.status === "pending";
+  // Editable + resendable while pending or after a failed send.
+  const isPending = reply.status === "pending" || reply.status === "failed";
 
   useEffect(() => {
     setText(reply.edited_text ?? reply.ai_draft ?? "");

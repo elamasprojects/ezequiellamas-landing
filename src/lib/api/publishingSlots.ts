@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Tables } from "@/lib/database.types";
+import type { Tables, Json } from "@/lib/database.types";
 
 export type PublishingSlot = Tables<"publishing_slots">;
 
@@ -58,19 +58,16 @@ export async function seedDefaultPublishingSlots(ownerId: string): Promise<Publi
 }
 
 // (M35) Replaces all of the owner's slots with a new set (used to apply Zernio's
-// best-time). Clears existing then inserts the provided slots.
+// best-time). Atomic: the delete + insert run inside a single transaction via the
+// replace_publishing_slots RPC, so a failed insert can't leave the user with zero
+// slots. Owner scoping is enforced server-side through auth.uid().
 export async function replacePublishingSlots(
-  ownerId: string,
+  _ownerId: string,
   slots: { weekday: number; hour: number; minute: number }[],
 ): Promise<PublishingSlot[]> {
-  const { error: delErr } = await supabase
-    .from("publishing_slots")
-    .delete()
-    .eq("owner_id", ownerId);
-  if (delErr) throw delErr;
-  if (slots.length === 0) return [];
-  const rows = slots.map((s) => ({ ...s, owner_id: ownerId }));
-  const { data, error } = await supabase.from("publishing_slots").insert(rows).select();
+  const { data, error } = await supabase.rpc("replace_publishing_slots", {
+    _slots: slots as unknown as Json,
+  });
   if (error) throw error;
   return data ?? [];
 }
