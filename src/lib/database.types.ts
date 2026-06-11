@@ -3087,6 +3087,189 @@ export type Database = {
         }
         Relationships: []
       }
+      zernio_account_daily: {
+        Row: {
+          created_at: string
+          date: string
+          followers: number | null
+          id: string
+          owner_id: string
+          platform: string
+          social_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          followers?: number | null
+          id?: string
+          owner_id: string
+          platform: string
+          social_account_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          followers?: number | null
+          id?: string
+          owner_id?: string
+          platform?: string
+          social_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zernio_account_daily_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zernio_account_stats: {
+        Row: {
+          avatar_url: string | null
+          content_count: number | null
+          display_name: string | null
+          followers: number | null
+          following: number | null
+          growth: number | null
+          growth_pct: number | null
+          last_synced_at: string
+          likes_total: number | null
+          owner_id: string
+          platform: string
+          raw: Json | null
+          social_account_id: string
+          updated_at: string
+          username: string | null
+          views_total: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          content_count?: number | null
+          display_name?: string | null
+          followers?: number | null
+          following?: number | null
+          growth?: number | null
+          growth_pct?: number | null
+          last_synced_at?: string
+          likes_total?: number | null
+          owner_id: string
+          platform: string
+          raw?: Json | null
+          social_account_id: string
+          updated_at?: string
+          username?: string | null
+          views_total?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          content_count?: number | null
+          display_name?: string | null
+          followers?: number | null
+          following?: number | null
+          growth?: number | null
+          growth_pct?: number | null
+          last_synced_at?: string
+          likes_total?: number | null
+          owner_id?: string
+          platform?: string
+          raw?: Json | null
+          social_account_id?: string
+          updated_at?: string
+          username?: string | null
+          views_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zernio_account_stats_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: true
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zernio_post_analytics: {
+        Row: {
+          caption: string | null
+          clicks: number | null
+          comments: number | null
+          engagement_rate: number | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          owner_id: string
+          platform: string
+          platform_post_id: string | null
+          platform_post_url: string | null
+          posted_at: string | null
+          raw: Json | null
+          reach: number | null
+          saves: number | null
+          shares: number | null
+          social_account_id: string | null
+          synced_at: string
+          thumbnail_url: string | null
+          views: number | null
+          zernio_post_id: string | null
+        }
+        Insert: {
+          caption?: string | null
+          clicks?: number | null
+          comments?: number | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          owner_id: string
+          platform: string
+          platform_post_id?: string | null
+          platform_post_url?: string | null
+          posted_at?: string | null
+          raw?: Json | null
+          reach?: number | null
+          saves?: number | null
+          shares?: number | null
+          social_account_id?: string | null
+          synced_at?: string
+          thumbnail_url?: string | null
+          views?: number | null
+          zernio_post_id?: string | null
+        }
+        Update: {
+          caption?: string | null
+          clicks?: number | null
+          comments?: number | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          owner_id?: string
+          platform?: string
+          platform_post_id?: string | null
+          platform_post_url?: string | null
+          posted_at?: string | null
+          raw?: Json | null
+          reach?: number | null
+          saves?: number | null
+          shares?: number | null
+          social_account_id?: string | null
+          synced_at?: string
+          thumbnail_url?: string | null
+          views?: number | null
+          zernio_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zernio_post_analytics_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -3176,6 +3359,7 @@ export type Database = {
       dispatch_batch_tick: { Args: never; Returns: undefined }
       dispatch_clip_analysis_tick: { Args: never; Returns: undefined }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
+      dispatch_zernio_analytics_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
