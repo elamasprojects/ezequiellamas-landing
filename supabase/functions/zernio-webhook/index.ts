@@ -461,12 +461,14 @@ async function maybeCreateCommentAutomation(
     return void (await fail("Instagram no devolvió el media id en el webhook"));
 
   const ownerId = parent.owner_id as string;
-  const { data: igAccount } = await admin
+  const { data: igAccounts } = await admin
     .from("social_accounts")
     .select("external_account_id, meta")
     .eq("owner_id", ownerId)
     .eq("platform", "instagram")
-    .maybeSingle();
+    .order("last_used_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const igAccount = igAccounts?.[0];
   const meta = (igAccount?.meta ?? {}) as Record<string, unknown>;
   const accountId =
     (meta.zernio_account_id as string | undefined) ??
@@ -501,6 +503,16 @@ async function maybeCreateCommentAutomation(
       body: JSON.stringify(body),
     });
     const res = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    // 409 = an active per-post automation already exists for this platformPostId
+    // (e.g. a concurrent/duplicate webhook delivery already created it). That's a
+    // success from our POV — don't flip a created automation back to 'failed'.
+    if (r.status === 409) {
+      await admin
+        .from("scheduled_posts")
+        .update({ comment_automation_status: "created", comment_automation_error: null })
+        .eq("id", scheduledPostId);
+      return;
+    }
     if (!r.ok) {
       return void (await fail((res.error as string) ?? `zernio_${r.status}`));
     }
@@ -571,14 +583,20 @@ async function handlePostEvent(
     const automationId = parentPost?.zernio_automation_id as string | null | undefined;
     if (automationId && ZERNIO_API_KEY) {
       try {
-        await fetch(`${ZERNIO_BASE}/comment-automations/${automationId}`, {
+        const del = await fetch(`${ZERNIO_BASE}/comment-automations/${automationId}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${ZERNIO_API_KEY}` },
         });
-        await admin
-          .from("scheduled_posts")
-          .update({ zernio_automation_id: null, comment_automation_status: "idle" })
-          .eq("id", scheduledPostId);
+        // Only forget the id once it's actually gone (ok or 404). Otherwise keep
+        // it so we don't orphan a still-active automation we can't reference.
+        if (del.ok || del.status === 404) {
+          await admin
+            .from("scheduled_posts")
+            .update({ zernio_automation_id: null, comment_automation_status: "idle" })
+            .eq("id", scheduledPostId);
+        } else {
+          console.warn("comment_automation_delete_non_ok", del.status);
+        }
       } catch (e) {
         console.warn("comment_automation_delete_failed", e);
       }
@@ -663,8 +681,11 @@ async function handlePostEvent(
 
   if (!parentPost) return;
 
-  // (M37) Create the lead-magnet comment automation once IG is live.
-  if (event === "post.published" || event === "post.partial") {
+  // (M37) Create the lead-magnet comment automation once IG is live. On a
+  // transient post.partial where IG hasn't published yet (no media id), wait for
+  // a later event instead of marking it 'failed' prematurely; on post.published
+  // we always attempt so a genuine missing-media-id surfaces as failed.
+  if (event === "post.published" || (event === "post.partial" && igPlatformPostId)) {
     try {
       await maybeCreateCommentAutomation(
         admin,
