@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,11 @@ import { usePublishingSlots } from "@/hooks/usePublishingSlots";
 import {
   createPublishingSlot,
   deletePublishingSlot,
+  replacePublishingSlots,
   seedDefaultPublishingSlots,
   WEEKDAYS,
 } from "@/lib/api/publishingSlots";
+import { fetchZernioBestTime, topLocalSlots } from "@/lib/api/zernioBestTime";
 
 function hhmm(hour: number, minute: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -54,6 +56,31 @@ export default function PublishingSlots() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // (M35) Replace the slots with Zernio's data-driven best times.
+  const syncBestTime = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("not authenticated");
+      const res = await fetchZernioBestTime();
+      if (!res.ok) {
+        throw new Error(
+          res.requiresAddon
+            ? "Necesitás el add-on de Analytics de Zernio para esto."
+            : res.error ?? "No se pudo traer los mejores horarios.",
+        );
+      }
+      const local = topLocalSlots(res.slots ?? [], { count: 12, minPosts: 2 });
+      if (local.length === 0) {
+        throw new Error("Zernio todavía no tiene suficiente data de horarios. Publicá más y reintentá.");
+      }
+      return replacePublishingSlots(user.id, local);
+    },
+    onSuccess: (rows) => {
+      invalidate();
+      toast.success(`Apliqué ${rows.length} horarios óptimos de Zernio.`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="max-w-2xl space-y-8">
       <Link to="/app/admin/publishing" className="inline-flex items-center gap-1 text-sm" style={{ color: "var(--ll-text-muted)" }}>
@@ -72,6 +99,35 @@ export default function PublishingSlots() {
           que ya tenés ocupados). Editalos a gusto.
         </p>
       </header>
+
+      {/* (M35) Best-time from Zernio */}
+      <section className="flex flex-col gap-3 rounded-lg border border-[var(--ll-accent)]/30 bg-[var(--ll-accent)]/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium" style={{ color: "var(--ll-text)" }}>
+            Mejores horarios según tu data real (Zernio)
+          </p>
+          <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+            Reemplaza tus bloques con los horarios de mayor engagement de tus posts, convertidos a tu
+            zona horaria. Después podés editarlos.
+          </p>
+        </div>
+        <Button
+          variant="brand"
+          className="shrink-0"
+          onClick={() => syncBestTime.mutate()}
+          disabled={syncBestTime.isPending}
+        >
+          {syncBestTime.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Calculando…
+            </>
+          ) : (
+            <>
+              <Wand2 className="h-4 w-4" /> Aplicar best-time
+            </>
+          )}
+        </Button>
+      </section>
 
       {/* Add */}
       <section className="flex flex-wrap items-end gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">

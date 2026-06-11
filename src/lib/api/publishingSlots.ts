@@ -57,6 +57,24 @@ export async function seedDefaultPublishingSlots(ownerId: string): Promise<Publi
   return data ?? [];
 }
 
+// (M35) Replaces all of the owner's slots with a new set (used to apply Zernio's
+// best-time). Clears existing then inserts the provided slots.
+export async function replacePublishingSlots(
+  ownerId: string,
+  slots: { weekday: number; hour: number; minute: number }[],
+): Promise<PublishingSlot[]> {
+  const { error: delErr } = await supabase
+    .from("publishing_slots")
+    .delete()
+    .eq("owner_id", ownerId);
+  if (delErr) throw delErr;
+  if (slots.length === 0) return [];
+  const rows = slots.map((s) => ({ ...s, owner_id: ownerId }));
+  const { data, error } = await supabase.from("publishing_slots").insert(rows).select();
+  if (error) throw error;
+  return data ?? [];
+}
+
 export interface SlotSuggestion {
   date: Date;
   occupied: boolean;
