@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { ArrowLeft, FileText, Loader2, Mic, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -57,6 +60,15 @@ export default function NewScheduledPost() {
   const [hashtagsRaw, setHashtagsRaw] = useState("");
   // Default to all platforms (post everywhere unless you deselect).
   const [platforms, setPlatforms] = useState<PublishPlatform[]>(() => [...PUBLISH_PLATFORMS]);
+
+  // (M37) Lead-magnet comment→DM automation (Instagram only).
+  const [caEnabled, setCaEnabled] = useState(false);
+  const [caKeywords, setCaKeywords] = useState("");
+  const [caMatchMode, setCaMatchMode] = useState<"contains" | "exact">("contains");
+  const [caDm, setCaDm] = useState("");
+  const [caLink, setCaLink] = useState("");
+  const [caButtonTitle, setCaButtonTitle] = useState("Quiero el link");
+  const [caReply, setCaReply] = useState("");
   const [scheduledAt, setScheduledAt] = useState<string>(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() + 30);
@@ -213,6 +225,9 @@ export default function NewScheduledPost() {
       if (assetKind === "video" && !videoState) throw new Error("Subí un video primero");
       if (assetKind === "carousel" && !carouselId) throw new Error("Elegí un carrousel");
       if (platforms.length === 0) throw new Error("Elegí al menos una plataforma");
+      if (platforms.includes("instagram") && caEnabled && !caDm.trim()) {
+        throw new Error("Escribí el mensaje del DM para la automatización de comentarios");
+      }
       if (validation.length > 0) {
         throw new Error(validation.map((e) => `${PLATFORM_LABEL[e.platform]}: ${e.message}`).join("; "));
       }
@@ -237,6 +252,18 @@ export default function NewScheduledPost() {
         transcript: cachedTranscript,
         transcript_language: cachedTranscriptLang,
         transcript_status: cachedTranscript ? "done" : "idle",
+        commentAutomation:
+          platforms.includes("instagram") && caEnabled
+            ? {
+                enabled: true,
+                keywords: caKeywords.split(",").map((s) => s.trim()).filter(Boolean),
+                matchMode: caMatchMode,
+                dmMessage: caDm.trim(),
+                linkUrl: caLink.trim() || null,
+                buttonTitle: caButtonTitle.trim() || null,
+                reply: caReply.trim() || null,
+              }
+            : null,
       });
       if (mode === "now") {
         await publishNow({ scheduled_post_id: post.id });
@@ -619,6 +646,90 @@ export default function NewScheduledPost() {
           </ul>
         )}
       </Section>
+
+      {/* (M37) Lead magnet: comment → DM automation (Instagram only) */}
+      {platforms.includes("instagram") && (
+        <Section step="4b" title="Lead magnet (comentario → DM)">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+                Cuando alguien comente una palabra clave en este post de Instagram, Zernio le manda
+                un DM automático con tu link. Se activa apenas el post se publica.
+              </p>
+              <Switch checked={caEnabled} onCheckedChange={setCaEnabled} />
+            </div>
+            {caEnabled && (
+              <div className="space-y-4 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Palabras clave (CTA)</Label>
+                    <Input
+                      value={caKeywords}
+                      onChange={(e) => setCaKeywords(e.target.value)}
+                      placeholder="link, info, quiero"
+                    />
+                    <p className="text-[11px]" style={{ color: "var(--ll-text-dim)" }}>
+                      Separadas por coma. Vacío = cualquier comentario dispara el DM.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Coincidencia</Label>
+                    <Select value={caMatchMode} onValueChange={(v) => setCaMatchMode(v as "contains" | "exact")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contains">Contiene la palabra</SelectItem>
+                        <SelectItem value="exact">Coincidencia exacta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Mensaje del DM</Label>
+                  <Textarea
+                    value={caDm}
+                    onChange={(e) => setCaDm(e.target.value)}
+                    rows={3}
+                    placeholder="¡Gracias por comentar! Acá tenés el recurso 👇"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Link del lead magnet</Label>
+                    <Input
+                      value={caLink}
+                      onChange={(e) => setCaLink(e.target.value)}
+                      placeholder="https://…"
+                      type="url"
+                    />
+                    <p className="text-[11px]" style={{ color: "var(--ll-text-dim)" }}>
+                      Se manda como botón con tracking de clicks nativo de Zernio.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Texto del botón</Label>
+                    <Input
+                      value={caButtonTitle}
+                      onChange={(e) => setCaButtonTitle(e.target.value)}
+                      maxLength={20}
+                      placeholder="Quiero el link"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Respuesta pública al comentario (opcional)</Label>
+                  <Input
+                    value={caReply}
+                    onChange={(e) => setCaReply(e.target.value)}
+                    placeholder="¡Te lo mandé por DM! 📩"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* Step 5: schedule */}
       <Section step="5" title="Programación">

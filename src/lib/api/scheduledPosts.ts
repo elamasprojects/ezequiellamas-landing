@@ -94,6 +94,19 @@ export interface CreateScheduledPostInput {
   transcript?: string | null;
   transcript_language?: string | null;
   transcript_status?: string | null;
+  /** (M37) Lead-magnet comment→DM automation preset (created in Zernio once IG publishes). */
+  commentAutomation?: CommentAutomationPreset | null;
+}
+
+/** (M37) Preset config for the comment→DM automation. Instagram only. */
+export interface CommentAutomationPreset {
+  enabled: boolean;
+  keywords: string[];
+  matchMode: "exact" | "contains";
+  dmMessage: string;
+  linkUrl: string | null;
+  buttonTitle: string | null;
+  reply: string | null;
 }
 
 export async function createScheduledPost(
@@ -124,6 +137,13 @@ export async function createScheduledPost(
       transcript: rest.transcript ?? null,
       transcript_language: rest.transcript_language ?? null,
       transcript_status: rest.transcript_status ?? "idle",
+      comment_automation_enabled: rest.commentAutomation?.enabled ?? false,
+      comment_automation_keywords: rest.commentAutomation?.keywords ?? null,
+      comment_automation_match_mode: rest.commentAutomation?.matchMode ?? "contains",
+      comment_automation_dm_message: rest.commentAutomation?.dmMessage ?? null,
+      comment_automation_link_url: rest.commentAutomation?.linkUrl ?? null,
+      comment_automation_button_title: rest.commentAutomation?.buttonTitle ?? null,
+      comment_automation_reply: rest.commentAutomation?.reply ?? null,
     })
     .select()
     .single();
