@@ -39,6 +39,8 @@ const PLATFORM_LABEL: Record<Platform, string> = {
 };
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://ezequiellamas.com";
+const ZERNIO_API_KEY = Deno.env.get("ZERNIO_API_KEY") ?? "";
+const ZERNIO_BASE = "https://zernio.com/api/v1";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL =
   Deno.env.get("FROM_EMAIL") ?? "Ezequiel Lamas <hola@updates.ezequiellamas.com>";
@@ -435,6 +437,87 @@ async function linkSucceededJobToVideoModel(
   }
 }
 
+/** (M37) Create the preset comment→DM (lead magnet) automation in Zernio once the
+ * Instagram leg is live. Per-post automations need the native IG media id, which
+ * only exists post-publish. Idempotent: skips if already created. */
+async function maybeCreateCommentAutomation(
+  admin: SupabaseClient,
+  scheduledPostId: string,
+  parent: Record<string, unknown>,
+  zernioPostId: string,
+  igPlatformPostId: string | null,
+): Promise<void> {
+  if (!parent.comment_automation_enabled) return;
+  if (parent.zernio_automation_id || parent.comment_automation_status === "created") return;
+
+  const fail = (msg: string) =>
+    admin
+      .from("scheduled_posts")
+      .update({ comment_automation_status: "failed", comment_automation_error: msg })
+      .eq("id", scheduledPostId);
+
+  if (!ZERNIO_API_KEY) return void (await fail("ZERNIO_API_KEY not set"));
+  if (!igPlatformPostId)
+    return void (await fail("Instagram no devolvió el media id en el webhook"));
+
+  const ownerId = parent.owner_id as string;
+  const { data: igAccount } = await admin
+    .from("social_accounts")
+    .select("external_account_id, meta")
+    .eq("owner_id", ownerId)
+    .eq("platform", "instagram")
+    .maybeSingle();
+  const meta = (igAccount?.meta ?? {}) as Record<string, unknown>;
+  const accountId =
+    (meta.zernio_account_id as string | undefined) ??
+    (igAccount?.external_account_id as string | undefined);
+  const profileId = meta.zernio_profile_id as string | undefined;
+  if (!accountId || !profileId)
+    return void (await fail("Falta zernio_account_id / profile_id de la cuenta de Instagram"));
+
+  const linkUrl = parent.comment_automation_link_url as string | null;
+  const buttonTitle = ((parent.comment_automation_button_title as string | null) ?? "Quiero el link").slice(0, 20);
+  const buttons = linkUrl ? [{ type: "url", title: buttonTitle, url: linkUrl }] : [];
+  const commentReply = (parent.comment_automation_reply as string | null)?.trim();
+
+  const body: Record<string, unknown> = {
+    profileId,
+    accountId,
+    platformPostId: igPlatformPostId,
+    postId: zernioPostId,
+    name: ((parent.title as string | null) ?? "Lead magnet").slice(0, 80),
+    keywords: Array.isArray(parent.comment_automation_keywords) ? parent.comment_automation_keywords : [],
+    matchMode: (parent.comment_automation_match_mode as string) ?? "contains",
+    dmMessage: (parent.comment_automation_dm_message as string) ?? "",
+    buttons,
+    linkTracking: true,
+  };
+  if (commentReply) body.commentReply = commentReply;
+
+  try {
+    const r = await fetch(`${ZERNIO_BASE}/comment-automations`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ZERNIO_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const res = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!r.ok) {
+      return void (await fail((res.error as string) ?? `zernio_${r.status}`));
+    }
+    const automation = (res.automation ?? res) as Record<string, unknown>;
+    await admin
+      .from("scheduled_posts")
+      .update({
+        zernio_automation_id: (automation.id as string) ?? null,
+        comment_automation_status: "created",
+        comment_automation_error: null,
+      })
+      .eq("id", scheduledPostId);
+  } catch (e) {
+    await fail(e instanceof Error ? e.message : "unknown");
+  }
+}
+
 async function handlePostEvent(
   admin: SupabaseClient,
   event: string,
@@ -464,7 +547,12 @@ async function handlePostEvent(
 
   const { data: parentPost } = await admin
     .from("scheduled_posts")
-    .select("owner_id, script_id, format_id, title, thumbnail_url, caption_default, captions, hashtags")
+    .select(
+      "owner_id, script_id, format_id, title, thumbnail_url, caption_default, captions, hashtags, " +
+        "comment_automation_enabled, comment_automation_keywords, comment_automation_match_mode, " +
+        "comment_automation_dm_message, comment_automation_link_url, comment_automation_button_title, " +
+        "comment_automation_reply, zernio_automation_id, comment_automation_status",
+    )
     .eq("id", scheduledPostId)
     .maybeSingle();
 
@@ -479,12 +567,31 @@ async function handlePostEvent(
         .update({ status: "cancelled", finished_at: finishedAt })
         .eq("id", job.id);
     }
+    // Tear down any comment-automation created for this post.
+    const automationId = parentPost?.zernio_automation_id as string | null | undefined;
+    if (automationId && ZERNIO_API_KEY) {
+      try {
+        await fetch(`${ZERNIO_BASE}/comment-automations/${automationId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${ZERNIO_API_KEY}` },
+        });
+        await admin
+          .from("scheduled_posts")
+          .update({ zernio_automation_id: null, comment_automation_status: "idle" })
+          .eq("id", scheduledPostId);
+      } catch (e) {
+        console.warn("comment_automation_delete_failed", e);
+      }
+    }
     await rollupPostStatus(admin, scheduledPostId);
     return;
   }
 
   const eventGlobalSuccess = event === "post.published";
   const eventGlobalFailure = event === "post.failed";
+
+  // (M37) Captured to wire up the comment→DM automation once IG is live.
+  let igPlatformPostId: string | null = null;
 
   for (const job of jobs) {
     const platform = job.platform as Platform;
@@ -531,6 +638,10 @@ async function handlePostEvent(
     }
     await admin.from("publish_jobs").update(update).eq("id", job.id);
 
+    if (nextStatus === "succeeded" && platform === "instagram" && providerPostId) {
+      igPlatformPostId = providerPostId;
+    }
+
     if (nextStatus === "succeeded" && parentPost) {
       try {
         await linkSucceededJobToVideoModel(
@@ -551,6 +662,21 @@ async function handlePostEvent(
   await rollupPostStatus(admin, scheduledPostId);
 
   if (!parentPost) return;
+
+  // (M37) Create the lead-magnet comment automation once IG is live.
+  if (event === "post.published" || event === "post.partial") {
+    try {
+      await maybeCreateCommentAutomation(
+        admin,
+        scheduledPostId,
+        parentPost as Record<string, unknown>,
+        zernioPostId,
+        igPlatformPostId,
+      );
+    } catch (e) {
+      console.warn("comment_automation_create_failed", e);
+    }
+  }
 
   const ownerId = parentPost.owner_id as string;
   const link = `/app/admin/publishing/${scheduledPostId}`;
