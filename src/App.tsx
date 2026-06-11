@@ -66,6 +66,7 @@ const ScheduledPostDetail = lazy(() => import("@/pages/app/admin/publishing/Sche
 const PublishingCalendar = lazy(() => import("@/pages/app/admin/publishing/PublishingCalendar"));
 const Connections = lazy(() => import("@/pages/app/admin/publishing/Connections"));
 const PublishingSlots = lazy(() => import("@/pages/app/admin/publishing/PublishingSlots"));
+const EngagementPage = lazy(() => import("@/pages/app/admin/engagement/EngagementPage"));
 const EditorDashboard = lazy(() => import("@/pages/app/editor/EditorDashboard"));
 const AssignmentView = lazy(() => import("@/pages/app/editor/AssignmentView"));
 const Earnings = lazy(() => import("@/pages/app/editor/Earnings"));
@@ -136,6 +137,7 @@ export default function App() {
                 <Route path="publishing/connections" element={<Connections />} />
                 <Route path="publishing/slots" element={<PublishingSlots />} />
                 <Route path="publishing/:id" element={<ScheduledPostDetail />} />
+                <Route path="engagement" element={<EngagementPage />} />
                 <Route path="team" element={<Team />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
