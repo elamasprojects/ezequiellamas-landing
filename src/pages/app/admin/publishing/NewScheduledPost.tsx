@@ -22,6 +22,7 @@ import { useCarousels } from "@/hooks/useCarousels";
 import { VideoUploader, type VideoUploaderState } from "@/components/publishing/VideoUploader";
 import { PlatformPicker } from "@/components/publishing/PlatformPicker";
 import { CaptionEditor } from "@/components/publishing/CaptionEditor";
+import { CoverPicker } from "@/components/publishing/CoverPicker";
 import {
   createScheduledPost,
   fetchScheduledPosts,
@@ -60,6 +61,9 @@ export default function NewScheduledPost() {
   const [hashtagsRaw, setHashtagsRaw] = useState("");
   // Default to all platforms (post everywhere unless you deselect).
   const [platforms, setPlatforms] = useState<PublishPlatform[]>(() => [...PUBLISH_PLATFORMS]);
+
+  // (M38) Optional generated cover used as the Reel/TikTok custom thumbnail.
+  const [coverId, setCoverId] = useState<string | null>(null);
 
   // (M37) Lead-magnet comment→DM automation (Instagram only).
   const [caEnabled, setCaEnabled] = useState(false);
@@ -132,6 +136,7 @@ export default function NewScheduledPost() {
     setTranscriptSource(null);
     setShowManualTranscript(false);
     setManualTranscriptDraft("");
+    setCoverId(null);
     if (k === "carousel") {
       setPlatforms((prev) => prev.filter((p) => p === "instagram"));
     } else {
@@ -252,6 +257,7 @@ export default function NewScheduledPost() {
         transcript: cachedTranscript,
         transcript_language: cachedTranscriptLang,
         transcript_status: cachedTranscript ? "done" : "idle",
+        cover_id: assetKind === "video" ? coverId : null,
         commentAutomation:
           platforms.includes("instagram") && caEnabled
             ? {
@@ -646,6 +652,23 @@ export default function NewScheduledPost() {
           </ul>
         )}
       </Section>
+
+      {/* (M38) Cover / portada for Reel + TikTok thumbnail (video only) */}
+      {assetKind === "video" && user && (
+        <Section step="4c" title="Portada (opcional)">
+          <p className="-mt-1 mb-3 text-xs" style={{ color: "var(--ll-text-muted)" }}>
+            Se usa como tapa del Reel de Instagram y del TikTok. Elegí una portada ya generada o
+            generá una nueva acá mismo.
+          </p>
+          <CoverPicker
+            ownerId={user.id}
+            scriptId={scriptId}
+            title={title}
+            value={coverId}
+            onChange={(id) => setCoverId(id)}
+          />
+        </Section>
+      )}
 
       {/* (M37) Lead magnet: comment → DM automation (Instagram only) */}
       {platforms.includes("instagram") && (

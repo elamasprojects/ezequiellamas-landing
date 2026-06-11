@@ -85,6 +85,8 @@ export interface CreateScheduledPostInput {
   script_id?: string | null;
   format_id?: string | null;
   thumbnail_url?: string | null;
+  /** (M38) Generated cover attached as the Reel/TikTok custom thumbnail at publish time. */
+  cover_id?: string | null;
   notes?: string | null;
   /** Platforms to publish to (creates one publish_job per platform). */
   platforms: PublishPlatform[];
@@ -132,6 +134,7 @@ export async function createScheduledPost(
       script_id: rest.script_id ?? null,
       format_id: rest.format_id ?? null,
       thumbnail_url: rest.thumbnail_url ?? null,
+      cover_id: rest.cover_id ?? null,
       notes: rest.notes ?? null,
       status: schedule_now ? "scheduled" : "draft",
       transcript: rest.transcript ?? null,

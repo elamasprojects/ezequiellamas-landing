@@ -64,6 +64,7 @@ interface PostRow {
   format_id: string | null;
   script_id: string | null;
   thumbnail_url: string | null;
+  cover_id: string | null;
   scheduled_at: string;
   timezone: string;
 }
@@ -121,6 +122,28 @@ async function signedVideoUrl(admin: SupabaseClient, path: string): Promise<stri
   return data.signedUrl;
 }
 
+// Resolve the custom cover image URL for Reels / TikTok thumbnails. Prefers the
+// attached generated cover (signed fresh from cover-renders with a long TTL so
+// Zernio can fetch it well after publish), falling back to a manual thumbnail_url.
+async function resolveCoverThumbUrl(admin: SupabaseClient, post: PostRow): Promise<string | null> {
+  if (post.cover_id) {
+    const { data: cover } = await admin
+      .from("covers")
+      .select("generated_image_path, status")
+      .eq("id", post.cover_id)
+      .eq("owner_id", post.owner_id)
+      .maybeSingle();
+    const path = cover?.generated_image_path as string | null | undefined;
+    if (path && cover?.status === "done") {
+      const { data, error } = await admin.storage
+        .from("cover-renders")
+        .createSignedUrl(path, 7 * 24 * 60 * 60);
+      if (!error && data) return data.signedUrl;
+    }
+  }
+  return post.thumbnail_url ?? null;
+}
+
 async function buildMediaItems(
   admin: SupabaseClient,
   post: PostRow,
@@ -160,9 +183,17 @@ async function buildMediaItems(
 function platformSpecificData(
   post: PostRow,
   platform: Platform,
+  coverThumbUrl: string | null,
 ): Record<string, unknown> | undefined {
   if (platform === "instagram" && post.asset_kind === "video") {
-    return { mediaType: "reel" };
+    // Custom Reel cover (JPG/PNG, publicly accessible). Overrides thumbOffset.
+    return coverThumbUrl
+      ? { mediaType: "reel", instagramThumbnail: coverThumbUrl }
+      : { mediaType: "reel" };
+  }
+  if (platform === "tiktok" && post.asset_kind === "video" && coverThumbUrl) {
+    // Custom TikTok video thumbnail (overrides videoCoverTimestampMs).
+    return { videoCoverImageUrl: coverThumbUrl };
   }
   if (platform === "youtube") {
     const titleBase =
@@ -299,6 +330,8 @@ Deno.serve(async (req) => {
       return json(400, { ok: false, error: msg });
     }
 
+    const coverThumbUrl = await resolveCoverThumbUrl(admin, post);
+
     const zernioPlatforms: Array<Record<string, unknown>> = [];
     const sentJobIds: string[] = [];
     const skipped: { job_id: string; platform: Platform; error: string }[] = [];
@@ -324,7 +357,7 @@ Deno.serve(async (req) => {
         platform,
         accountId: zernioAccountId,
       };
-      const psd = platformSpecificData(post, platform);
+      const psd = platformSpecificData(post, platform, coverThumbUrl);
       if (psd) entry.platformSpecificData = psd;
       zernioPlatforms.push(entry);
       sentJobIds.push(job.id);
