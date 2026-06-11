@@ -988,6 +988,125 @@ export type Database = {
           },
         ]
       }
+      engagement_replies: {
+        Row: {
+          ai_draft: string | null
+          attempts: number
+          author_handle: string | null
+          author_name: string | null
+          conversation_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          edited_text: string | null
+          error: string | null
+          id: string
+          kind: string
+          owner_id: string
+          parent_comment_id: string | null
+          platform: string
+          platform_post_url: string | null
+          post_id: string | null
+          received_at: string | null
+          sent_at: string | null
+          social_account_id: string | null
+          source_text: string | null
+          status: string
+          updated_at: string
+          zernio_account_id: string | null
+          zernio_response: Json | null
+        }
+        Insert: {
+          ai_draft?: string | null
+          attempts?: number
+          author_handle?: string | null
+          author_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          edited_text?: string | null
+          error?: string | null
+          id?: string
+          kind: string
+          owner_id: string
+          parent_comment_id?: string | null
+          platform: string
+          platform_post_url?: string | null
+          post_id?: string | null
+          received_at?: string | null
+          sent_at?: string | null
+          social_account_id?: string | null
+          source_text?: string | null
+          status?: string
+          updated_at?: string
+          zernio_account_id?: string | null
+          zernio_response?: Json | null
+        }
+        Update: {
+          ai_draft?: string | null
+          attempts?: number
+          author_handle?: string | null
+          author_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          edited_text?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          parent_comment_id?: string | null
+          platform?: string
+          platform_post_url?: string | null
+          post_id?: string | null
+          received_at?: string | null
+          sent_at?: string | null
+          social_account_id?: string | null
+          source_text?: string | null
+          status?: string
+          updated_at?: string
+          zernio_account_id?: string | null
+          zernio_response?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_replies_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engagement_settings: {
+        Row: {
+          comments_enabled: boolean
+          created_at: string
+          dms_enabled: boolean
+          enabled: boolean
+          owner_id: string
+          tone_instructions: string | null
+          updated_at: string
+        }
+        Insert: {
+          comments_enabled?: boolean
+          created_at?: string
+          dms_enabled?: boolean
+          enabled?: boolean
+          owner_id: string
+          tone_instructions?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comments_enabled?: boolean
+          created_at?: string
+          dms_enabled?: boolean
+          enabled?: boolean
+          owner_id?: string
+          tone_instructions?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       formats: {
         Row: {
           created_at: string
@@ -3358,6 +3477,7 @@ export type Database = {
       }
       dispatch_batch_tick: { Args: never; Returns: undefined }
       dispatch_clip_analysis_tick: { Args: never; Returns: undefined }
+      dispatch_engagement_draft_tick: { Args: never; Returns: undefined }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
       dispatch_zernio_analytics_tick: { Args: never; Returns: undefined }
       has_role: {
