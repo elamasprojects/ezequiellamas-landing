@@ -43,14 +43,27 @@ interface AccountMatch {
   owner_id: string;
 }
 async function resolveAccount(admin: SupabaseClient, zernioAccountId: string): Promise<AccountMatch | null> {
-  const { data } = await admin
+  // Two separate .eq() lookups instead of building a PostgREST .or() string from
+  // the webhook-supplied id (which could contain filter metacharacters like
+  // , . ( ) and break out of the filter).
+  const pick = (row: Record<string, unknown> | null): AccountMatch | null =>
+    row ? { social_account_id: row.id as string, owner_id: row.owner_id as string } : null;
+
+  const byExternal = await admin
     .from("social_accounts")
-    .select("id, owner_id, external_account_id, meta")
-    .or(`external_account_id.eq.${zernioAccountId},meta->>zernio_account_id.eq.${zernioAccountId}`)
+    .select("id, owner_id")
+    .eq("external_account_id", zernioAccountId)
     .limit(1)
     .maybeSingle();
-  if (!data) return null;
-  return { social_account_id: data.id as string, owner_id: data.owner_id as string };
+  if (byExternal.data) return pick(byExternal.data);
+
+  const byMeta = await admin
+    .from("social_accounts")
+    .select("id, owner_id")
+    .eq("meta->>zernio_account_id", zernioAccountId)
+    .limit(1)
+    .maybeSingle();
+  return pick(byMeta.data);
 }
 
 // Comments: IG + YouTube. DMs: Instagram only (our connected DM-capable account).
@@ -145,8 +158,12 @@ Deno.serve(async (req) => {
 
     // Ignore duplicate deliveries (webhook retries) via the unique dedupe index.
     const { error } = await admin.from("engagement_replies").insert(row);
-    if (error && !/(duplicate|unique)/i.test(error.message)) {
+    if (error) {
+      if (/(duplicate|unique)/i.test(error.message)) return json(200, { ok: true, dedup: true });
+      // A real insert error is transient — return 500 so Zernio retries (the
+      // dedupe index keeps the retry idempotent). Don't silently drop the event.
       console.warn("insert_failed", error.message);
+      return json(500, { error: "insert_failed" });
     }
     return json(200, { ok: true });
   } catch (e) {

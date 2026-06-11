@@ -46,6 +46,19 @@ function isServiceRoleCaller(req: Request, serviceKey: string): boolean {
   return token === serviceKey || apiKey === serviceKey || getJwtRole(auth) === "service_role";
 }
 
+function getJwtSub(authHeader: string): string | null {
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "===".slice((b64.length + 3) % 4);
+    return JSON.parse(atob(padded)).sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Defensive numeric/string pickers.
 function num(...vals: unknown[]): number | null {
   for (const v of vals) {
@@ -53,6 +66,11 @@ function num(...vals: unknown[]): number | null {
     if (typeof n === "number" && Number.isFinite(n)) return n;
   }
   return null;
+}
+// Like num() but rounds — for integer/bigint columns.
+function int(...vals: unknown[]): number | null {
+  const n = num(...vals);
+  return n == null ? null : Math.round(n);
 }
 function str(...vals: unknown[]): string | null {
   for (const v of vals) if (typeof v === "string" && v.length) return v;
@@ -120,15 +138,25 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const zernioKey = Deno.env.get("ZERNIO_API_KEY");
-    // Allow the cron (service-role) AND a manual refresh from an authenticated
-    // admin (verify_jwt:true already validated the JWT at the gateway).
-    const authed =
-      isServiceRoleCaller(req, serviceKey) ||
-      (req.headers.get("Authorization") ?? "").startsWith("Bearer ");
-    if (!authed) return json(401, { error: "unauthorized" });
     if (!zernioKey) return json(500, { error: "ZERNIO_API_KEY not set" });
 
     const admin = createClient(supabaseUrl, serviceKey);
+
+    // The cron calls with the service role. A manual refresh comes with a user
+    // JWT — gate it to admins (the sync writes every owner's data, so a
+    // non-admin must not be able to trigger it / burn Zernio quota).
+    if (!isServiceRoleCaller(req, serviceKey)) {
+      const sub = getJwtSub(req.headers.get("Authorization") ?? "");
+      if (!sub) return json(401, { error: "unauthorized" });
+      const { data: adminRow } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", sub)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!adminRow) return json(403, { error: "admin_only" });
+    }
+
     const accountMap = await buildAccountMap(admin);
     const result = { followers: 0, daily: 0, posts: 0, errors: [] as string[] };
 
@@ -145,7 +173,7 @@ Deno.serve(async (req) => {
         const match = accountMap.get(zid);
         if (!match) continue;
         const accountStats = a.accountStats as Record<string, unknown> | undefined;
-        await admin.from("zernio_account_stats").upsert(
+        const { error: stErr } = await admin.from("zernio_account_stats").upsert(
           {
             social_account_id: match.social_account_id,
             owner_id: match.owner_id,
@@ -153,24 +181,25 @@ Deno.serve(async (req) => {
             username: str(a.username, a.handle),
             display_name: str(a.displayName, a.name),
             avatar_url: str(a.avatarUrl, a.avatar, a.profilePictureUrl),
-            followers: num(a.currentFollowers, a.followers, a.followerCount),
-            following: num(accountStats?.followingCount),
-            growth: num(a.growth),
+            followers: int(a.currentFollowers, a.followers, a.followerCount),
+            following: int(accountStats?.followingCount),
+            growth: int(a.growth),
             growth_pct: num(a.growthPercentage, a.growthPct),
             content_count: contentCount(accountStats),
-            views_total: num(accountStats?.totalViews, accountStats?.monthlyViews),
-            likes_total: num(accountStats?.likesCount),
+            views_total: int(accountStats?.totalViews, accountStats?.monthlyViews),
+            likes_total: int(accountStats?.likesCount),
             raw: a,
             last_synced_at: new Date().toISOString(),
           },
           { onConflict: "social_account_id" },
         );
-        result.followers++;
+        if (stErr) result.errors.push(`stats ${zid}: ${stErr.message}`);
+        else result.followers++;
 
         const series = asArray(statsMap[zid]) as Record<string, unknown>[];
         for (const pt of series) {
           const date = str(pt.date);
-          const followers = num(pt.followers, pt.value, pt.count);
+          const followers = int(pt.followers, pt.value, pt.count);
           if (!date) continue;
           await admin.from("zernio_account_daily").upsert(
             {
@@ -208,11 +237,14 @@ Deno.serve(async (req) => {
           const platformPostId = str(pe.platform_post_id, pe.platformPostId);
           if (!platform || !platformPostId) continue;
           const match = accId ? accountMap.get(accId) : undefined;
+          // owner_id is NOT NULL — skip posts whose account we can't resolve
+          // (otherwise the upsert throws and the row is silently lost).
+          if (!match?.owner_id) continue;
           const m = (pe.analytics ?? pe) as Record<string, unknown>;
-          await admin.from("zernio_post_analytics").upsert(
+          const { error: upErr } = await admin.from("zernio_post_analytics").upsert(
             {
-              owner_id: match?.owner_id ?? null,
-              social_account_id: match?.social_account_id ?? null,
+              owner_id: match.owner_id,
+              social_account_id: match.social_account_id,
               platform,
               zernio_post_id: zPostId,
               platform_post_id: platformPostId,
@@ -220,26 +252,30 @@ Deno.serve(async (req) => {
               caption,
               thumbnail_url: str(pe.thumbnail, post.thumbnail),
               posted_at: postedAt,
-              impressions: num(m.impressions),
-              reach: num(m.reach),
-              likes: num(m.likes),
-              comments: num(m.comments),
-              shares: num(m.shares),
-              saves: num(m.saves),
-              clicks: num(m.clicks),
-              views: num(m.views),
+              impressions: int(m.impressions),
+              reach: int(m.reach),
+              likes: int(m.likes),
+              comments: int(m.comments),
+              shares: int(m.shares),
+              saves: int(m.saves),
+              clicks: int(m.clicks),
+              views: int(m.views),
               engagement_rate: num(m.engagement_rate, m.engagementRate),
               raw: pe,
               synced_at: new Date().toISOString(),
             },
             { onConflict: "platform,platform_post_id" },
           );
-          if (match?.owner_id) result.posts++;
+          if (upErr) result.errors.push(`post ${platformPostId}: ${upErr.message}`);
+          else result.posts++;
         }
       }
     }
 
-    return json(200, { ok: true, ...result });
+    // Report ok:false when nothing wrote but errors occurred, so the dashboard's
+    // refresh toast reflects reality instead of always claiming success.
+    const wroteSomething = result.followers + result.daily + result.posts > 0;
+    return json(200, { ok: wroteSomething || result.errors.length === 0, ...result });
   } catch (e) {
     return json(500, { error: e instanceof Error ? e.message : "unknown" });
   }

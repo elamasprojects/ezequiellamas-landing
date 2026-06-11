@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { invokeFn } from "@/lib/api/invokeFn";
 import type { Tables, TablesInsert } from "@/lib/database.types";
 
 export type EngagementSettings = Tables<"engagement_settings">;
@@ -51,10 +52,7 @@ export interface SendReplyResult {
 }
 
 export async function sendEngagementReply(replyId: string, text?: string): Promise<SendReplyResult> {
-  const { data, error } = await supabase.functions.invoke<SendReplyResult>("send-engagement-reply", {
-    body: { reply_id: replyId, text },
-  });
-  if (error) throw new Error(error.message);
-  if (data && "error" in data && data.error) throw new Error(data.error);
-  return data ?? { ok: false };
+  const res = await invokeFn<SendReplyResult>("send-engagement-reply", { reply_id: replyId, text });
+  if (!res.ok) throw new Error(res.error ?? "No se pudo enviar la respuesta");
+  return res.data ?? { ok: false };
 }

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { invokeFn } from "@/lib/api/invokeFn";
 
 // Zernio best-time slot (from GET /v1/analytics/best-time).
 export interface ZernioBestSlot {
@@ -16,14 +16,12 @@ export interface ZernioBestTimeResult {
 }
 
 export async function fetchZernioBestTime(platform?: string): Promise<ZernioBestTimeResult> {
-  const { data, error } = await supabase.functions.invoke<ZernioBestTimeResult>("zernio-best-time", {
-    body: platform ? { platform } : {},
-  });
-  if (error) {
-    // Surface the function's structured error (e.g. requiresAddon) when possible.
-    return { ok: false, error: error.message };
+  const res = await invokeFn<ZernioBestTimeResult>("zernio-best-time", platform ? { platform } : {});
+  if (!res.ok) {
+    // Surface the function's structured error (incl. requiresAddon) from the body.
+    return { ok: false, error: res.error, requiresAddon: !!res.body?.requiresAddon };
   }
-  return data ?? { ok: false };
+  return res.data ?? { ok: false };
 }
 
 // 2024-01-01 00:00 UTC is a Monday — our reference for converting Zernio's
