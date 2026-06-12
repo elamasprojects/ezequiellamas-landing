@@ -27,7 +27,9 @@ interface CoverPickerProps {
 /** (M38) Pick an existing generated cover or generate one on-demand, to attach
  * as the Reel/TikTok custom thumbnail of a scheduled post. */
 export function CoverPicker({ ownerId, scriptId, videoId, title, value, onChange }: CoverPickerProps) {
-  const [tab, setTab] = useState<"pick" | "generate">("pick");
+  // Default to generating a fresh cover — avoids rendering the full existing
+  // list (which gets long) and matches the common "make one for this post" flow.
+  const [tab, setTab] = useState<"pick" | "generate">("generate");
   const [styleId, setStyleId] = useState<string>("");
   const [genPreview, setGenPreview] = useState<string | null>(null);
 
