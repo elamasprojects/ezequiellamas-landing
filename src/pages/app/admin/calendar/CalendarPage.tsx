@@ -17,7 +17,8 @@ export default function CalendarPage() {
           Tus <em style={{ color: "var(--ll-warm)" }}>publicaciones</em> del mes
         </h1>
         <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Arrastrá un draft al día que quieras grabarlo y se agenda para las 18:00 ART.
+          Tus publicaciones programadas y publicadas, más los guiones a grabar. Arrastrá un draft a
+          un día para agendar la grabación (18:00 ART).
         </p>
       </header>
       <ContentCalendar />

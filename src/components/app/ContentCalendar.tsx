@@ -28,6 +28,9 @@ import { Button } from "@/components/ui/button";
 import { useScripts } from "@/hooks/useScripts";
 import type { Script } from "@/lib/api/scripts";
 import { updateScript } from "@/lib/api/scripts";
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import type { ScheduledPostWithJobs } from "@/lib/api/scheduledPosts";
+import { ScheduledPostPill } from "@/components/publishing/ScheduledPostPill";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -51,6 +54,23 @@ export default function ContentCalendar() {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  // Scheduled + published publications shown alongside the recording drafts.
+  const { data: posts = [] } = useScheduledPosts({
+    from: calendarStart.toISOString(),
+    to: calendarEnd.toISOString(),
+  });
+  const postsByDay = useMemo(() => {
+    const map = new Map<string, ScheduledPostWithJobs[]>();
+    for (const p of posts) {
+      if (p.status === "draft" || p.status === "cancelled") continue;
+      const key = format(new Date(p.scheduled_at), "yyyy-MM-dd");
+      const arr = map.get(key) ?? [];
+      arr.push(p);
+      map.set(key, arr);
+    }
+    return map;
+  }, [posts]);
 
   const scriptsByDay = useMemo(() => {
     const map = new Map<string, Script[]>();
@@ -153,6 +173,7 @@ export default function ContentCalendar() {
                   inCurrentMonth={isSameMonth(day, currentMonth)}
                   isToday={isToday(day)}
                   scripts={scriptsByDay.get(format(day, "yyyy-MM-dd")) ?? []}
+                  posts={postsByDay.get(format(day, "yyyy-MM-dd")) ?? []}
                 />
               ))}
             </div>
@@ -192,11 +213,13 @@ function CalendarCell({
   inCurrentMonth,
   isToday: today,
   scripts,
+  posts,
 }: {
   day: Date;
   inCurrentMonth: boolean;
   isToday: boolean;
   scripts: Script[];
+  posts: ScheduledPostWithJobs[];
 }) {
   const dateStr = format(day, "yyyy-MM-dd");
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
@@ -229,11 +252,23 @@ function CalendarCell({
         {format(day, "d")}
       </div>
       <ul className="space-y-1">
-        {scripts.slice(0, 3).map((s) => (
+        {/* Publicaciones programadas / publicadas */}
+        {posts.slice(0, 3).map((p) => (
+          <li key={p.id}>
+            <ScheduledPostPill post={p} />
+          </li>
+        ))}
+        {posts.length > 3 && (
+          <li className="px-1.5 text-[10px]" style={{ color: "var(--ll-text-muted)" }}>
+            +{posts.length - 3} publicaciones
+          </li>
+        )}
+        {/* Guiones para grabar (drafts agendados) */}
+        {scripts.slice(0, 2).map((s) => (
           <li key={s.id}>
             <Link
               to={`/app/admin/ideas/${s.id}`}
-              className="block truncate rounded bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[11px]"
+              className="block truncate rounded border-l-2 border-l-[var(--ll-warm)] bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[11px]"
               style={{ color: "var(--ll-text)" }}
               title={s.title ?? "Sin título"}
             >
@@ -241,12 +276,9 @@ function CalendarCell({
             </Link>
           </li>
         ))}
-        {scripts.length > 3 && (
-          <li
-            className="px-1.5 text-[10px]"
-            style={{ color: "var(--ll-text-muted)" }}
-          >
-            +{scripts.length - 3} más
+        {scripts.length > 2 && (
+          <li className="px-1.5 text-[10px]" style={{ color: "var(--ll-text-muted)" }}>
+            +{scripts.length - 2} a grabar
           </li>
         )}
       </ul>
