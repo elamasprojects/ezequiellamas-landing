@@ -138,6 +138,17 @@ export async function fetchVideos(filters: VideoFilters = {}): Promise<VideoWith
     rows = rows.filter((v) => v.posts.some((p) => p.platform === filters.platform));
   }
 
+  // Default order: most-recently-posted first. `posted_at` lives on video_posts,
+  // so we sort by each video's latest post date (falling back to created_at).
+  if (!filters.sort || filters.sort === "posted_at_desc") {
+    const sortDate = (v: VideoWithPosts) => {
+      const times = v.posts.map((p) => (p.posted_at ? Date.parse(p.posted_at) : 0));
+      const latestPost = times.length ? Math.max(...times) : 0;
+      return latestPost || (v.created_at ? Date.parse(v.created_at) : 0);
+    };
+    rows = [...rows].sort((a, b) => sortDate(b) - sortDate(a));
+  }
+
   return rows;
 }
 

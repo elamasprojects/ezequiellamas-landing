@@ -33,6 +33,8 @@ export interface ScheduledPostWithJobs extends ScheduledPost {
 
 export interface ScheduledPostFilters {
   status?: ScheduledPostStatus;
+  /** Restrict to a set of statuses (e.g. the publishing pipeline). */
+  statuses?: ScheduledPostStatus[];
   platform?: PublishPlatform;
   from?: string; // ISO date
   to?: string; // ISO date
@@ -48,6 +50,7 @@ export async function fetchScheduledPosts(
     .order("scheduled_at", { ascending: false });
 
   if (filters.status) query = query.eq("status", filters.status);
+  if (filters.statuses && filters.statuses.length) query = query.in("status", filters.statuses);
   if (filters.asset_kind) query = query.eq("asset_kind", filters.asset_kind);
   if (filters.from) query = query.gte("scheduled_at", filters.from);
   if (filters.to) query = query.lte("scheduled_at", filters.to);

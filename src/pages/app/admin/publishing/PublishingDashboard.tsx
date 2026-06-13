@@ -8,15 +8,8 @@ import {
   Sparkles,
   Layers,
   Film,
-  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -30,76 +23,62 @@ import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { usePendingReelProposalsCount } from "@/hooks/useReelProposals";
 import type { ScheduledPostFilters, ScheduledPostStatus } from "@/lib/api/scheduledPosts";
 import type { PublishPlatform } from "@/lib/publishing/platformLimits";
+import { cn } from "@/lib/utils";
 
 const ALL = "__all__";
+
+// The "outbox": what's queued, in-flight, or needs attention. Already-published
+// content lives in the Videos page (synced from Zernio), so it's excluded here.
+const PIPELINE: ScheduledPostStatus[] = ["scheduled", "publishing", "partial", "failed"];
 
 export default function PublishingDashboard() {
   const [status, setStatus] = useState<string>(ALL);
   const [platform, setPlatform] = useState<string>(ALL);
 
   const filters: ScheduledPostFilters = {
-    status: status === ALL ? undefined : (status as ScheduledPostStatus),
     platform: platform === ALL ? undefined : (platform as PublishPlatform),
+    ...(status === ALL ? { statuses: PIPELINE } : { status: status as ScheduledPostStatus }),
   };
 
   const { data: posts, isLoading } = useScheduledPosts(filters);
   const pendingReels = usePendingReelProposalsCount();
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <div
-            className="text-[10px] uppercase tracking-[0.25em]"
-            style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-          >
-            Publicaciones
-          </div>
-          <h1
-            className="text-2xl md:text-3xl"
-            style={{
-              fontFamily: "'Instrument Serif', serif",
-              letterSpacing: "-0.025em",
-              lineHeight: 1.1,
-            }}
-          >
-            Tus <em style={{ color: "var(--ll-warm)" }}>posts</em> programados
-          </h1>
-          <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Programá videos y carrouseles a Instagram, YouTube y TikTok. Recibís push y email cuando
-            llega la hora, se publica solo (o te aviso para el tap final de TikTok).
-          </p>
+    <div className="space-y-10">
+      <header className="space-y-2">
+        <div
+          className="text-[10px] uppercase tracking-[0.25em]"
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
+        >
+          Publicar
         </div>
+        <h1
+          className="text-2xl md:text-3xl"
+          style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
+        >
+          Publicá tu <em style={{ color: "var(--ll-warm)" }}>contenido</em>
+        </h1>
+        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
+          Creá un post, subí en lote o convertí un viral en Reel. Abajo ves lo que está en cola,
+          publicándose o falló — lo ya publicado vive en <Link to="/app/admin/videos" className="underline decoration-dotted underline-offset-2 hover:text-[var(--ll-text)]">Videos</Link>.
+        </p>
+      </header>
+
+      {/* Actions — the focus of the page, in descending hierarchy. */}
+      <section className="space-y-4">
+        {/* Primary */}
+        <Button
+          asChild
+          variant="brand"
+          className="h-auto w-full justify-center gap-2 py-4 text-base sm:w-auto sm:px-10"
+        >
+          <Link to="/app/admin/publishing/new">
+            <Plus className="h-5 w-5" /> Nuevo post
+          </Link>
+        </Button>
+
+        {/* Secondary */}
         <div className="flex flex-wrap gap-2">
-          {/* Secondary navigation tucked into a "Más" menu so the header stays
-              thumb-friendly on mobile (and tidy on desktop). */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-[var(--ll-border)]">
-                <MoreHorizontal className="h-4 w-4" /> Más
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]"
-            >
-              <DropdownMenuItem asChild>
-                <Link to="/app/admin/publishing/calendar">
-                  <CalendarIcon className="h-4 w-4" /> Calendario
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/app/admin/publishing/connections">
-                  <Plug className="h-4 w-4" /> Conexiones
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/app/admin/publishing/slots">
-                  <Clock className="h-4 w-4" /> Horarios
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Button asChild variant="outline" className="border-[var(--ll-border)]">
             <Link to="/app/admin/publishing/batch">
               <Layers className="h-4 w-4" /> Subida en lote
@@ -118,60 +97,83 @@ export default function PublishingDashboard() {
               )}
             </Link>
           </Button>
-          <Button asChild variant="brand">
-            <Link to="/app/admin/publishing/new">
-              <Plus className="h-4 w-4" /> Nuevo post
-            </Link>
-          </Button>
         </div>
-      </header>
 
-      <div className="-mx-1 flex flex-wrap gap-3 px-1">
-        <FilterSelect
-          label="Estado"
-          value={status}
-          onChange={setStatus}
-          options={[
-            { value: ALL, label: "Todos" },
-            { value: "draft", label: "Borrador" },
-            { value: "scheduled", label: "Programado" },
-            { value: "publishing", label: "Publicando" },
-            { value: "published", label: "Publicado" },
-            { value: "partial", label: "Parcial" },
-            { value: "failed", label: "Falló" },
-            { value: "cancelled", label: "Cancelado" },
-          ]}
-        />
-        <FilterSelect
-          label="Plataforma"
-          value={platform}
-          onChange={setPlatform}
-          options={[
-            { value: ALL, label: "Todas" },
-            { value: "instagram", label: "Instagram" },
-            { value: "youtube", label: "YouTube" },
-            { value: "tiktok", label: "TikTok" },
-          ]}
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-        </div>
-      ) : !posts || posts.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <ul className="space-y-3">
-          {posts.map((p) => (
-            <li key={p.id}>
-              <ScheduledPostCard post={p} />
-            </li>
+        {/* Tertiary */}
+        <div className="flex flex-wrap gap-1">
+          {[
+            { to: "/app/admin/publishing/calendar", label: "Calendario", icon: CalendarIcon },
+            { to: "/app/admin/publishing/connections", label: "Conexiones", icon: Plug },
+            { to: "/app/admin/publishing/slots", label: "Horarios", icon: Clock },
+          ].map(({ to, label, icon: Icon }) => (
+            <Button
+              key={to}
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"
+            >
+              <Link to={to}>
+                <Icon className="h-4 w-4" /> {label}
+              </Link>
+            </Button>
           ))}
-        </ul>
-      )}
+        </div>
+      </section>
+
+      {/* Pipeline list (queued / publishing / failed — not the published archive). */}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <h2
+            className="text-lg"
+            style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}
+          >
+            Cola de publicación
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <FilterSelect
+              label="Estado"
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: ALL, label: "Todos" },
+                { value: "scheduled", label: "Programado" },
+                { value: "publishing", label: "Publicando" },
+                { value: "partial", label: "Parcial" },
+                { value: "failed", label: "Falló" },
+              ]}
+            />
+            <FilterSelect
+              label="Plataforma"
+              value={platform}
+              onChange={setPlatform}
+              options={[
+                { value: ALL, label: "Todas" },
+                { value: "instagram", label: "Instagram" },
+                { value: "youtube", label: "YouTube" },
+                { value: "tiktok", label: "TikTok" },
+              ]}
+            />
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+            <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+          </div>
+        ) : !posts || posts.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ul className="space-y-3">
+            {posts.map((p) => (
+              <li key={p.id}>
+                <ScheduledPostCard post={p} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -213,7 +215,7 @@ function FilterSelect({
 
 function EmptyState() {
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center md:p-12">
+    <div className={cn("rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8 text-center md:p-10")}>
       <div
         className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
         style={{ background: "var(--ll-accent-dim)" }}
@@ -221,15 +223,14 @@ function EmptyState() {
         <Sparkles className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
       </div>
       <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}>
-        Todavía no programaste ningún post
+        No hay nada en cola
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-        Subí un video o elegí un carrousel, escribí el caption, elegí plataformas, agendá la fecha y
-        listo. Te avisamos por push y email cuando llegue la hora.
+        Cuando programes un post aparece acá hasta que se publica. Lo ya publicado lo ves en Videos.
       </p>
       <Button asChild variant="brand" className="mt-6">
         <Link to="/app/admin/publishing/new">
-          <Plus className="h-4 w-4" /> Programar tu primer post
+          <Plus className="h-4 w-4" /> Nuevo post
         </Link>
       </Button>
     </div>

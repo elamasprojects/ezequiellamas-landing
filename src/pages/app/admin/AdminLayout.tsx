@@ -22,7 +22,7 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
   return [
     // ── Priority (standout, above everything) ──
     { label: "Nueva idea", icon: <Plus className="h-4 w-4" />, onClick: openIdeaModal, priority: true },
-    { to: "/app/admin/publishing", label: "Publicaciones", icon: <Megaphone className="h-4 w-4" />, priority: true },
+    { to: "/app/admin/publishing", label: "Publicar", icon: <Megaphone className="h-4 w-4" />, priority: true },
 
     // ── Inicio ──
     { to: "/app/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, end: true, group: "Inicio" },
