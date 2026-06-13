@@ -1483,6 +1483,129 @@ export type Database = {
           },
         ]
       }
+      post_predictions: {
+        Row: {
+          abs_pct_error: number | null
+          actual_captured_at: string | null
+          actual_tier: Database["public"]["Enums"]["virality_tier"] | null
+          actual_views: number | null
+          baseline_snapshot: Json
+          calibration_snapshot: Json
+          confidence: number
+          created_at: string
+          error: string | null
+          evaluated_at: string | null
+          horizon_label: string | null
+          id: string
+          input_snapshot: Json
+          key_drivers: Json
+          model_version: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          predicted_tier: Database["public"]["Enums"]["virality_tier"]
+          predicted_views_high: number
+          predicted_views_low: number
+          predicted_views_point: number
+          predicted_virality_score: number
+          reasoning: string | null
+          referent_signals: Json
+          referent_snapshot: Json
+          risks: Json
+          scheduled_post_id: string
+          score_error: number | null
+          signed_pct_error: number | null
+          status: string
+          updated_at: string
+          video_post_id: string | null
+          within_range: boolean | null
+        }
+        Insert: {
+          abs_pct_error?: number | null
+          actual_captured_at?: string | null
+          actual_tier?: Database["public"]["Enums"]["virality_tier"] | null
+          actual_views?: number | null
+          baseline_snapshot?: Json
+          calibration_snapshot?: Json
+          confidence: number
+          created_at?: string
+          error?: string | null
+          evaluated_at?: string | null
+          horizon_label?: string | null
+          id?: string
+          input_snapshot?: Json
+          key_drivers?: Json
+          model_version: string
+          owner_id: string
+          platform: Database["public"]["Enums"]["video_platform"]
+          predicted_tier: Database["public"]["Enums"]["virality_tier"]
+          predicted_views_high: number
+          predicted_views_low: number
+          predicted_views_point: number
+          predicted_virality_score: number
+          reasoning?: string | null
+          referent_signals?: Json
+          referent_snapshot?: Json
+          risks?: Json
+          scheduled_post_id: string
+          score_error?: number | null
+          signed_pct_error?: number | null
+          status?: string
+          updated_at?: string
+          video_post_id?: string | null
+          within_range?: boolean | null
+        }
+        Update: {
+          abs_pct_error?: number | null
+          actual_captured_at?: string | null
+          actual_tier?: Database["public"]["Enums"]["virality_tier"] | null
+          actual_views?: number | null
+          baseline_snapshot?: Json
+          calibration_snapshot?: Json
+          confidence?: number
+          created_at?: string
+          error?: string | null
+          evaluated_at?: string | null
+          horizon_label?: string | null
+          id?: string
+          input_snapshot?: Json
+          key_drivers?: Json
+          model_version?: string
+          owner_id?: string
+          platform?: Database["public"]["Enums"]["video_platform"]
+          predicted_tier?: Database["public"]["Enums"]["virality_tier"]
+          predicted_views_high?: number
+          predicted_views_low?: number
+          predicted_views_point?: number
+          predicted_virality_score?: number
+          reasoning?: string | null
+          referent_signals?: Json
+          referent_snapshot?: Json
+          risks?: Json
+          scheduled_post_id?: string
+          score_error?: number | null
+          signed_pct_error?: number | null
+          status?: string
+          updated_at?: string
+          video_post_id?: string | null
+          within_range?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_predictions_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_predictions_video_post_id_fkey"
+            columns: ["video_post_id"]
+            isOneToOne: false
+            referencedRelation: "video_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2672,6 +2795,7 @@ export type Database = {
           owner_full_name: string | null
           owner_username: string | null
           platform: Database["public"]["Enums"]["video_platform"]
+          platform_post_id: string | null
           posted_at: string | null
           raw: Json | null
           reach: number | null
@@ -2713,6 +2837,7 @@ export type Database = {
           owner_full_name?: string | null
           owner_username?: string | null
           platform: Database["public"]["Enums"]["video_platform"]
+          platform_post_id?: string | null
           posted_at?: string | null
           raw?: Json | null
           reach?: number | null
@@ -2754,6 +2879,7 @@ export type Database = {
           owner_full_name?: string | null
           owner_username?: string | null
           platform?: Database["public"]["Enums"]["video_platform"]
+          platform_post_id?: string | null
           posted_at?: string | null
           raw?: Json | null
           reach?: number | null
@@ -2845,6 +2971,7 @@ export type Database = {
           transcript_status: string | null
           updated_at: string
           views_total_aggregate: number | null
+          zernio_late_post_id: string | null
         }
         Insert: {
           created_at?: string
@@ -2866,6 +2993,7 @@ export type Database = {
           transcript_status?: string | null
           updated_at?: string
           views_total_aggregate?: number | null
+          zernio_late_post_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2887,6 +3015,7 @@ export type Database = {
           transcript_status?: string | null
           updated_at?: string
           views_total_aggregate?: number | null
+          zernio_late_post_id?: string | null
         }
         Relationships: [
           {
@@ -3434,7 +3563,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      post_prediction_overview: {
+        Row: {
+          any_evaluated: boolean | null
+          avg_score: number | null
+          by_platform: Json | null
+          model_version: string | null
+          owner_id: string | null
+          scheduled_post_id: string | null
+          total_predicted_views: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_predictions_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       cleanup_expired_oauth_states: { Args: never; Returns: undefined }
@@ -3521,7 +3670,9 @@ export type Database = {
       dispatch_batch_tick: { Args: never; Returns: undefined }
       dispatch_clip_analysis_tick: { Args: never; Returns: undefined }
       dispatch_engagement_draft_tick: { Args: never; Returns: undefined }
+      dispatch_prediction_eval_tick: { Args: never; Returns: undefined }
       dispatch_scheduler_tick: { Args: never; Returns: undefined }
+      dispatch_sync_videos_zernio_tick: { Args: never; Returns: undefined }
       dispatch_zernio_analytics_tick: { Args: never; Returns: undefined }
       has_role: {
         Args: {
@@ -3573,6 +3724,7 @@ export type Database = {
         | "failed"
         | "cancelled"
       video_platform: "instagram" | "youtube" | "tiktok" | "other"
+      virality_tier: "outlier" | "5x" | "3x" | "normal" | "underperform"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3721,6 +3873,7 @@ export const Constants = {
         "cancelled",
       ],
       video_platform: ["instagram", "youtube", "tiktok", "other"],
+      virality_tier: ["outlier", "5x", "3x", "normal", "underperform"],
     },
   },
 } as const
