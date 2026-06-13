@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Lightbulb,
   Video,
-  Calendar,
   ClipboardList,
   BookOpen,
   LayoutGrid,
@@ -27,7 +26,6 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
 
     // ── Inicio ──
     { to: "/app/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, end: true, group: "Inicio" },
-    { to: "/app/admin/calendar", label: "Calendario", icon: <Calendar className="h-4 w-4" />, group: "Inicio" },
 
     // ── Crear ──
     { to: "/app/admin/crear", label: "Crear de ideas", icon: <Wand2 className="h-4 w-4" />, group: "Crear" },
