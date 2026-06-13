@@ -391,7 +391,36 @@ Deno.serve(async (req) => {
       timezone: post.timezone ?? "America/Argentina/Buenos_Aires",
     };
 
-    const result = await callZernioCreate(zernioPayload);
+    let result: Awaited<ReturnType<typeof callZernioCreate>>;
+    try {
+      result = await callZernioCreate(zernioPayload);
+    } catch (e) {
+      // The submit threw (network/timeout). We can't tell whether Zernio already
+      // accepted and published it, so marking the jobs failed would risk a
+      // double-post on retry. Record the error + notify and leave them
+      // in_progress; sync-videos-zernio reconciles them to the real post once it
+      // syncs (see reconcileStuckPublishes there).
+      const msg = e instanceof Error ? e.message : String(e);
+      const at = new Date().toISOString();
+      for (const jobId of sentJobIds) {
+        await admin
+          .from("publish_jobs")
+          .update({ last_error: `zernio_submit_threw: ${msg}`, last_error_at: at })
+          .eq("id", jobId);
+      }
+      await admin.from("notifications").insert({
+        user_id: post.owner_id,
+        kind: "publishing.failed",
+        title: "Publicación sin confirmar",
+        body:
+          "No pudimos confirmar el envío a las plataformas. Si el post no aparece en " +
+          "unos minutos se reconcilia solo en la próxima sincronización; revisá antes " +
+          "de reintentar para no duplicarlo.",
+        link: `/app/admin/publishing/${post.id}`,
+        dedupe_key: `pub:uncertain:${post.id}:${Date.now()}`,
+      });
+      return json(200, { ok: false, uncertain: true, error: msg });
+    }
 
     if (!result.ok) {
       const finished = new Date().toISOString();
