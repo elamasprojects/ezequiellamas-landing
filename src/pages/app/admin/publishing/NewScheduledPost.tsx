@@ -23,6 +23,7 @@ import { VideoUploader, type VideoUploaderState } from "@/components/publishing/
 import { PlatformPicker } from "@/components/publishing/PlatformPicker";
 import { CaptionEditor } from "@/components/publishing/CaptionEditor";
 import { CoverPicker } from "@/components/publishing/CoverPicker";
+import { ScriptPicker } from "@/components/publishing/ScriptPicker";
 import {
   createScheduledPost,
   fetchScheduledPosts,
@@ -624,12 +625,7 @@ export default function NewScheduledPost() {
             </Select>
           </Field>
           <Field label="Script asociado (opcional)">
-            <Input
-              value={scriptId ?? ""}
-              onChange={(e) => setScriptId(e.target.value || null)}
-              placeholder="UUID del script"
-              className="bg-[var(--ll-surface)] border-[var(--ll-border)]"
-            />
+            <ScriptPicker value={scriptId} onChange={setScriptId} />
           </Field>
         </div>
       </Section>
