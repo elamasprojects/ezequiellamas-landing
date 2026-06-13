@@ -18,9 +18,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import type { ScheduledPostWithJobs } from "@/lib/api/scheduledPosts";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { CalendarCoverThumb } from "@/components/publishing/CalendarCoverThumb";
-import { ScheduledPostPreview } from "@/components/publishing/ScheduledPostPreview";
+import { ScheduledPostPill } from "@/components/publishing/ScheduledPostPill";
 import { cn } from "@/lib/utils";
 
 export default function PublishingCalendar() {
@@ -164,29 +162,7 @@ export default function PublishingCalendar() {
                   <ul className="space-y-1">
                     {items.slice(0, 3).map((p) => (
                       <li key={p.id}>
-                        <HoverCard openDelay={2000} closeDelay={150}>
-                          <HoverCardTrigger asChild>
-                            <Link
-                              to={`/app/admin/publishing/${p.id}`}
-                              className="flex items-center gap-1.5 rounded bg-[var(--ll-surface-2)] p-1 transition-shadow hover:ring-1 hover:ring-[var(--ll-border-strong)]"
-                            >
-                              <CalendarCoverThumb cover={p.cover} className="aspect-[9/16] w-3.5" />
-                              <span
-                                className="min-w-0 flex-1 truncate text-[10px]"
-                                style={{ color: "var(--ll-text)" }}
-                                title={p.title ?? "Sin título"}
-                              >
-                                {p.title || "(sin título)"}
-                              </span>
-                            </Link>
-                          </HoverCardTrigger>
-                          <HoverCardContent
-                            align="start"
-                            className="border-[var(--ll-border)] bg-[var(--ll-surface)]"
-                          >
-                            <ScheduledPostPreview post={p} />
-                          </HoverCardContent>
-                        </HoverCard>
+                        <ScheduledPostPill post={p} />
                       </li>
                     ))}
                     {items.length > 3 && (
