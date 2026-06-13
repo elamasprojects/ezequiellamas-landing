@@ -13,9 +13,6 @@ import {
   Megaphone,
   MessagesSquare,
   Compass,
-  Film,
-  ImagePlay,
-  Sparkles,
   Wand2,
   Settings,
   Youtube,
@@ -43,10 +40,6 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
     { to: "/app/admin/youtube", label: "YouTube", icon: <Youtube className="h-4 w-4" />, group: "Producir" },
     { to: "/app/admin/carousels", label: "Carruseles", icon: <LayoutGrid className="h-4 w-4" />, group: "Producir" },
     { to: "/app/admin/resources", label: "Recursos", icon: <BookOpen className="h-4 w-4" />, group: "Producir" },
-    { to: "/app/admin/covers", label: "Portadas", icon: <ImagePlay className="h-4 w-4" />, group: "Producir" },
-    { to: "/app/admin/brolls", label: "B-rolls", icon: <Film className="h-4 w-4" />, group: "Producir" },
-    { to: "/app/admin/motion-graphics", label: "Motion Graphics", icon: <Wand2 className="h-4 w-4" />, group: "Producir" },
-    { to: "/app/admin/animations", label: "Animations", icon: <Sparkles className="h-4 w-4" />, group: "Producir" },
 
     // ── Distribuir ──
     { to: "/app/admin/videos", label: "Videos", icon: <Video className="h-4 w-4" />, group: "Distribuir" },

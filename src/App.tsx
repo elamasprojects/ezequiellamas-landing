@@ -43,7 +43,7 @@ const CalendarPage = lazy(() => import("@/pages/app/admin/calendar/CalendarPage"
 const AssignmentsBoard = lazy(() => import("@/pages/app/admin/assignments/AssignmentsBoard"));
 const NewAssignment = lazy(() => import("@/pages/app/admin/assignments/NewAssignment"));
 const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/AssignmentDetail"));
-const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesList"));
+const ResourcesHub = lazy(() => import("@/pages/app/admin/resources/ResourcesHub"));
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
 const ReferentesList = lazy(() => import("@/pages/app/admin/referentes/ReferentesList"));
 const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/ReferenteDetail"));
@@ -51,10 +51,6 @@ const ReferentReportView = lazy(() => import("@/pages/app/admin/referentes/Refer
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
-const BrollsPage = lazy(() => import("@/pages/app/admin/brolls/BrollsPage"));
-const AnimationsPage = lazy(() => import("@/pages/app/admin/animations/AnimationsPage"));
-const MotionGraphicsPage = lazy(() => import("@/pages/app/admin/motion-graphics/MotionGraphicsPage"));
-const CoversList = lazy(() => import("@/pages/app/admin/covers/CoversList"));
 const NewCover = lazy(() => import("@/pages/app/admin/covers/NewCover"));
 const CoverDetail = lazy(() => import("@/pages/app/admin/covers/CoverDetail"));
 const PublishingDashboard = lazy(() => import("@/pages/app/admin/publishing/PublishingDashboard"));
@@ -110,7 +106,7 @@ export default function App() {
                 <Route path="assignments" element={<AssignmentsBoard />} />
                 <Route path="assignments/new" element={<NewAssignment />} />
                 <Route path="assignments/:id" element={<AssignmentDetail />} />
-                <Route path="resources" element={<ResourcesList />} />
+                <Route path="resources" element={<ResourcesHub />} />
                 <Route path="resources/new" element={<ResourceEditor />} />
                 <Route path="resources/:id" element={<ResourceEditor />} />
                 <Route path="referentes" element={<ReferentesList />} />
@@ -122,10 +118,10 @@ export default function App() {
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
-                <Route path="brolls" element={<BrollsPage />} />
-                <Route path="animations" element={<AnimationsPage />} />
-                <Route path="motion-graphics" element={<MotionGraphicsPage />} />
-                <Route path="covers" element={<CoversList />} />
+                <Route path="brolls" element={<Navigate to="/app/admin/resources?tab=brolls" replace />} />
+                <Route path="animations" element={<Navigate to="/app/admin/resources?tab=animations" replace />} />
+                <Route path="motion-graphics" element={<Navigate to="/app/admin/resources?tab=motion" replace />} />
+                <Route path="covers" element={<Navigate to="/app/admin/resources?tab=portadas" replace />} />
                 <Route path="covers/new" element={<NewCover />} />
                 <Route path="covers/:id" element={<CoverDetail />} />
                 <Route path="publishing" element={<PublishingDashboard />} />
