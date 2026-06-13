@@ -861,6 +861,7 @@ export type Database = {
           aspirational_referents: Json
           created_at: string
           desired_impact: string | null
+          follower_goals: Json
           id: string
           long_form_strategy: string | null
           my_story: string | null
@@ -878,6 +879,7 @@ export type Database = {
           aspirational_referents?: Json
           created_at?: string
           desired_impact?: string | null
+          follower_goals?: Json
           id?: string
           long_form_strategy?: string | null
           my_story?: string | null
@@ -895,6 +897,7 @@ export type Database = {
           aspirational_referents?: Json
           created_at?: string
           desired_impact?: string | null
+          follower_goals?: Json
           id?: string
           long_form_strategy?: string | null
           my_story?: string | null

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,6 +16,8 @@ import {
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Bookmark,
+  Calendar as CalendarIcon,
   ExternalLink,
   Eye,
   Heart,
@@ -23,14 +25,18 @@ import {
   Loader2,
   MessageCircle,
   Music2,
+  PartyPopper,
   RefreshCw,
   Users,
   Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/hooks/useSession";
+import { useCreatorProfile } from "@/hooks/useCreatorProfile";
+import ContentCalendar from "@/components/app/ContentCalendar";
 import {
   useZernioAccountStats,
+  useEngagementAggregate,
   useZernioFollowerSeries,
   useZernioRecentPosts,
 } from "@/hooks/useZernioAnalytics";
@@ -43,6 +49,22 @@ import {
   type ZernioAccountStats,
   type ZernioPostAnalytics,
 } from "@/lib/api/zernioAnalytics";
+import {
+  DEFAULT_FOLLOWER_GOALS,
+  parseFollowerGoals,
+  upsertCreatorProfile,
+  type FollowerGoals,
+  type PlatformKey,
+} from "@/lib/api/creatorProfile";
+
+const TIME_FILTERS = [7, 30, 90] as const;
+
+/** Bumps a goal by 20% repeatedly until it's above the current follower count. */
+function bumpedGoal(current: number, followers: number): number {
+  let g = current;
+  while (g <= followers) g = Math.ceil(g * 1.2);
+  return g;
+}
 
 const PLATFORM_COLOR: Record<string, string> = {
   instagram: "#E1306C",
@@ -54,11 +76,47 @@ const PLATFORM_ORDER = ["instagram", "tiktok", "youtube"];
 export default function AdminDashboard() {
   const { user } = useSession();
   const qc = useQueryClient();
-  const [days, setDays] = useState(90);
+  const [growthDays, setGrowthDays] = useState(30);
+  const [engDays, setEngDays] = useState(30);
 
   const { data: stats, isLoading: statsLoading } = useZernioAccountStats();
-  const { data: series } = useZernioFollowerSeries(days);
+  const { data: series } = useZernioFollowerSeries(growthDays);
   const { data: recent } = useZernioRecentPosts(12);
+  const { data: engagement } = useEngagementAggregate(engDays);
+  const { data: profile } = useCreatorProfile();
+
+  const goals = useMemo(() => parseFollowerGoals(profile?.follower_goals), [profile]);
+  const [celebrating, setCelebrating] = useState<Partial<Record<PlatformKey, boolean>>>({});
+
+  const bumpGoals = useMutation({
+    mutationFn: (next: FollowerGoals) => upsertCreatorProfile(user!.id, { follower_goals: next }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["creator_profile"] }),
+  });
+
+  // When a platform hits its goal: celebrate + auto-bump the goal +20% (persisted once).
+  useEffect(() => {
+    if (!user || !stats || stats.length === 0 || bumpGoals.isPending) return;
+    const next: FollowerGoals = { ...goals };
+    const reached: Partial<Record<PlatformKey, boolean>> = {};
+    let changed = false;
+    for (const s of stats) {
+      const p = s.platform as PlatformKey;
+      if (!(p in next)) continue;
+      const followers = s.followers ?? 0;
+      if (followers >= next[p]) {
+        next[p] = bumpedGoal(next[p], followers);
+        reached[p] = true;
+        changed = true;
+      }
+    }
+    if (changed) {
+      setCelebrating(reached);
+      bumpGoals.mutate(next);
+      const t = setTimeout(() => setCelebrating({}), 4500);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats, goals, user]);
 
   const sync = useMutation({
     mutationFn: triggerZernioAnalyticsSync,
@@ -132,8 +190,30 @@ export default function AdminDashboard() {
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <TotalCard total={totalFollowers(stats ?? [])} loading={statsLoading} />
             {orderedStats.map((s) => (
-              <FollowerCard key={s.social_account_id} stat={s} series={series ?? []} />
+              <FollowerCard
+                key={s.social_account_id}
+                stat={s}
+                series={series ?? []}
+                goal={goals[s.platform as PlatformKey] ?? DEFAULT_FOLLOWER_GOALS[s.platform as PlatformKey]}
+                celebrate={!!celebrating[s.platform as PlatformKey]}
+              />
             ))}
+          </section>
+
+          {/* Engagement metrics with time filter */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium" style={{ color: "var(--ll-text)" }}>
+                Engagement
+              </h2>
+              <TimeFilter value={engDays} onChange={setEngDays} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard label="Views" icon={<Eye className="h-3.5 w-3.5" />} value={engagement?.views} />
+              <MetricCard label="Comentarios" icon={<MessageCircle className="h-3.5 w-3.5" />} value={engagement?.comments} />
+              <MetricCard label="Likes" icon={<Heart className="h-3.5 w-3.5" />} value={engagement?.likes} />
+              <MetricCard label="Guardados" icon={<Bookmark className="h-3.5 w-3.5" />} value={engagement?.saves} />
+            </div>
           </section>
 
           {/* Growth chart */}
@@ -142,23 +222,7 @@ export default function AdminDashboard() {
               <h2 className="text-sm font-medium" style={{ color: "var(--ll-text)" }}>
                 Crecimiento de seguidores
               </h2>
-              <div className="flex gap-1">
-                {[30, 90, 180].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDays(d)}
-                    className="rounded-md px-2 py-1 text-xs"
-                    style={{
-                      background: days === d ? "var(--ll-accent-dim)" : "transparent",
-                      color: days === d ? "var(--ll-accent)" : "var(--ll-text-muted)",
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                  >
-                    {d}d
-                  </button>
-                ))}
-              </div>
+              <TimeFilter value={growthDays} onChange={setGrowthDays} />
             </div>
             {pivot.length > 1 ? (
               <ResponsiveContainer width="100%" height={260}>
@@ -211,6 +275,14 @@ export default function AdminDashboard() {
                 Todavía no hay suficiente historial. Volvé en unos días.
               </p>
             )}
+          </section>
+
+          {/* Calendar (embedded) */}
+          <section className="space-y-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}>
+              <CalendarIcon className="h-3.5 w-3.5" /> Calendario
+            </div>
+            <ContentCalendar embedded />
           </section>
 
           {/* Content counts */}
@@ -271,9 +343,13 @@ function TotalCard({ total, loading }: { total: number; loading: boolean }) {
 function FollowerCard({
   stat,
   series,
+  goal,
+  celebrate,
 }: {
   stat: ZernioAccountStats;
   series: ZernioAccountDaily[];
+  goal: number;
+  celebrate: boolean;
 }) {
   const color = PLATFORM_COLOR[stat.platform] ?? "var(--ll-accent)";
   const spark = useMemo(
@@ -284,9 +360,22 @@ function FollowerCard({
     [series, stat.social_account_id],
   );
   const growth = stat.growth_pct != null ? Number(stat.growth_pct) : null;
+  const followers = stat.followers ?? 0;
+  const pct = goal > 0 ? Math.min(100, (followers / goal) * 100) : 0;
 
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">
+    <div
+      className="relative rounded-lg border bg-[var(--ll-surface)] p-4 transition-colors"
+      style={{ borderColor: celebrate ? color : "var(--ll-border)" }}
+    >
+      {celebrate && (
+        <span
+          className="absolute right-2 top-2 inline-flex animate-bounce items-center gap-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider"
+          style={{ fontFamily: "'JetBrains Mono', monospace", background: "var(--ll-accent-dim)", color: "var(--ll-accent)" }}
+        >
+          <PartyPopper className="h-3 w-3" /> ¡Meta!
+        </span>
+      )}
       <div
         className="flex items-center justify-between text-[10px] uppercase tracking-[0.15em]"
         style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-muted)" }}
@@ -307,7 +396,7 @@ function FollowerCard({
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">
         <div className="text-2xl" style={{ fontFamily: "'Instrument Serif', serif", color: "var(--ll-text)", lineHeight: 1 }}>
-          {fmtFull(stat.followers ?? 0)}
+          {fmtFull(followers)}
         </div>
         {spark.length > 1 && (
           <div className="h-8 w-20">
@@ -318,6 +407,74 @@ function FollowerCard({
             </ResponsiveContainer>
           </div>
         )}
+      </div>
+
+      {/* Goal progress */}
+      <div className="mt-3 space-y-1">
+        <div
+          className="flex items-center justify-between text-[10px]"
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}
+        >
+          <span>Meta</span>
+          <span>
+            {fmtCompact(followers)} / {fmtCompact(goal)}
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--ll-surface-2)" }}>
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, background: color }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimeFilter({ value, onChange }: { value: number; onChange: (d: number) => void }) {
+  return (
+    <div className="flex gap-1">
+      {TIME_FILTERS.map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => onChange(d)}
+          className="rounded-md px-2 py-1 text-xs"
+          style={{
+            background: value === d ? "var(--ll-accent-dim)" : "transparent",
+            color: value === d ? "var(--ll-accent)" : "var(--ll-text-muted)",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {d}d
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  icon,
+  value,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: number | undefined;
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4">
+      <div
+        className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em]"
+        style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-muted)" }}
+      >
+        {icon} {label}
+      </div>
+      <div
+        className="mt-2 text-2xl"
+        style={{ fontFamily: "'Instrument Serif', serif", color: "var(--ll-text)", lineHeight: 1 }}
+      >
+        {value == null ? "…" : fmtCompact(value)}
       </div>
     </div>
   );

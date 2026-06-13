@@ -21,7 +21,11 @@ function fmt(n: number | null): string {
   return String(n);
 }
 
-export default function YoutubePage() {
+/**
+ * "Métricas" tab of the YouTube hub: connect your channel, sync your videos and
+ * their metrics, and analyze them with AI. (Formerly the standalone "Mi YouTube".)
+ */
+export default function YoutubeChannelPanel() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const { data: connection, isLoading: connLoading } = useYoutubeConnection();
@@ -71,106 +75,93 @@ export default function YoutubePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  return (
-    <div className="space-y-8">
-      <header className="space-y-2">
-        <div
-          className="text-[10px] uppercase tracking-[0.25em]"
-          style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
-        >
-          Mi canal de YouTube
-        </div>
-        <h1
-          className="text-3xl"
-          style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
-        >
-          Tu contenido <em style={{ color: "var(--ll-warm)" }}>largo</em>
-        </h1>
-        <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          Conectá tu canal para traer tus videos, sus métricas y transcripciones, y analizá tu propio
-          contenido con la misma IA que usás para los referentes.
-        </p>
-      </header>
+  if (connLoading) {
+    return (
+      <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
+        Cargando…
+      </p>
+    );
+  }
 
-      {connLoading ? (
-        <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>Cargando…</p>
-      ) : !connected ? (
-        <div className="space-y-4 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8">
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--ll-accent-dim)" }}>
-              <Youtube className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
-            </div>
-            <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif" }}>Traé tu canal</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              Indicá tu canal (@handle o URL) y traemos tus videos públicos con sus métricas. Usa la
-              YouTube Data API (solo lectura, sin login).
-            </p>
+  if (!connected) {
+    return (
+      <div className="space-y-4 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-8">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--ll-accent-dim)" }}>
+            <Youtube className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
           </div>
-          <div className="mx-auto flex max-w-md gap-2">
-            <Input
-              placeholder="@tucanal o link del canal"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              disabled={sync.isPending}
-            />
-            <Button variant="brand" onClick={() => sync.mutate(handle.trim() || undefined)} disabled={sync.isPending || !handle.trim()}>
-              {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar
-            </Button>
-          </div>
-          <p className="text-center text-xs" style={{ color: "var(--ll-text-dim)" }}>
-            ¿Querés datos privados (Analytics, videos ocultos)?{" "}
-            <button
-              type="button"
-              className="underline"
-              onClick={() => connect.mutate()}
-              disabled={connect.isPending || callback.isPending}
-              style={{ color: "var(--ll-text-muted)" }}
-            >
-              Conectar con OAuth
-            </button>
+          <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif" }}>Traé tu canal</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            Indicá tu canal (@handle o URL) y traemos tus videos públicos con sus métricas. Usa la
+            YouTube Data API (solo lectura, sin login).
           </p>
         </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              {connection?.channel_thumbnail_url ? (
-                <img src={connection.channel_thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <Youtube className="h-8 w-8" style={{ color: "var(--ll-accent)" }} />
-              )}
-              <div>
-                <p className="font-medium" style={{ color: "var(--ll-text)" }}>{connection?.channel_title ?? "Canal conectado"}</p>
-                <p className="text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
-                  {connection?.last_synced_at ? `Sincronizado ${new Date(connection.last_synced_at).toLocaleString("es-AR")}` : "Sin sincronizar"}
-                </p>
-              </div>
-            </div>
-            <Button variant="brand" onClick={() => sync.mutate(undefined)} disabled={sync.isPending}>
-              {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar
-            </Button>
-          </div>
+        <div className="mx-auto flex max-w-md gap-2">
+          <Input
+            placeholder="@tucanal o link del canal"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            disabled={sync.isPending}
+          />
+          <Button variant="brand" onClick={() => sync.mutate(handle.trim() || undefined)} disabled={sync.isPending || !handle.trim()}>
+            {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sincronizar
+          </Button>
+        </div>
+        <p className="text-center text-xs" style={{ color: "var(--ll-text-dim)" }}>
+          ¿Querés datos privados (Analytics, videos ocultos)?{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending || callback.isPending}
+            style={{ color: "var(--ll-text-muted)" }}
+          >
+            Conectar con OAuth
+          </button>
+        </p>
+      </div>
+    );
+  }
 
-          {connection?.last_sync_error && (
-            <div className="rounded-md border border-red-400/30 bg-red-500/5 p-3 text-xs text-red-400">
-              Último error: {connection.last_sync_error}
-            </div>
-          )}
-
-          {vidLoading ? (
-            <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>Cargando videos…</p>
-          ) : !videos || videos.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              Todavía no hay videos. Tocá «Sincronizar» para traerlos de tu canal.
-            </p>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          {connection?.channel_thumbnail_url ? (
+            <img src={connection.channel_thumbnail_url} alt="" className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((v) => <YoutubeVideoCard key={v.id} video={v} />)}
-            </div>
+            <Youtube className="h-8 w-8" style={{ color: "var(--ll-accent)" }} />
           )}
-        </>
+          <div>
+            <p className="font-medium" style={{ color: "var(--ll-text)" }}>{connection?.channel_title ?? "Canal conectado"}</p>
+            <p className="text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-text-dim)" }}>
+              {connection?.last_synced_at ? `Sincronizado ${new Date(connection.last_synced_at).toLocaleString("es-AR")}` : "Sin sincronizar"}
+            </p>
+          </div>
+        </div>
+        <Button variant="brand" onClick={() => sync.mutate(undefined)} disabled={sync.isPending}>
+          {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Sincronizar
+        </Button>
+      </div>
+
+      {connection?.last_sync_error && (
+        <div className="rounded-md border border-red-400/30 bg-red-500/5 p-3 text-xs text-red-400">
+          Último error: {connection.last_sync_error}
+        </div>
+      )}
+
+      {vidLoading ? (
+        <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>Cargando videos…</p>
+      ) : !videos || videos.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
+          Todavía no hay videos. Tocá «Sincronizar» para traerlos de tu canal.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {videos.map((v) => <YoutubeVideoCard key={v.id} video={v} />)}
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import LoadingScreen from "@/components/app/LoadingScreen";
 import ErrorBoundary from "@/components/app/ErrorBoundary";
 
@@ -27,13 +27,10 @@ import RecursoDetail from "@/pages/recursos/RecursoDetail";
 
 // Lazy-loaded pages
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
-const Team = lazy(() => import("@/pages/app/admin/team/Team"));
 const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
 const CrearPage = lazy(() => import("@/pages/app/admin/crear/CrearPage"));
-const YoutubePage = lazy(() => import("@/pages/app/admin/youtube/YoutubePage"));
-const StudioList = lazy(() => import("@/pages/app/admin/studio/StudioList"));
+const YoutubeHub = lazy(() => import("@/pages/app/admin/youtube/YoutubeHub"));
 const StudioProjectEditor = lazy(() => import("@/pages/app/admin/studio/ProjectEditor"));
-const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
 const ScriptEditor = lazy(() => import("@/pages/app/admin/ideas/ScriptEditor"));
@@ -44,7 +41,7 @@ const CalendarPage = lazy(() => import("@/pages/app/admin/calendar/CalendarPage"
 const AssignmentsBoard = lazy(() => import("@/pages/app/admin/assignments/AssignmentsBoard"));
 const NewAssignment = lazy(() => import("@/pages/app/admin/assignments/NewAssignment"));
 const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/AssignmentDetail"));
-const ResourcesList = lazy(() => import("@/pages/app/admin/resources/ResourcesList"));
+const ResourcesHub = lazy(() => import("@/pages/app/admin/resources/ResourcesHub"));
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
 const ReferentesList = lazy(() => import("@/pages/app/admin/referentes/ReferentesList"));
 const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/ReferenteDetail"));
@@ -52,10 +49,6 @@ const ReferentReportView = lazy(() => import("@/pages/app/admin/referentes/Refer
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
 const NewCarousel = lazy(() => import("@/pages/app/admin/carousels/NewCarousel"));
 const CarouselEditor = lazy(() => import("@/pages/app/admin/carousels/CarouselEditor"));
-const BrollsPage = lazy(() => import("@/pages/app/admin/brolls/BrollsPage"));
-const AnimationsPage = lazy(() => import("@/pages/app/admin/animations/AnimationsPage"));
-const MotionGraphicsPage = lazy(() => import("@/pages/app/admin/motion-graphics/MotionGraphicsPage"));
-const CoversList = lazy(() => import("@/pages/app/admin/covers/CoversList"));
 const NewCover = lazy(() => import("@/pages/app/admin/covers/NewCover"));
 const CoverDetail = lazy(() => import("@/pages/app/admin/covers/CoverDetail"));
 const PublishingDashboard = lazy(() => import("@/pages/app/admin/publishing/PublishingDashboard"));
@@ -103,7 +96,7 @@ export default function App() {
                 <Route path="ideas" element={<IdeasInbox />} />
                 <Route path="ideas/new" element={<NewIdea />} />
                 <Route path="ideas/:id" element={<ScriptEditor />} />
-                <Route path="formats" element={<FormatsList />} />
+                <Route path="formats" element={<Navigate to="/app/admin/settings?tab=formatos" replace />} />
                 <Route path="videos" element={<VideosList />} />
                 <Route path="videos/new" element={<NewVideo />} />
                 <Route path="videos/:id" element={<VideoDetail />} />
@@ -111,22 +104,22 @@ export default function App() {
                 <Route path="assignments" element={<AssignmentsBoard />} />
                 <Route path="assignments/new" element={<NewAssignment />} />
                 <Route path="assignments/:id" element={<AssignmentDetail />} />
-                <Route path="resources" element={<ResourcesList />} />
+                <Route path="resources" element={<ResourcesHub />} />
                 <Route path="resources/new" element={<ResourceEditor />} />
                 <Route path="resources/:id" element={<ResourceEditor />} />
                 <Route path="referentes" element={<ReferentesList />} />
                 <Route path="referentes/:id" element={<ReferenteDetail />} />
                 <Route path="referentes/:id/reportes/:reportId" element={<ReferentReportView />} />
-                <Route path="youtube" element={<YoutubePage />} />
-                <Route path="studio" element={<StudioList />} />
+                <Route path="youtube" element={<YoutubeHub />} />
+                <Route path="studio" element={<Navigate to="/app/admin/youtube?tab=proyectos" replace />} />
                 <Route path="studio/:id" element={<StudioProjectEditor />} />
                 <Route path="carousels" element={<CarouselsList />} />
                 <Route path="carousels/new" element={<NewCarousel />} />
                 <Route path="carousels/:id" element={<CarouselEditor />} />
-                <Route path="brolls" element={<BrollsPage />} />
-                <Route path="animations" element={<AnimationsPage />} />
-                <Route path="motion-graphics" element={<MotionGraphicsPage />} />
-                <Route path="covers" element={<CoversList />} />
+                <Route path="brolls" element={<Navigate to="/app/admin/resources?tab=brolls" replace />} />
+                <Route path="animations" element={<Navigate to="/app/admin/resources?tab=animations" replace />} />
+                <Route path="motion-graphics" element={<Navigate to="/app/admin/resources?tab=motion" replace />} />
+                <Route path="covers" element={<Navigate to="/app/admin/resources?tab=portadas" replace />} />
                 <Route path="covers/new" element={<NewCover />} />
                 <Route path="covers/:id" element={<CoverDetail />} />
                 <Route path="publishing" element={<PublishingDashboard />} />
@@ -138,7 +131,7 @@ export default function App() {
                 <Route path="publishing/slots" element={<PublishingSlots />} />
                 <Route path="publishing/:id" element={<ScheduledPostDetail />} />
                 <Route path="engagement" element={<EngagementPage />} />
-                <Route path="team" element={<Team />} />
+                <Route path="team" element={<Navigate to="/app/admin/settings?tab=equipo" replace />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>

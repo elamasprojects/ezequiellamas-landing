@@ -45,6 +45,32 @@ export async function fetchRecentPostAnalytics(limit = 12): Promise<ZernioPostAn
   return data ?? [];
 }
 
+export interface EngagementAggregate {
+  views: number;
+  likes: number;
+  comments: number;
+  saves: number;
+}
+
+/** Sums views/likes/comments/saves across posts published in the last `days`. */
+export async function fetchEngagementAggregate(days: number): Promise<EngagementAggregate> {
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+  const { data, error } = await supabase
+    .from("zernio_post_analytics")
+    .select("views, likes, comments, saves")
+    .gte("posted_at", from.toISOString());
+  if (error) throw error;
+  const agg: EngagementAggregate = { views: 0, likes: 0, comments: 0, saves: 0 };
+  for (const r of data ?? []) {
+    agg.views += r.views ?? 0;
+    agg.likes += r.likes ?? 0;
+    agg.comments += r.comments ?? 0;
+    agg.saves += r.saves ?? 0;
+  }
+  return agg;
+}
+
 export interface ZernioSyncResult {
   ok: boolean;
   followers?: number;

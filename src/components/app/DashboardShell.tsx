@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
@@ -12,16 +12,28 @@ import BottomTabBar from "@/components/app/BottomTabBar";
 import QuickCaptureSheet from "@/components/app/QuickCaptureSheet";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/hooks/useSession";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { buildSections } from "@/components/app/navSections";
 import { cn } from "@/lib/utils";
 import type { AppRole } from "@/lib/api/roles";
 
 export interface NavItem {
-  to: string;
+  /** Destination route. Omit for action items (use `onClick`). */
+  to?: string;
   label: string;
   icon?: ReactNode;
   disabled?: boolean;
   end?: boolean;
+  /** Section label — consecutive items sharing a group render under one collapsible header. */
+  group?: string;
+  /** Standout entry, rendered above the groups (desktop). */
+  priority?: boolean;
+  /** Action item (e.g. open a modal) instead of navigating. */
+  onClick?: () => void;
 }
+
+/** Groups collapsed by default on first load (admin). */
+const DEFAULT_COLLAPSED: Record<string, boolean> = { Producir: true };
 
 interface Props {
   role: AppRole;
@@ -34,8 +46,19 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
   const { user } = useSession();
   const navigate = useNavigate();
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>(
+    `ll.nav.collapsed.${role}`,
+    DEFAULT_COLLAPSED,
+  );
   // The thumb-zone bottom bar + quick-capture are the admin creator surface.
   const showBottomBar = role === "admin";
+
+  const priorityItems = navItems.filter((i) => i.priority);
+  const sections = buildSections(navItems.filter((i) => !i.priority));
+
+  function toggleGroup(label: string) {
+    setCollapsed((c) => ({ ...c, [label]: !c[label] }));
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -91,33 +114,38 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
       <div className="flex">
         <aside className="hidden w-60 shrink-0 border-r border-[var(--ll-border)] p-3 md:block">
           <nav className="flex flex-col gap-1">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end ?? false}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                    item.disabled && "pointer-events-none opacity-40",
-                    isActive
-                      ? "bg-[var(--ll-surface-2)] text-[var(--ll-accent)]"
-                      : "text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
-                  )
-                }
-              >
-                {item.icon}
-                <span>{item.label}</span>
-                {item.disabled && (
-                  <span
-                    className="ml-auto rounded-full border border-[var(--ll-border)] px-1.5 py-0.5 text-[9px] uppercase tracking-wider"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    Pronto
-                  </span>
-                )}
-              </NavLink>
-            ))}
+            {/* Standout priority entries */}
+            {priorityItems.length > 0 && (
+              <div className="mb-2 flex flex-col gap-1.5">
+                {priorityItems.map((item) => (
+                  <NavRow key={item.to ?? item.label} item={item} priority />
+                ))}
+              </div>
+            )}
+
+            {/* Grouped, collapsible sections */}
+            {sections.map((section, i) => {
+              const isCollapsed = section.label != null && collapsed[section.label];
+              return (
+                <div key={section.label ?? `_${i}`} className="flex flex-col gap-1">
+                  {section.label && (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(section.label!)}
+                      className="mt-2 flex w-full items-center justify-between px-3 pb-0.5 pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--ll-text-dim)] transition-colors hover:text-[var(--ll-text-muted)]"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      <span>{section.label}</span>
+                      <ChevronDown
+                        className={cn("h-3 w-3 transition-transform", isCollapsed && "-rotate-90")}
+                      />
+                    </button>
+                  )}
+                  {!isCollapsed &&
+                    section.items.map((item) => <NavRow key={item.to ?? item.label} item={item} />)}
+                </div>
+              );
+            })}
           </nav>
         </aside>
 
@@ -144,5 +172,65 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
         </>
       )}
     </div>
+  );
+}
+
+/** A single sidebar entry: a NavLink, or a button for action items (`onClick`). */
+function NavRow({ item, priority = false }: { item: NavItem; priority?: boolean }) {
+  const content = (
+    <>
+      {item.icon}
+      <span>{item.label}</span>
+      {item.disabled && (
+        <span
+          className="ml-auto rounded-full border border-[var(--ll-border)] px-1.5 py-0.5 text-[9px] uppercase tracking-wider"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          Pronto
+        </span>
+      )}
+    </>
+  );
+
+  const priorityClass =
+    "flex items-center gap-2 rounded-md border border-[var(--ll-accent)]/40 bg-[var(--ll-accent-dim)] px-3 py-2.5 text-sm font-medium text-[var(--ll-accent)] transition-colors hover:bg-[var(--ll-accent)]/20 [&_svg]:h-[18px] [&_svg]:w-[18px]";
+
+  // Action item (no route) → button.
+  if (item.onClick && !item.to) {
+    return (
+      <button
+        type="button"
+        onClick={item.onClick}
+        className={cn(
+          priority
+            ? priorityClass
+            : "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--ll-text-muted)] transition-colors hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.to!}
+      end={item.end ?? false}
+      className={({ isActive }) =>
+        cn(
+          priority
+            ? priorityClass
+            : "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+          item.disabled && "pointer-events-none opacity-40",
+          !priority &&
+            (isActive
+              ? "bg-[var(--ll-surface-2)] text-[var(--ll-accent)]"
+              : "text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"),
+          priority && isActive && "ring-1 ring-[var(--ll-accent)]",
+        )
+      }
+    >
+      {content}
+    </NavLink>
   );
 }
