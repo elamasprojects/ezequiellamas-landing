@@ -20,6 +20,7 @@ import {
   Calendar as CalendarIcon,
   ExternalLink,
   Eye,
+  Flame,
   Heart,
   Instagram,
   Loader2,
@@ -37,6 +38,7 @@ import ContentCalendar from "@/components/app/ContentCalendar";
 import {
   useZernioAccountStats,
   useEngagementAggregate,
+  useUploadStreaks,
   useZernioFollowerSeries,
   useZernioRecentPosts,
 } from "@/hooks/useZernioAnalytics";
@@ -83,6 +85,7 @@ export default function AdminDashboard() {
   const { data: series } = useZernioFollowerSeries(growthDays);
   const { data: recent } = useZernioRecentPosts(12);
   const { data: engagement } = useEngagementAggregate(engDays);
+  const { data: streaks, isLoading: streaksLoading } = useUploadStreaks();
   const { data: profile } = useCreatorProfile();
 
   const goals = useMemo(() => parseFollowerGoals(profile?.follower_goals), [profile]);
@@ -128,6 +131,7 @@ export default function AdminDashboard() {
       qc.invalidateQueries({ queryKey: ["zernio-account-stats"] });
       qc.invalidateQueries({ queryKey: ["zernio-follower-series"] });
       qc.invalidateQueries({ queryKey: ["zernio-recent-posts"] });
+      qc.invalidateQueries({ queryKey: ["zernio-upload-streaks"] });
       toast.success("Métricas actualizadas desde Zernio.");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -164,22 +168,34 @@ export default function AdminDashboard() {
             Hola, <em style={{ color: "var(--ll-accent)" }}>{user?.email?.split("@")[0]}</em>.
           </h1>
         </div>
-        <Button
-          variant="outline"
-          className="border-[var(--ll-border)]"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
-        >
-          {sync.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Sincronizando…
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" /> Refrescar métricas
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <StreakChip
+            value={streaks?.every2Days}
+            loading={streaksLoading}
+            title="Racha de subidas — 1 punto por cada 2 días seguidos con contenido"
+          />
+          <StreakChip
+            value={streaks?.weekly}
+            loading={streaksLoading}
+            title="Racha semanal — 1 punto por cada semana seguida con contenido"
+          />
+          <Button
+            variant="outline"
+            className="border-[var(--ll-border)]"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            {sync.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Sincronizando…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" /> Refrescar métricas
+              </>
+            )}
+          </Button>
+        </div>
       </header>
 
       {!hasData && !statsLoading ? (
@@ -319,6 +335,35 @@ function PlatformIcon({ platform, className }: { platform: string; className?: s
   if (platform === "instagram") return <Instagram className={className} />;
   if (platform === "youtube") return <Youtube className={className} />;
   return <Music2 className={className} />;
+}
+
+/** Small square badge: a flame + the streak number. Dimmed when the streak is 0. */
+function StreakChip({
+  value,
+  loading,
+  title,
+}: {
+  value: number | undefined;
+  loading: boolean;
+  title: string;
+}) {
+  const active = (value ?? 0) > 0;
+  const color = active ? "var(--ll-accent)" : "var(--ll-text-dim)";
+  return (
+    <div
+      title={title}
+      className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg border bg-[var(--ll-surface)]"
+      style={{ borderColor: active ? "var(--ll-accent)" : "var(--ll-border)" }}
+    >
+      <Flame className="h-3.5 w-3.5" style={{ color }} />
+      <span
+        className="mt-0.5 text-xs leading-none"
+        style={{ fontFamily: "'JetBrains Mono', monospace", color }}
+      >
+        {loading ? "…" : value ?? 0}
+      </span>
+    </div>
+  );
 }
 
 function TotalCard({ total, loading }: { total: number; loading: boolean }) {

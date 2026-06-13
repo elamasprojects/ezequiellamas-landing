@@ -4,6 +4,7 @@ import {
   fetchEngagementAggregate,
   fetchFollowerSeries,
   fetchRecentPostAnalytics,
+  fetchUploadStreaks,
 } from "@/lib/api/zernioAnalytics";
 
 export function useZernioAccountStats() {
@@ -34,6 +35,14 @@ export function useEngagementAggregate(days: number) {
   return useQuery({
     queryKey: ["zernio-engagement-aggregate", days],
     queryFn: () => fetchEngagementAggregate(days),
+    staleTime: 60_000,
+  });
+}
+
+export function useUploadStreaks() {
+  return useQuery({
+    queryKey: ["zernio-upload-streaks"],
+    queryFn: fetchUploadStreaks,
     staleTime: 60_000,
   });
 }
