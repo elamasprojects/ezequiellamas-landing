@@ -17,11 +17,11 @@ const STATUS_COLOR: Record<ScheduledPostStatus, string> = {
 };
 
 /** Calendar pill for a scheduled/published post: mini cover + title, with a
- * 2s-hover card showing cover, time, platform icons, status and live countdown.
- * Click goes to the full detail. Shared by the content + publishing calendars. */
+ * hover card (opens after 0.3s) showing cover, time, platform icons, status and
+ * live countdown. Click goes to the full detail. Shared by both calendars. */
 export function ScheduledPostPill({ post }: { post: ScheduledPostWithJobs }) {
   return (
-    <HoverCard openDelay={2000} closeDelay={150}>
+    <HoverCard openDelay={300} closeDelay={150}>
       <HoverCardTrigger asChild>
         <Link
           to={`/app/admin/publishing/${post.id}`}
