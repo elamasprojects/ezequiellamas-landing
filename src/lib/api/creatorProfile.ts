@@ -32,6 +32,32 @@ export type QuestionnairePatch = Partial<
   >
 >;
 
+// Per-platform follower goals (M-dashboard). Editable from Configuración → Objetivos.
+export type PlatformKey = "instagram" | "tiktok" | "youtube";
+export type FollowerGoals = Record<PlatformKey, number>;
+export type GoalsPatch = { follower_goals: FollowerGoals };
+
+/** Initial goals applied when a platform key isn't set yet (variable, editable). */
+export const DEFAULT_FOLLOWER_GOALS: FollowerGoals = {
+  instagram: 1000,
+  tiktok: 2000,
+  youtube: 500,
+};
+
+/** Normalize the jsonb column into typed goals, falling back to defaults. */
+export function parseFollowerGoals(value: unknown): FollowerGoals {
+  const o = (value ?? {}) as Record<string, unknown>;
+  const num = (v: unknown, fallback: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
+  };
+  return {
+    instagram: num(o.instagram, DEFAULT_FOLLOWER_GOALS.instagram),
+    tiktok: num(o.tiktok, DEFAULT_FOLLOWER_GOALS.tiktok),
+    youtube: num(o.youtube, DEFAULT_FOLLOWER_GOALS.youtube),
+  };
+}
+
 export async function fetchCreatorProfile(): Promise<CreatorProfile | null> {
   const { data, error } = await supabase
     .from("creator_profile")
@@ -45,7 +71,7 @@ export async function fetchCreatorProfile(): Promise<CreatorProfile | null> {
 // fields; the upsert merges them onto the single row.
 export async function upsertCreatorProfile(
   ownerId: string,
-  patch: BrandPatch | QuestionnairePatch,
+  patch: BrandPatch | QuestionnairePatch | GoalsPatch,
 ): Promise<CreatorProfile> {
   const { data, error } = await supabase
     .from("creator_profile")

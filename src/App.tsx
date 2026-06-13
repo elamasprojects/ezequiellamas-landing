@@ -27,12 +27,10 @@ import RecursoDetail from "@/pages/recursos/RecursoDetail";
 
 // Lazy-loaded pages
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
-const Team = lazy(() => import("@/pages/app/admin/team/Team"));
 const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
 const CrearPage = lazy(() => import("@/pages/app/admin/crear/CrearPage"));
 const YoutubeHub = lazy(() => import("@/pages/app/admin/youtube/YoutubeHub"));
 const StudioProjectEditor = lazy(() => import("@/pages/app/admin/studio/ProjectEditor"));
-const FormatsList = lazy(() => import("@/pages/app/admin/formats/FormatsList"));
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
 const ScriptEditor = lazy(() => import("@/pages/app/admin/ideas/ScriptEditor"));
@@ -98,7 +96,7 @@ export default function App() {
                 <Route path="ideas" element={<IdeasInbox />} />
                 <Route path="ideas/new" element={<NewIdea />} />
                 <Route path="ideas/:id" element={<ScriptEditor />} />
-                <Route path="formats" element={<FormatsList />} />
+                <Route path="formats" element={<Navigate to="/app/admin/settings?tab=formatos" replace />} />
                 <Route path="videos" element={<VideosList />} />
                 <Route path="videos/new" element={<NewVideo />} />
                 <Route path="videos/:id" element={<VideoDetail />} />
@@ -133,7 +131,7 @@ export default function App() {
                 <Route path="publishing/slots" element={<PublishingSlots />} />
                 <Route path="publishing/:id" element={<ScheduledPostDetail />} />
                 <Route path="engagement" element={<EngagementPage />} />
-                <Route path="team" element={<Team />} />
+                <Route path="team" element={<Navigate to="/app/admin/settings?tab=equipo" replace />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>

@@ -3,12 +3,10 @@ import { Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   Lightbulb,
-  Library,
   Video,
   Calendar,
   ClipboardList,
   BookOpen,
-  Users,
   LayoutGrid,
   Megaphone,
   MessagesSquare,
@@ -47,9 +45,7 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
     { to: "/app/admin/assignments", label: "Asignaciones", icon: <ClipboardList className="h-4 w-4" />, group: "Distribuir" },
 
     // ── Ajustes ──
-    { to: "/app/admin/formats", label: "Formatos", icon: <Library className="h-4 w-4" />, group: "Ajustes" },
-    { to: "/app/admin/settings", label: "Perfil & IA", icon: <Settings className="h-4 w-4" />, group: "Ajustes" },
-    { to: "/app/admin/team", label: "Equipo", icon: <Users className="h-4 w-4" />, group: "Ajustes" },
+    { to: "/app/admin/settings", label: "Configuración", icon: <Settings className="h-4 w-4" />, group: "Ajustes" },
   ];
 }
 
