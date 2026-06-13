@@ -18,7 +18,7 @@ export default function Historia() {
     <section id="historia" style={{ background: "var(--ll-surface)" }}>
       <div className="section-label fade-in">02 — Mi historia</div>
       <h2 className="fade-in">
-        No sabía hacer nada. Ahora tengo <em>+150 clientes</em>
+        No sabía hacer nada, ahora tengo <em>+500 clientes</em>
       </h2>
 
       <div className="story-layout">

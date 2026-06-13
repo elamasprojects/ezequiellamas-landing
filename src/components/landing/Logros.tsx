@@ -1,6 +1,6 @@
 const STATS = [
   { number: "$300K+", label: "Vendido total en mi carrera" },
-  { number: "~100", label: "Clientes en UGC Studio" },
+  { number: "+500", label: "Clientes en UGC Studio" },
   { number: "$30K", label: "Facturación UGC Studio Febrero 2026" },
   { number: "3", label: "Emprendimientos creados" },
   { number: "100+", label: "Workflows en n8n" },

@@ -16,13 +16,13 @@ const PILLARS = [
   },
   {
     label: "Consultoría",
-    title: "High-ticket 1 a 1",
-    body: "Consultoría a dueños de negocio: reestructurar ofertas, mejorar producto, optimizar adquisición, armar money models.",
+    title: "Me sumergo en tu negocio",
+    body: "Te ayudo a crear sistemas que escalen, a integrarlos con IA (si es necesario), a estructurar ofertas, a mejorar el producto, a optimizar la adquisición y a crear Money Models.",
   },
   {
     label: "Libertad",
     title: "Negocio que no dependa de mí",
-    body: "Un equipo que ejecute. Ingresos pasivos. Viajar con tranquilidad. Tiempo con mis seres queridos. Seguir siendo humilde.",
+    body: "Un equipo que ejecute. Ingresos pasivos. Viajar con tranquilidad. Tiempo con mis seres queridos.",
   },
 ];
 
@@ -72,9 +72,8 @@ export default function Vision() {
         style={{ marginTop: "3.5rem", borderLeftColor: "var(--ll-warm)" }}
       >
         <p>
-          "No busco generar más dinero. Busco construir algo que genere impacto, me llene y
-          me dé libertad. La plata va a llegar — porque encima que no la voy a buscar, va a
-          llegar todavía más."
+          "Busco construir algo que genere impacto, me llene y me dé libertad. La plata va a
+          llegar — porque encima que no la voy a buscar, va a llegar todavía más."
         </p>
       </div>
     </section>
