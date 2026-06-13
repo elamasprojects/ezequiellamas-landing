@@ -87,6 +87,20 @@ export function postByPlatform(posts: VideoPost[], platform: VideoPlatform): Vid
   return posts.find((p) => p.platform === platform) ?? null;
 }
 
+/**
+ * The post to play for a video, preferring Instagram → YouTube → TikTok and
+ * requiring an embeddable short code. Falls back to any embeddable post, else null.
+ */
+const PLAY_PREFERENCE: VideoPlatform[] = ["instagram", "youtube", "tiktok"];
+export function playablePost(posts: VideoPost[]): VideoPost | null {
+  const embeddable = (p: VideoPost) => isSyncable(p.platform) && !!p.apify_short_code;
+  for (const platform of PLAY_PREFERENCE) {
+    const p = posts.find((x) => x.platform === platform && embeddable(x));
+    if (p) return p;
+  }
+  return posts.find(embeddable) ?? null;
+}
+
 export function platformsPresent(posts: VideoPost[]): VideoPlatform[] {
   return posts.map((p) => p.platform as VideoPlatform);
 }
@@ -314,6 +328,36 @@ export async function discoverAndImportVideos(days = 7): Promise<DiscoverImportR
   );
   if (error) await unwrapError(error);
   if (!data) throw new Error("Empty response from discover-and-import-videos");
+  if ("error" in data) throw new Error(data.error);
+  return data;
+}
+
+export interface SyncVideosResult {
+  ok: boolean;
+  /** New logical videos created. */
+  imported: number;
+  /** Fragmented duplicates consolidated into a single video. */
+  merged: number;
+  /** Platform posts refreshed (metrics updated). */
+  synced: number;
+  /** Logical videos processed. */
+  videos: number;
+  /** Total (post × platform) entries seen on Zernio. */
+  discovered: number;
+  errors: string[];
+}
+
+/**
+ * Sync every video + metrics natively from Zernio (IG/YT/TikTok official APIs),
+ * grouping cross-posts into one logical video. Replaces the Apify discovery.
+ */
+export async function syncVideosFromZernio(): Promise<SyncVideosResult> {
+  const { data, error } = await supabase.functions.invoke<SyncVideosResult | { error: string }>(
+    "sync-videos-zernio",
+    { body: {} },
+  );
+  if (error) await unwrapError(error);
+  if (!data) throw new Error("Empty response from sync-videos-zernio");
   if ("error" in data) throw new Error(data.error);
   return data;
 }

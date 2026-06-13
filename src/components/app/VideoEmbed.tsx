@@ -16,6 +16,8 @@ const ASPECT: Record<"instagram" | "youtube" | "tiktok", string> = {
 
 interface Props {
   post: VideoPost;
+  /** Render only the iframe, filling the parent (no header / max-width). For card playback. */
+  bare?: boolean;
 }
 
 /**
@@ -23,10 +25,23 @@ interface Props {
  * "open in platform" card if there's no apify_short_code yet (e.g. fresh
  * "other" platform or first sync hasn't run).
  */
-export default function VideoEmbed({ post }: Props) {
+export default function VideoEmbed({ post, bare = false }: Props) {
   const platform = post.platform as VideoPlatform;
   const shortCode = post.apify_short_code;
   const colorVar = `var(--platform-${platform})`;
+
+  if ((!isSyncable(platform) || !shortCode) && bare) {
+    return (
+      <a
+        href={post.source_url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex h-full w-full items-center justify-center bg-[var(--ll-surface-2)]"
+      >
+        <PlatformIcon platform={platform} className="h-8 w-8" />
+      </a>
+    );
+  }
 
   if (!isSyncable(platform) || !shortCode) {
     return (
@@ -57,6 +72,19 @@ export default function VideoEmbed({ post }: Props) {
 
   const embedSrc = EMBED_URL[platform](shortCode);
   const aspect = ASPECT[platform];
+
+  if (bare) {
+    return (
+      <iframe
+        src={embedSrc}
+        className="h-full w-full"
+        allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+        allowFullScreen
+        loading="lazy"
+        title={`${PLATFORM_LABEL[platform]} embed`}
+      />
+    );
+  }
 
   return (
     <div className="space-y-2">
