@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Compass, Film, type LucideIcon, Megaphone, Plus, Sparkles } from "lucide-react";
+import { Compass, type LucideIcon, Megaphone, Plus, Sparkles, Youtube } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Tab {
@@ -14,7 +14,7 @@ const TABS: Tab[] = [
   { to: "/app/admin", label: "Inicio", icon: Sparkles, end: true },
   { to: "/app/admin/publishing", label: "Publicar", icon: Megaphone },
   { to: "/app/admin/crear", label: "Crear", icon: Compass },
-  { to: "/app/admin/studio", label: "Studio", icon: Film },
+  { to: "/app/admin/youtube", label: "YouTube", icon: Youtube },
 ];
 
 // (Mobile) Thumb-zone navigation. Hidden on >= md (desktop keeps the sidebar).
