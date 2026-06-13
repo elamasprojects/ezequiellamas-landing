@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
@@ -50,6 +50,8 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
     `ll.nav.collapsed.${role}`,
     DEFAULT_COLLAPSED,
   );
+  // Whole-sidebar collapse to an icon-only rail (desktop), to focus on the page.
+  const [railCollapsed, setRailCollapsed] = useLocalStorage<boolean>(`ll.nav.rail.${role}`, false);
   // The thumb-zone bottom bar + quick-capture are the admin creator surface.
   const showBottomBar = role === "admin";
 
@@ -112,23 +114,42 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
       <OfflineBanner />
 
       <div className="flex">
-        <aside className="hidden w-60 shrink-0 border-r border-[var(--ll-border)] p-3 md:block">
+        <aside
+          className={cn(
+            "hidden shrink-0 border-r border-[var(--ll-border)] p-3 transition-[width] duration-200 ease-in-out md:block",
+            railCollapsed ? "w-16" : "w-60",
+          )}
+        >
+          {/* Collapse the whole rail to icons-only, to focus on the page. */}
+          <button
+            type="button"
+            onClick={() => setRailCollapsed((v) => !v)}
+            aria-label={railCollapsed ? "Expandir menú" : "Colapsar menú"}
+            title={railCollapsed ? "Expandir menú" : "Colapsar menú"}
+            className={cn(
+              "mb-2 flex h-9 items-center rounded-md text-[var(--ll-text-muted)] transition-colors hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
+              railCollapsed ? "w-full justify-center" : "w-full justify-end px-3",
+            )}
+          >
+            {railCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
+
           <nav className="flex flex-col gap-1">
             {/* Standout priority entries */}
             {priorityItems.length > 0 && (
               <div className="mb-2 flex flex-col gap-1.5">
                 {priorityItems.map((item) => (
-                  <NavRow key={item.to ?? item.label} item={item} priority />
+                  <NavRow key={item.to ?? item.label} item={item} priority collapsed={railCollapsed} />
                 ))}
               </div>
             )}
 
-            {/* Grouped, collapsible sections */}
+            {/* Grouped sections. Collapsed rail shows every icon (no headers, no per-group collapse). */}
             {sections.map((section, i) => {
-              const isCollapsed = section.label != null && collapsed[section.label];
+              const groupCollapsed = section.label != null && collapsed[section.label];
               return (
                 <div key={section.label ?? `_${i}`} className="flex flex-col gap-1">
-                  {section.label && (
+                  {section.label && !railCollapsed && (
                     <button
                       type="button"
                       onClick={() => toggleGroup(section.label!)}
@@ -137,12 +158,17 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
                     >
                       <span>{section.label}</span>
                       <ChevronDown
-                        className={cn("h-3 w-3 transition-transform", isCollapsed && "-rotate-90")}
+                        className={cn("h-3 w-3 transition-transform", groupCollapsed && "-rotate-90")}
                       />
                     </button>
                   )}
-                  {!isCollapsed &&
-                    section.items.map((item) => <NavRow key={item.to ?? item.label} item={item} />)}
+                  {railCollapsed && i > 0 && (
+                    <div className="mx-auto my-1 h-px w-6 bg-[var(--ll-border)]" aria-hidden />
+                  )}
+                  {(railCollapsed || !groupCollapsed) &&
+                    section.items.map((item) => (
+                      <NavRow key={item.to ?? item.label} item={item} collapsed={railCollapsed} />
+                    ))}
                 </div>
               );
             })}
@@ -176,8 +202,22 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
 }
 
 /** A single sidebar entry: a NavLink, or a button for action items (`onClick`). */
-function NavRow({ item, priority = false }: { item: NavItem; priority?: boolean }) {
-  const content = (
+function NavRow({
+  item,
+  priority = false,
+  collapsed = false,
+}: {
+  item: NavItem;
+  priority?: boolean;
+  collapsed?: boolean;
+}) {
+  const content = collapsed ? (
+    item.icon ?? (
+      <span className="grid h-[18px] w-[18px] place-items-center text-[11px] font-semibold">
+        {item.label.charAt(0)}
+      </span>
+    )
+  ) : (
     <>
       {item.icon}
       <span>{item.label}</span>
@@ -192,8 +232,17 @@ function NavRow({ item, priority = false }: { item: NavItem; priority?: boolean 
     </>
   );
 
-  const priorityClass =
-    "flex items-center gap-2 rounded-md border border-[var(--ll-accent)]/40 bg-[var(--ll-accent-dim)] px-3 py-2.5 text-sm font-medium text-[var(--ll-accent)] transition-colors hover:bg-[var(--ll-accent)]/20 [&_svg]:h-[18px] [&_svg]:w-[18px]";
+  // In the collapsed rail, center the icon and drop the label/horizontal padding;
+  // a native tooltip surfaces the label on hover.
+  const priorityClass = cn(
+    "flex items-center rounded-md border border-[var(--ll-accent)]/40 bg-[var(--ll-accent-dim)] font-medium text-[var(--ll-accent)] transition-colors hover:bg-[var(--ll-accent)]/20 [&_svg]:h-[18px] [&_svg]:w-[18px]",
+    collapsed ? "justify-center px-0 py-2.5" : "gap-2 px-3 py-2.5 text-sm",
+  );
+  const regularClass = cn(
+    "flex items-center rounded-md text-sm transition-colors",
+    collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2",
+  );
+  const title = collapsed ? item.label : undefined;
 
   // Action item (no route) → button.
   if (item.onClick && !item.to) {
@@ -201,10 +250,11 @@ function NavRow({ item, priority = false }: { item: NavItem; priority?: boolean 
       <button
         type="button"
         onClick={item.onClick}
+        title={title}
         className={cn(
           priority
             ? priorityClass
-            : "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--ll-text-muted)] transition-colors hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
+            : cn(regularClass, "text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"),
         )}
       >
         {content}
@@ -216,11 +266,10 @@ function NavRow({ item, priority = false }: { item: NavItem; priority?: boolean 
     <NavLink
       to={item.to!}
       end={item.end ?? false}
+      title={title}
       className={({ isActive }) =>
         cn(
-          priority
-            ? priorityClass
-            : "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+          priority ? priorityClass : regularClass,
           item.disabled && "pointer-events-none opacity-40",
           !priority &&
             (isActive
