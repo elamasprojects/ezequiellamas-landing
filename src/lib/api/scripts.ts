@@ -23,9 +23,13 @@ export interface ScriptWithBrolls extends Script {
   } | null;
 }
 
-export async function fetchScripts(opts?: { status?: ScriptStatus }): Promise<Script[]> {
+export async function fetchScripts(opts?: {
+  status?: ScriptStatus;
+  statuses?: ScriptStatus[];
+}): Promise<Script[]> {
   let query = supabase.from("scripts").select("*").order("created_at", { ascending: false });
   if (opts?.status) query = query.eq("status", opts.status);
+  else if (opts?.statuses && opts.statuses.length > 0) query = query.in("status", opts.statuses);
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
