@@ -153,6 +153,14 @@ async function resolveVideoPostId(db: Db, pred: PredictionRow, liveAt: string | 
   return best && best.dist <= 24 * 3600_000 ? best.id : null;
 }
 
+// Postgres numeric/bigint columns come back from PostgREST as STRINGS - coerce
+// before any numeric use. Mirrors the toNum helper in predict-virality.
+function toNum(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function latestViews(db: Db, videoPostId: string): Promise<{ views: number | null; at: string | null }> {
   const { data: hist } = await db
     .from("video_metrics_history")
@@ -161,15 +169,16 @@ async function latestViews(db: Db, videoPostId: string): Promise<{ views: number
     .order("captured_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (hist && typeof hist.views_total === "number") {
-    return { views: hist.views_total, at: hist.captured_at };
+  const histViews = toNum(hist?.views_total);
+  if (histViews != null) {
+    return { views: histViews, at: hist.captured_at };
   }
   const { data: vp } = await db
     .from("video_posts")
     .select("views_total, metrics_updated_at")
     .eq("id", videoPostId)
     .maybeSingle();
-  return { views: vp?.views_total ?? null, at: vp?.metrics_updated_at ?? null };
+  return { views: toNum(vp?.views_total), at: vp?.metrics_updated_at ?? null };
 }
 
 async function evaluateOne(db: Db, pred: PredictionRow, spHint?: SpHint | null): Promise<"evaluated" | "provisional" | "skipped"> {
@@ -279,9 +288,6 @@ Deno.serve(async (req) => {
       preds = (data ?? []) as unknown as PredictionRow[];
       // Ownership check for user-invoked calls.
       if (!isServiceRole) preds = preds.filter((p) => p.owner_id === callerId);
-      // Don't re-touch already-finalized rows (refresh/re-bind risk); the sweep
-      // owns re-evaluation of matured rows.
-      preds = preds.filter((p) => p.status !== "evaluated");
     }
 
     const results = { evaluated: 0, provisional: 0, skipped: 0 };
