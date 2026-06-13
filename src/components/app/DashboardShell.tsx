@@ -1,8 +1,7 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import MobileNav from "@/components/app/MobileNav";
 import NotificationBell from "@/components/app/NotificationBell";
 import PushPrompt from "@/components/app/PushPrompt";
@@ -50,13 +49,31 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
     `ll.nav.collapsed.${role}`,
     DEFAULT_COLLAPSED,
   );
-  // Whole-sidebar collapse to an icon-only rail (desktop), to focus on the page.
-  const [railCollapsed, setRailCollapsed] = useLocalStorage<boolean>(`ll.nav.rail.${role}`, false);
+  // Desktop sidebar auto-expands on hover/focus and collapses to an icon-only
+  // rail otherwise — no manual toggle.
+  const [expanded, setExpanded] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+  const openRail = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setExpanded(true);
+  };
+  const closeRail = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setExpanded(false), 150);
+  };
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
+
   // The thumb-zone bottom bar + quick-capture are the admin creator surface.
   const showBottomBar = role === "admin";
 
   const priorityItems = navItems.filter((i) => i.priority);
   const sections = buildSections(navItems.filter((i) => !i.priority));
+  const avatarInitial = (user?.email?.charAt(0) ?? "U").toUpperCase();
 
   function toggleGroup(label: string) {
     setCollapsed((c) => ({ ...c, [label]: !c[label] }));
@@ -72,12 +89,13 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
       className="min-h-screen text-[var(--ll-text)]"
       style={{ background: "var(--ll-bg)", fontFamily: "'DM Sans', sans-serif" }}
     >
+      {/* Mobile-only top bar (desktop uses the sidebar for brand + profile). */}
       <header
-        className="sticky top-0 z-40 border-b border-[var(--ll-border)] bg-[var(--ll-bg)]/85 backdrop-blur"
+        className="sticky top-0 z-40 border-b border-[var(--ll-border)] bg-[var(--ll-bg)]/85 backdrop-blur md:hidden"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        <div className="flex h-14 items-center justify-between px-3 md:px-6">
-          <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex h-14 items-center justify-between px-3">
+          <div className="flex items-center gap-2">
             <MobileNav role={role} roleLabel={roleLabel} navItems={navItems} />
             <Link
               to="/"
@@ -90,96 +108,144 @@ export default function DashboardShell({ role, roleLabel, navItems, children }: 
               {roleLabel}
             </Badge>
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            <NotificationBell />
-            <span
-              className="hidden text-xs text-[var(--ll-text-muted)] md:inline"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              {user?.email}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="hidden text-[var(--ll-text-muted)] hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)] md:inline-flex"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Salir</span>
-            </Button>
-          </div>
+          <NotificationBell />
         </div>
       </header>
 
-      <OfflineBanner />
-
-      <div className="flex">
-        <aside
+      {/* Desktop sidebar: fixed icon rail that expands to full width on hover/focus. */}
+      <aside
+        aria-label="Navegación principal"
+        onMouseEnter={openRail}
+        onMouseLeave={closeRail}
+        onFocusCapture={openRail}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) closeRail();
+        }}
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-[var(--ll-border)] bg-[var(--ll-bg)] transition-[width] duration-200 ease-in-out md:flex",
+          expanded ? "w-60" : "w-16",
+        )}
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        {/* Brand (top, aligned with the rail) */}
+        <Link
+          to="/"
           className={cn(
-            "hidden shrink-0 border-r border-[var(--ll-border)] p-3 transition-[width] duration-200 ease-in-out md:block",
-            railCollapsed ? "w-16" : "w-60",
+            "flex h-14 shrink-0 items-center border-b border-[var(--ll-border)]",
+            expanded ? "gap-2 px-4" : "justify-center px-0",
           )}
         >
-          {/* Collapse the whole rail to icons-only, to focus on the page. */}
-          <button
-            type="button"
-            onClick={() => setRailCollapsed((v) => !v)}
-            aria-label={railCollapsed ? "Expandir menú" : "Colapsar menú"}
-            title={railCollapsed ? "Expandir menú" : "Colapsar menú"}
+          {expanded ? (
+            <>
+              <span
+                className="truncate text-base"
+                style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}
+              >
+                Ezequiel <span style={{ color: "var(--ll-accent)" }}>Lamas</span>
+              </span>
+              <Badge variant={role} className="ml-auto shrink-0">
+                {roleLabel}
+              </Badge>
+            </>
+          ) : (
+            <span className="text-lg leading-none" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              E<span style={{ color: "var(--ll-accent)" }}>L</span>
+            </span>
+          )}
+        </Link>
+
+        {/* Nav */}
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-3">
+          {/* Standout priority entries */}
+          {priorityItems.length > 0 && (
+            <div className="mb-2 flex flex-col gap-1.5">
+              {priorityItems.map((item) => (
+                <NavRow key={item.to ?? item.label} item={item} priority collapsed={!expanded} />
+              ))}
+            </div>
+          )}
+
+          {/* Grouped sections. Collapsed rail shows every icon (no headers, no per-group collapse). */}
+          {sections.map((section, i) => {
+            const groupCollapsed = section.label != null && collapsed[section.label];
+            return (
+              <div key={section.label ?? `_${i}`} className="flex flex-col gap-1">
+                {section.label && expanded && (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(section.label!)}
+                    className="mt-2 flex w-full items-center justify-between px-3 pb-0.5 pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--ll-text-dim)] transition-colors hover:text-[var(--ll-text-muted)]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    <span>{section.label}</span>
+                    <ChevronDown
+                      className={cn("h-3 w-3 transition-transform", groupCollapsed && "-rotate-90")}
+                    />
+                  </button>
+                )}
+                {!expanded && i > 0 && (
+                  <div className="mx-auto my-1 h-px w-6 bg-[var(--ll-border)]" aria-hidden />
+                )}
+                {(!expanded || !groupCollapsed) &&
+                  section.items.map((item) => (
+                    <NavRow key={item.to ?? item.label} item={item} collapsed={!expanded} />
+                  ))}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Footer: notifications + profile + logout */}
+        <div className="flex shrink-0 flex-col gap-1 border-t border-[var(--ll-border)] p-2">
+          <div className={cn("flex", expanded ? "px-1" : "justify-center")}>
+            <NotificationBell />
+          </div>
+          <div
             className={cn(
-              "mb-2 flex h-9 items-center rounded-md text-[var(--ll-text-muted)] transition-colors hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]",
-              railCollapsed ? "w-full justify-center" : "w-full justify-end px-3",
+              "flex items-center rounded-md",
+              expanded ? "gap-2 px-1.5 py-1" : "justify-center py-1",
             )}
           >
-            {railCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </button>
-
-          <nav className="flex flex-col gap-1">
-            {/* Standout priority entries */}
-            {priorityItems.length > 0 && (
-              <div className="mb-2 flex flex-col gap-1.5">
-                {priorityItems.map((item) => (
-                  <NavRow key={item.to ?? item.label} item={item} priority collapsed={railCollapsed} />
-                ))}
-              </div>
+            <span
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--ll-border)] bg-[var(--ll-surface)] text-xs font-semibold text-[var(--ll-text)]"
+              aria-hidden
+            >
+              {avatarInitial}
+            </span>
+            {expanded && (
+              <>
+                <span
+                  className="min-w-0 flex-1 truncate text-xs text-[var(--ll-text-muted)]"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  title={user?.email ?? undefined}
+                >
+                  {user?.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={signOut}
+                  aria-label="Salir"
+                  title="Salir"
+                  className="shrink-0 rounded-md p-1.5 text-[var(--ll-text-muted)] transition-colors hover:bg-[var(--ll-surface)] hover:text-[var(--ll-text)]"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
             )}
+          </div>
+        </div>
+      </aside>
 
-            {/* Grouped sections. Collapsed rail shows every icon (no headers, no per-group collapse). */}
-            {sections.map((section, i) => {
-              const groupCollapsed = section.label != null && collapsed[section.label];
-              return (
-                <div key={section.label ?? `_${i}`} className="flex flex-col gap-1">
-                  {section.label && !railCollapsed && (
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(section.label!)}
-                      className="mt-2 flex w-full items-center justify-between px-3 pb-0.5 pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--ll-text-dim)] transition-colors hover:text-[var(--ll-text-muted)]"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      <span>{section.label}</span>
-                      <ChevronDown
-                        className={cn("h-3 w-3 transition-transform", groupCollapsed && "-rotate-90")}
-                      />
-                    </button>
-                  )}
-                  {railCollapsed && i > 0 && (
-                    <div className="mx-auto my-1 h-px w-6 bg-[var(--ll-border)]" aria-hidden />
-                  )}
-                  {(railCollapsed || !groupCollapsed) &&
-                    section.items.map((item) => (
-                      <NavRow key={item.to ?? item.label} item={item} collapsed={railCollapsed} />
-                    ))}
-                </div>
-              );
-            })}
-          </nav>
-        </aside>
-
+      {/* Content column — offset by the collapsed rail; the expanded rail overlays it. */}
+      <div className="md:ml-16">
+        <OfflineBanner />
         <main
           className={cn(
-            "flex-1 px-4 py-6 md:px-10 md:py-8",
+            "px-4 py-6 md:px-10 md:py-8",
             // Clear the bottom bar (mobile only; desktop has the sidebar).
-            showBottomBar ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8" : "pb-[calc(2rem+env(safe-area-inset-bottom,0px))]",
+            showBottomBar
+              ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8"
+              : "pb-[calc(2rem+env(safe-area-inset-bottom,0px))]",
           )}
           style={{ minWidth: 0 }}
         >
