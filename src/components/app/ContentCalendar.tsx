@@ -24,6 +24,9 @@ import {
 import { useScripts } from "@/hooks/useScripts";
 import type { Script } from "@/lib/api/scripts";
 import { updateScript } from "@/lib/api/scripts";
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import type { ScheduledPostWithJobs } from "@/lib/api/scheduledPosts";
+import { ScheduledPostPill } from "@/components/publishing/ScheduledPostPill";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -68,6 +71,23 @@ export default function ContentCalendar({ embedded = false }: { embedded?: boole
     }
     return map;
   }, [scheduled]);
+
+  // Scheduled + already-published publications (reels) shown as pills per day.
+  const { data: posts = [] } = useScheduledPosts({
+    from: periodStart.toISOString(),
+    to: periodEnd.toISOString(),
+  });
+  const postsByDay = useMemo(() => {
+    const map = new Map<string, ScheduledPostWithJobs[]>();
+    for (const p of posts) {
+      if (p.status === "draft" || p.status === "cancelled") continue;
+      const key = format(new Date(p.scheduled_at), "yyyy-MM-dd");
+      const arr = map.get(key) ?? [];
+      arr.push(p);
+      map.set(key, arr);
+    }
+    return map;
+  }, [posts]);
 
   const scheduleMutation = useMutation({
     mutationFn: ({ scriptId, date }: { scriptId: string; date: Date }) => {
@@ -160,6 +180,7 @@ export default function ContentCalendar({ embedded = false }: { embedded?: boole
               inCurrentMonth={view === "week" || isSameMonth(day, cursor)}
               isToday={isToday(day)}
               scripts={scriptsByDay.get(format(day, "yyyy-MM-dd")) ?? []}
+              posts={postsByDay.get(format(day, "yyyy-MM-dd")) ?? []}
               compact={embedded}
               maxPerCell={maxPerCell}
               onPick={() => setPickerDay(day)}
@@ -224,6 +245,7 @@ function CalendarCell({
   inCurrentMonth,
   isToday: today,
   scripts,
+  posts,
   compact,
   maxPerCell,
   onPick,
@@ -232,6 +254,7 @@ function CalendarCell({
   inCurrentMonth: boolean;
   isToday: boolean;
   scripts: Script[];
+  posts: ScheduledPostWithJobs[];
   compact: boolean;
   maxPerCell: number;
   onPick: () => void;
@@ -257,12 +280,24 @@ function CalendarCell({
         {format(day, "d")}
       </div>
       <ul className="space-y-1">
+        {/* Publicaciones (programadas / publicadas) */}
+        {posts.slice(0, maxPerCell).map((p) => (
+          <li key={p.id}>
+            <ScheduledPostPill post={p} />
+          </li>
+        ))}
+        {posts.length > maxPerCell && (
+          <li className="px-1.5 text-[10px]" style={{ color: "var(--ll-text-muted)" }}>
+            +{posts.length - maxPerCell} publicaciones
+          </li>
+        )}
+        {/* Guiones a grabar (drafts agendados) */}
         {scripts.slice(0, maxPerCell).map((s) => (
           <li key={s.id}>
             <Link
               to={`/app/admin/ideas/${s.id}`}
               onClick={(e) => e.stopPropagation()}
-              className="block truncate rounded bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[11px]"
+              className="block truncate rounded border-l-2 border-l-[var(--ll-warm)] bg-[var(--ll-surface-2)] px-1.5 py-0.5 text-[11px]"
               style={{ color: "var(--ll-text)" }}
               title={s.title ?? "Sin título"}
             >
@@ -272,7 +307,7 @@ function CalendarCell({
         ))}
         {scripts.length > maxPerCell && (
           <li className="px-1.5 text-[10px]" style={{ color: "var(--ll-text-muted)" }}>
-            +{scripts.length - maxPerCell} más
+            +{scripts.length - maxPerCell} a grabar
           </li>
         )}
       </ul>
