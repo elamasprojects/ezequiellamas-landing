@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
     }
 
     const accountMap = await buildAccountMap(admin);
-    const result = { imported: 0, merged: 0, synced: 0, videos: 0, discovered: 0, errors: [] as string[] };
+    const result = { imported: 0, merged: 0, synced: 0, videos: 0, discovered: 0, reconciled: 0, errors: [] as string[] };
 
     // ── 1) Pull every (post × platform) from Zernio analytics (paginated) ──────
     const entries: Entry[] = [];
@@ -467,6 +467,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── 3) Heal posts orphaned by a publish-now that died after submitting ─────
+    try {
+      result.reconciled = await reconcileStuckPublishes(admin);
+    } catch (e) {
+      result.errors.push(`reconcile: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     const ok = result.errors.length === 0 || result.synced > 0;
     return json(200, { ok, ...result });
   } catch (e) {
@@ -543,4 +550,95 @@ async function upsertPost(admin: SupabaseClient, videoId: string, ownerId: strin
     saves: e.saves,
     raw: e.raw,
   });
+}
+
+// ── reconcile orphaned publishes ─────────────────────────────────────────────
+// A publish-now that threw AFTER submitting to Zernio leaves its jobs in_progress
+// with no stamped zernio_post_id, so zernio-webhook can never match them and the
+// scheduled_post is stuck 'publishing' forever. Once the real video is synced
+// above, link it back here by owner+platform+near-scheduled-time and roll the
+// post up. Reconcile only — the content is already live, so we never republish.
+// Conservative on purpose: acts only on a unique, not-yet-linked match in a tight
+// window, so a healthy pipeline (no stuck jobs) is a no-op.
+const RECONCILE_WINDOW_MS = 2 * 60 * 60 * 1000; // scheduled_at vs realized posted_at
+const RECONCILE_MIN_AGE_MS = 10 * 60 * 1000; // give the webhook time to win first
+
+async function reconcileStuckPublishes(admin: SupabaseClient): Promise<number> {
+  const minAge = new Date(Date.now() - RECONCILE_MIN_AGE_MS).toISOString();
+  const { data: jobs } = await admin
+    .from("publish_jobs")
+    .select("id, platform, scheduled_post_id, started_at, scheduled_posts!inner(owner_id, status, scheduled_at)")
+    .eq("status", "in_progress")
+    .is("provider_post_url", null)
+    .lt("started_at", minAge)
+    .eq("scheduled_posts.status", "publishing");
+  if (!jobs || jobs.length === 0) return 0;
+
+  let healed = 0;
+  for (const job of jobs) {
+    const sp = (Array.isArray(job.scheduled_posts) ? job.scheduled_posts[0] : job.scheduled_posts) as
+      | { owner_id: string; scheduled_at: string | null }
+      | null;
+    const schedAt = sp?.scheduled_at ? Date.parse(sp.scheduled_at) : NaN;
+    if (!sp?.owner_id || !Number.isFinite(schedAt)) continue;
+
+    // Realized posts for this owner+platform, near the scheduled time.
+    const { data: cands } = await admin
+      .from("video_posts")
+      .select("id, video_id, source_url, platform_post_id, posted_at, videos!inner(owner_id)")
+      .eq("platform", job.platform as string)
+      .eq("videos.owner_id", sp.owner_id);
+    const near = (cands ?? []).filter(
+      (c) => c.posted_at && Math.abs(Date.parse(c.posted_at as string) - schedAt) <= RECONCILE_WINDOW_MS,
+    );
+    if (near.length !== 1) continue; // none or ambiguous → leave for manual review
+
+    const vp = near[0] as {
+      id: string;
+      video_id: string;
+      source_url: string;
+      platform_post_id: string | null;
+      posted_at: string;
+    };
+    // Never steal a post already attributed to another job.
+    const { count } = await admin
+      .from("publish_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("video_post_id", vp.id);
+    if ((count ?? 0) > 0) continue;
+
+    await admin
+      .from("publish_jobs")
+      .update({
+        status: "succeeded",
+        provider_post_url: vp.source_url,
+        provider_post_id: vp.platform_post_id,
+        finished_at: vp.posted_at,
+        video_id: vp.video_id,
+        video_post_id: vp.id,
+        last_error: null,
+        last_error_at: null,
+      })
+      .eq("id", job.id as string);
+    await rollupPostStatus(admin, job.scheduled_post_id as string);
+    healed++;
+  }
+  return healed;
+}
+
+// Mirror of zernio-webhook's rollup: derive the scheduled_post status from its jobs.
+async function rollupPostStatus(admin: SupabaseClient, postId: string): Promise<void> {
+  const { data: jobs } = await admin.from("publish_jobs").select("status").eq("scheduled_post_id", postId);
+  if (!jobs || jobs.length === 0) return;
+  const s = jobs.map((j) => j.status as string);
+  let next: string;
+  if (s.every((x) => x === "succeeded")) next = "published";
+  else if (s.some((x) => x === "in_progress" || x === "pending")) next = "publishing";
+  else if (s.some((x) => x === "succeeded") && s.some((x) => x === "failed")) next = "partial";
+  else if (s.every((x) => x === "failed")) next = "failed";
+  else if (s.every((x) => x === "cancelled")) next = "cancelled";
+  else next = "publishing";
+  const patch: Record<string, unknown> = { status: next };
+  if (next === "published") patch.published_at = new Date().toISOString();
+  await admin.from("scheduled_posts").update(patch).eq("id", postId);
 }
