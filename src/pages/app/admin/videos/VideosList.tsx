@@ -2,9 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
-import { Plus, RefreshCw, Search, Sparkles, Video as VideoIcon } from "lucide-react";
+import { Play, Plus, RefreshCw, Sparkles, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,28 +12,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVideos } from "@/hooks/useVideos";
 import { useFormats } from "@/hooks/useFormats";
 import PlatformIcon from "@/components/app/PlatformIcon";
+import VideoEmbed from "@/components/app/VideoEmbed";
 import {
   TIER_LABEL,
-  discoverAndImportVideos,
-  isSyncable,
+  playablePost,
   primaryPost,
-  syncVideoPost,
+  syncVideosFromZernio,
   type PerformanceTier,
   type VideoFilters,
   type VideoPlatform,
-  type VideoPost,
   type VideoWithPosts,
 } from "@/lib/api/videos";
 import { cn } from "@/lib/utils";
@@ -69,56 +58,19 @@ export default function VideosList() {
   const formatsById = new Map((formats ?? []).map((f) => [f.id, f.name]));
 
   const qc = useQueryClient();
-  const [pendingPostIds, setPendingPostIds] = useState<Set<string>>(new Set());
 
   const syncMutation = useMutation({
-    mutationFn: (post_id: string) => syncVideoPost(post_id),
-    onMutate: (post_id) => {
-      setPendingPostIds((prev) => new Set(prev).add(post_id));
-    },
-    onSettled: (_data, _err, post_id) => {
-      setPendingPostIds((prev) => {
-        const next = new Set(prev);
-        next.delete(post_id);
-        return next;
-      });
-    },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["video", data.video_id] });
-      qc.invalidateQueries({ queryKey: ["videos"] });
-      toast.success("Métricas actualizadas");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const handleSyncAll = (video: VideoWithPosts) => {
-    const syncableposts = video.posts.filter((p) => isSyncable(p.platform));
-    if (syncableposts.length === 0) return;
-    syncableposts.forEach((p) => syncMutation.mutate(p.id));
-  };
-
-  const discoverMutation = useMutation({
-    mutationFn: () => discoverAndImportVideos(7),
+    mutationFn: () => syncVideosFromZernio(),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["videos"] });
-      const errSummary = data.errors.length > 0
-        ? ` (errores: ${data.errors.map((e) => e.platform).join(", ")})`
-        : "";
-      const merged = data.merged ?? 0;
-      const mergedSummary = merged > 0
-        ? `, ${merged} sumada${merged === 1 ? "" : "s"} a existentes`
-        : "";
-      if (data.imported > 0 || merged > 0) {
-        const newCount = data.imported;
-        const newWord = newCount === 1 ? "video nuevo" : "videos nuevos";
-        const verb = newCount === 1 ? "importado" : "importados";
-        toast.success(
-          newCount > 0
-            ? `${newCount} ${newWord} ${verb}${mergedSummary}${errSummary}`
-            : `${merged} plataforma${merged === 1 ? "" : "s"} sumada${merged === 1 ? "" : "s"} a videos existentes${errSummary}`,
-        );
+      const errSummary = data.errors.length > 0 ? ` · ${data.errors.length} con error` : "";
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} ${data.imported === 1 ? "nuevo" : "nuevos"}`);
+      if (data.merged > 0) parts.push(`${data.merged} ${data.merged === 1 ? "fusionado" : "fusionados"}`);
+      if (parts.length > 0) {
+        toast.success(`Sincronizado: ${parts.join(", ")} (${data.synced} actualizados)${errSummary}`);
       } else {
-        toast(`No hay videos nuevos en los últimos 7 días${errSummary}`);
+        toast.success(`Métricas actualizadas: ${data.synced} videos${errSummary}`);
       }
     },
     onError: (err: Error) => toast.error(err.message),
@@ -141,19 +93,20 @@ export default function VideosList() {
             Tus <em style={{ color: "var(--ll-warm)" }}>videos</em> posteados
           </h1>
           <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Pegás la URL del video y traemos las métricas (views, likes, comments) automáticamente para Instagram,
-            YouTube y TikTok. La columna multiplier compara views vs el promedio de los últimos 90 días.
+            Sincronizamos tus videos y métricas de Instagram, YouTube y TikTok de forma nativa. Un mismo video posteado
+            en varias plataformas se agrupa en una sola tarjeta. El multiplier compara las views vs tu promedio de los
+            últimos 90 días.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 self-start sm:self-auto">
           <Button
             variant="outline"
-            onClick={() => discoverMutation.mutate()}
-            disabled={discoverMutation.isPending}
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
             className="border-[var(--ll-border)] bg-[var(--ll-surface)] text-[var(--ll-text)]"
           >
-            <Search className={cn("h-4 w-4", discoverMutation.isPending && "animate-pulse")} />
-            {discoverMutation.isPending ? "Buscando..." : "Buscar nuevos"}
+            <RefreshCw className={cn("h-4 w-4", syncMutation.isPending && "animate-spin")} />
+            {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
           </Button>
           <Button asChild variant="brand">
             <Link to="/app/admin/videos/new">
@@ -210,296 +163,125 @@ export default function VideosList() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-          <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[9/16] w-full bg-[var(--ll-surface)]" />
+          ))}
         </div>
       ) : !videos || videos.length === 0 ? (
         <EmptyState />
       ) : (
-        <>
-          {/* Mobile: stacked cards */}
-          <ul className="space-y-3 md:hidden">
-            {videos.map((v) => (
-              <li key={v.id}>
-                <VideoCard
-                  video={v}
-                  formatName={v.format_id ? formatsById.get(v.format_id) : undefined}
-                  pendingPostIds={pendingPostIds}
-                  onSyncAll={() => handleSyncAll(v)}
-                />
-              </li>
-            ))}
-          </ul>
-
-          {/* Desktop: table */}
-          <div className="hidden overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] md:block">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-[var(--ll-border)] hover:bg-transparent">
-                  <TableHead className="w-16" style={{ color: "var(--ll-text-muted)" }}></TableHead>
-                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Título</TableHead>
-                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Plataformas</TableHead>
-                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Formato</TableHead>
-                  <TableHead style={{ color: "var(--ll-text-muted)" }}>Fecha</TableHead>
-                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
-                    Views
-                  </TableHead>
-                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
-                    Multiplier
-                  </TableHead>
-                  <TableHead className="text-right" style={{ color: "var(--ll-text-muted)" }}>
-                    Sync
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {videos.map((v) => {
-                  const primary = primaryPost(v.posts);
-                  const anyPending = v.posts.some((p) => pendingPostIds.has(p.id));
-                  return (
-                    <TableRow
-                      key={v.id}
-                      className="cursor-pointer border-[var(--ll-border)]"
-                      onClick={() => (window.location.href = `/app/admin/videos/${v.id}`)}
-                    >
-                      <TableCell>
-                        {primary?.thumbnail_url ? (
-                          <img src={primary.thumbnail_url} alt="" className="h-10 w-10 rounded object-cover" />
-                        ) : (
-                          <div
-                            className="flex h-10 w-10 items-center justify-center rounded"
-                            style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
-                          >
-                            <VideoIcon className="h-4 w-4" />
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium" style={{ color: "var(--ll-text)" }}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {v.title || (
-                            <span style={{ color: "var(--ll-text-dim)" }} className="italic">
-                              sin título
-                            </span>
-                          )}
-                          {v.is_clip && (
-                            <Badge
-                              variant="outline"
-                              className="shrink-0 border-[var(--ll-accent)]/40 text-[var(--ll-accent)]"
-                            >
-                              Clip
-                            </Badge>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="inline-flex items-center gap-1.5">
-                          {v.posts.length === 0 ? (
-                            <span style={{ color: "var(--ll-text-dim)" }}>—</span>
-                          ) : (
-                            v.posts.map((p) => (
-                              <PlatformIcon key={p.id} platform={p.platform as VideoPlatform} className="h-4 w-4" />
-                            ))
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {v.format_id && formatsById.get(v.format_id) ? (
-                          <Badge variant="outline" className="border-[var(--ll-border)] text-[var(--ll-text-muted)]">
-                            {formatsById.get(v.format_id)}
-                          </Badge>
-                        ) : (
-                          <span style={{ color: "var(--ll-text-dim)" }}>—</span>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs"
-                        style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {primary?.posted_at ? new Date(primary.posted_at).toLocaleDateString("es-AR") : "—"}
-                      </TableCell>
-                      <TableCell className="text-right" style={{ color: "var(--ll-text)" }}>
-                        {v.views_total_aggregate !== null ? formatNum(v.views_total_aggregate) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {v.multiplier !== null && v.performance_tier ? (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "ml-auto inline-flex border",
-                              TIER_CLASS[v.performance_tier as PerformanceTier],
-                            )}
-                          >
-                            {Number(v.multiplier).toFixed(1)}× {TIER_LABEL[v.performance_tier as PerformanceTier]}
-                          </Badge>
-                        ) : (
-                          <span style={{ color: "var(--ll-text-dim)" }}>—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <SyncStatus
-                          posts={v.posts}
-                          pending={anyPending}
-                          onSync={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            handleSyncAll(v);
-                          }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {videos.map((v) => (
+            <VideoPlayCard
+              key={v.id}
+              video={v}
+              formatName={v.format_id ? formatsById.get(v.format_id) : undefined}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function VideoCard({
-  video,
-  formatName,
-  pendingPostIds,
-  onSyncAll,
-}: {
-  video: VideoWithPosts;
-  formatName?: string;
-  pendingPostIds: Set<string>;
-  onSyncAll: () => void;
-}) {
+function VideoPlayCard({ video, formatName }: { video: VideoWithPosts; formatName?: string }) {
+  const [playing, setPlaying] = useState(false);
   const tier = video.performance_tier as PerformanceTier | null;
   const primary = primaryPost(video.posts);
-  const anyPending = video.posts.some((p) => pendingPostIds.has(p.id));
+  const playable = playablePost(video.posts);
+  // Prefer the playable platform's thumbnail (IG→YT→TT) so it's a consistent
+  // vertical image matching what plays; fall back to any available thumbnail.
+  const thumb =
+    playable?.thumbnail_url ?? primary?.thumbnail_url ?? video.posts.find((p) => p.thumbnail_url)?.thumbnail_url ?? null;
+
   return (
-    <div className="rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-3">
-      <Link
-        to={`/app/admin/videos/${video.id}`}
-        className="flex gap-3 transition-colors active:bg-[var(--ll-surface-2)]"
-      >
-        {primary?.thumbnail_url ? (
-          <img src={primary.thumbnail_url} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+    <div className="flex flex-col overflow-hidden rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)]">
+      <div className="relative aspect-[9/16] bg-black">
+        {playing && playable ? (
+          <VideoEmbed post={playable} bare />
         ) : (
-          <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded"
-            style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
+          <button
+            type="button"
+            onClick={() => playable && setPlaying(true)}
+            disabled={!playable}
+            className="group relative h-full w-full"
+            aria-label={playable ? "Reproducir" : "Sin reproducción disponible"}
           >
-            <VideoIcon className="h-5 w-5" />
-          </div>
+            {thumb ? (
+              <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center"
+                style={{ background: "var(--ll-surface-2)", color: "var(--ll-text-dim)" }}
+              >
+                <VideoIcon className="h-8 w-8" />
+              </div>
+            )}
+            {playable && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-90 transition-opacity group-hover:bg-black/35 group-hover:opacity-100">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
+                  <Play className="h-5 w-5 translate-x-[1px] fill-white text-white" />
+                </span>
+              </div>
+            )}
+            {tier && video.multiplier !== null && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "absolute right-2 top-2 border bg-black/55 backdrop-blur-sm",
+                  TIER_CLASS[tier],
+                )}
+              >
+                {Number(video.multiplier).toFixed(1)}×
+              </Badge>
+            )}
+          </button>
         )}
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate font-medium" style={{ color: "var(--ll-text)" }}>
-              {video.title || (
-                <span className="italic" style={{ color: "var(--ll-text-dim)" }}>
-                  sin título
-                </span>
-              )}
-            </h3>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {video.is_clip && (
-                <Badge
-                  variant="outline"
-                  className="border-[var(--ll-accent)]/40 text-[var(--ll-accent)]"
-                >
-                  Clip
-                </Badge>
-              )}
-              {tier && video.multiplier !== null && (
-                <Badge variant="outline" className={cn("border", TIER_CLASS[tier])}>
-                  {Number(video.multiplier).toFixed(1)}×
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--ll-text-muted)" }}>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <Link
+          to={`/app/admin/videos/${video.id}`}
+          className="line-clamp-2 text-sm font-medium leading-snug transition-colors hover:text-[var(--ll-accent)]"
+          style={{ color: "var(--ll-text)" }}
+        >
+          {video.title || <span className="italic" style={{ color: "var(--ll-text-dim)" }}>sin título</span>}
+        </Link>
+
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
             {video.posts.map((p) => (
-              <PlatformIcon key={p.id} platform={p.platform as VideoPlatform} className="h-3.5 w-3.5" />
+              <PlatformIcon key={p.id} platform={p.platform as VideoPlatform} className="h-4 w-4" />
             ))}
-            {formatName && (
-              <>
-                <span style={{ color: "var(--ll-text-dim)" }}>·</span>
-                <span>{formatName}</span>
-              </>
-            )}
-            {primary?.posted_at && (
-              <>
-                <span style={{ color: "var(--ll-text-dim)" }}>·</span>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                  {new Date(primary.posted_at).toLocaleDateString("es-AR")}
-                </span>
-              </>
+            {video.is_clip && (
+              <Badge variant="outline" className="border-[var(--ll-accent)]/40 text-[var(--ll-accent)]">
+                Clip
+              </Badge>
             )}
           </div>
-          {video.views_total_aggregate !== null && (
-            <div
-              className="text-xs"
-              style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              {formatNum(video.views_total_aggregate)} views
-            </div>
+          {tier && video.multiplier !== null && (
+            <Badge variant="outline" className={cn("border", TIER_CLASS[tier])}>
+              {Number(video.multiplier).toFixed(1)}× {TIER_LABEL[tier]}
+            </Badge>
           )}
         </div>
-      </Link>
-      <div className="mt-3 flex items-center justify-end border-t border-[var(--ll-border)] pt-2">
-        <SyncStatus
-          posts={video.posts}
-          pending={anyPending}
-          onSync={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onSyncAll();
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
-function SyncStatus({
-  posts,
-  pending,
-  onSync,
-}: {
-  posts: VideoPost[];
-  pending: boolean;
-  onSync: (e: React.MouseEvent) => void;
-}) {
-  const primary = primaryPost(posts);
-  const time = primary?.last_scraped_at ? formatDistanceToNow(new Date(primary.last_scraped_at), { addSuffix: true, locale: es }) : null;
-  const anyError = posts.some((p) => !!p.last_scrape_error);
-  const errorMsg = posts.find((p) => p.last_scrape_error)?.last_scrape_error;
-  const hasSyncable = posts.some((p) => isSyncable(p.platform));
-
-  return (
-    <div className="inline-flex items-center justify-end gap-2">
-      <span
-        className="text-xs"
-        style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
-        title={errorMsg ?? undefined}
-      >
-        {anyError && (
-          <span className="text-red-400" aria-hidden>
-            ●{" "}
-          </span>
-        )}
-        {time ?? <span style={{ color: "var(--ll-text-dim)" }}>—</span>}
-      </span>
-      {hasSyncable && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          disabled={pending}
-          onClick={onSync}
-          aria-label="Sincronizar todas las plataformas"
+        <div
+          className="flex items-center justify-between text-xs"
+          style={{ color: "var(--ll-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
         >
-          <RefreshCw className={cn("h-3.5 w-3.5", pending && "animate-spin")} />
-        </Button>
-      )}
+          <span>{video.views_total_aggregate !== null ? `${formatNum(video.views_total_aggregate)} views` : "— views"}</span>
+          <span>
+            {primary?.posted_at ? new Date(primary.posted_at).toLocaleDateString("es-AR") : "—"}
+          </span>
+        </div>
+        {formatName && (
+          <div className="text-[10px] uppercase tracking-[0.12em]" style={{ color: "var(--ll-text-dim)", fontFamily: "'JetBrains Mono', monospace" }}>
+            {formatName}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -549,15 +331,15 @@ function EmptyState() {
         <Sparkles className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
       </div>
       <h3 className="text-xl" style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.02em" }}>
-        Todavía no cargaste ningún video posteado
+        Todavía no hay videos
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--ll-text-muted)" }}>
-        Cargás la URL de cada video que posteaste. Las métricas las podés sincronizar con un click si es de Instagram,
-        YouTube o TikTok. Con 2+ videos calculamos el multiplier vs tu promedio.
+        Tocá <strong>Sincronizar</strong> para traer tus videos y métricas desde Instagram, YouTube y TikTok. Los
+        videos posteados en varias plataformas se agrupan en una sola tarjeta.
       </p>
       <Button asChild variant="brand" className="mt-6">
         <Link to="/app/admin/videos/new">
-          <Plus className="h-4 w-4" /> Cargar tu primer video
+          <Plus className="h-4 w-4" /> Cargar un video manualmente
         </Link>
       </Button>
     </div>
