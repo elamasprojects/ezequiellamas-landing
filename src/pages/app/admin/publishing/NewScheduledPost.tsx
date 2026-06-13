@@ -305,7 +305,9 @@ export default function NewScheduledPost() {
         caption_default: defaultCaption || null,
         captions: captionsByPlatform,
         hashtags,
-        scheduled_at: (mode === "now" ? new Date() : new Date(scheduledAt)).toISOString(),
+        // A predict-first draft is never "publish now" — always use the picker's
+        // (future) time so it can't be insta-published when later scheduled.
+        scheduled_at: new Date(scheduledAt).toISOString(),
         script_id: scriptId,
         format_id: formatId,
         platforms,

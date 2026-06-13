@@ -86,6 +86,12 @@ export function ViralityPrediction({ scheduledPostId, status, platforms, autoPre
 
   // Auto-fire once when arriving from the form's "Predecir alcance" button.
   const autoFired = useRef(false);
+  // Reset the one-shot guard when the post changes — ScheduledPostDetail is the
+  // same route component for /publishing/:id, so this instance is reused across
+  // navigations and the ref would otherwise stay latched.
+  useEffect(() => {
+    autoFired.current = false;
+  }, [scheduledPostId]);
   useEffect(() => {
     if (autoPredict && !autoFired.current && !isLoading && predictions.length === 0 && !predict.isPending) {
       autoFired.current = true;

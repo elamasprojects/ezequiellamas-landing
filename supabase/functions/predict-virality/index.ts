@@ -119,6 +119,14 @@ function clampNum(n: unknown, min: number, max: number, fallback: number): numbe
   return Math.max(min, Math.min(max, v));
 }
 
+// Postgres `numeric` columns come back from PostgREST as STRINGS — coerce before
+// any numeric use (e.g. the calibration errors read from post_predictions).
+function toNum(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Tier RELATIVO a la mediana del creador en esa plataforma. Mismo umbral que el
 // trigger calculate_video_multiplier() (3x/5x/7x), pero per-platform-vs-median.
 // Se reusa idéntico en evaluate-prediction para que predicho y real sean comparables.
@@ -634,7 +642,7 @@ Deno.serve(async (req) => {
     for (const r of refRows ?? []) {
       const ref = r.referents as { name?: string } | { name?: string }[] | null;
       const refName = Array.isArray(ref) ? ref[0]?.name : ref?.name;
-      const key = `${refName ?? "?"}__${r.platform}`;
+      const key = `${refName ?? "Referente"}__${r.platform}`;
       if (!byRefPlat.has(key)) byRefPlat.set(key, []);
       byRefPlat.get(key)!.push(r.views_total as number);
       if (!byPlat.has(r.platform)) byPlat.set(r.platform, []);
@@ -674,8 +682,8 @@ Deno.serve(async (req) => {
     const calibration: Record<string, Calibration> = {};
     for (const p of platforms) {
       const rows = (evalRows ?? []).filter((r) => r.platform === p).slice(0, 20);
-      const abs = rows.map((r) => r.abs_pct_error).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
-      const signed = rows.map((r) => r.signed_pct_error).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
+      const abs = rows.map((r) => toNum(r.abs_pct_error)).filter((x): x is number => x != null).sort((a, b) => a - b);
+      const signed = rows.map((r) => toNum(r.signed_pct_error)).filter((x): x is number => x != null).sort((a, b) => a - b);
       const within = rows.filter((r) => typeof r.within_range === "boolean");
       calibration[p] = {
         n: rows.length,
@@ -754,7 +762,6 @@ Deno.serve(async (req) => {
 
     // -- Build rows (clamp + fallback for missing platforms) ------------------
     const nowIso = new Date().toISOString();
-    const baseSnapshot = JSON.parse(JSON.stringify(baselines));
     const rows = platforms.map((p) => {
       const b = baselines[p];
       const median = b?.median ?? null;
@@ -807,7 +814,7 @@ Deno.serve(async (req) => {
         referent_signals,
         reasoning,
         model_version: MODEL_VERSION,
-        baseline_snapshot: baseSnapshot[p] ?? {},
+        baseline_snapshot: baselines[p] ?? {},
         referent_snapshot: { count: referents.filter((r) => r.platform === p).length },
         input_snapshot: {
           has_transcript: hasTranscript,
@@ -820,6 +827,18 @@ Deno.serve(async (req) => {
         status: "predicted",
         error: null,
         updated_at: nowIso,
+        // Re-predicting (force) must not carry a prior run's evaluation. Keep an
+        // existing video_post_id binding, but clear the actuals/error so a fresh
+        // forecast isn't annotated with stale accuracy until the next eval.
+        actual_views: null,
+        actual_tier: null,
+        actual_captured_at: null,
+        horizon_label: null,
+        abs_pct_error: null,
+        signed_pct_error: null,
+        within_range: null,
+        score_error: null,
+        evaluated_at: null,
       };
     });
 

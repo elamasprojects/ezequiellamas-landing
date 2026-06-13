@@ -50,7 +50,16 @@ export default function ScheduledPostDetail() {
 
   // Flip a draft (e.g. created by "Predecir alcance") to scheduled so the cron picks it up.
   const schedule = useMutation({
-    mutationFn: () => updateScheduledPost(id!, { status: "scheduled" }),
+    mutationFn: (currentScheduledAt: string) =>
+      updateScheduledPost(id!, {
+        status: "scheduled",
+        // If the draft's time already passed (it sat around after "Predecir
+        // alcance"), push it a few minutes out so scheduler-tick doesn't publish
+        // it on the very next run — "Programar" must not behave like "Publicar ahora".
+        ...(new Date(currentScheduledAt).getTime() <= Date.now()
+          ? { scheduled_at: new Date(Date.now() + 10 * 60_000).toISOString() }
+          : {}),
+      }),
     onSuccess: () => {
       toast.success("Post programado");
       qc.invalidateQueries({ queryKey: ["scheduled-post", id] });
@@ -124,7 +133,7 @@ export default function ScheduledPostDetail() {
                 variant="brand"
                 size="sm"
                 disabled={schedule.isPending}
-                onClick={() => schedule.mutate()}
+                onClick={() => schedule.mutate(post.scheduled_at)}
                 title="Dejar programado para su fecha y que se publique solo"
               >
                 {schedule.isPending ? (

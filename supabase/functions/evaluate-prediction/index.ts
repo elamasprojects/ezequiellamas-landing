@@ -86,17 +86,26 @@ function normalizeUrl(u: string | null | undefined): string | null {
   }
 }
 
+interface SpHint {
+  status?: string;
+  published_at?: string | null;
+  scheduled_at?: string | null;
+}
+
 interface PredictionRow {
   id: string;
   owner_id: string;
   scheduled_post_id: string;
   platform: string;
+  status?: string;
   video_post_id: string | null;
   predicted_virality_score: number;
   predicted_views_point: number;
   predicted_views_low: number;
   predicted_views_high: number;
   baseline_snapshot: Record<string, unknown> | null;
+  // Present only in sweep mode (embedded join) — lets evaluateOne skip a re-fetch.
+  scheduled_posts?: SpHint | SpHint[] | null;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -129,15 +138,19 @@ async function resolveVideoPostId(db: Db, pred: PredictionRow, liveAt: string | 
     if (hit) return hit.id;
   }
 
-  // Fallback B: closest posted_at to when the post went live (±3 days).
+  // Fallback B: nearest posted_at to when the post went live, accepted ONLY if
+  // confidently close (<=24h). A looser window can bind to a DIFFERENT post when
+  // the creator published several on the same platform days apart, silently
+  // corrupting the actual + calibration. If nothing is within 24h, skip (the
+  // authoritative link from the webhook, or a later scrape, can resolve it).
   const refTime = new Date(liveAt ?? Date.now()).getTime();
   let best: { id: string; dist: number } | null = null;
   for (const p of posts) {
     if (!p.posted_at) continue;
     const dist = Math.abs(new Date(p.posted_at).getTime() - refTime);
-    if (dist <= 3 * 86400_000 && (!best || dist < best.dist)) best = { id: p.id, dist };
+    if (!best || dist < best.dist) best = { id: p.id, dist };
   }
-  return best?.id ?? null;
+  return best && best.dist <= 24 * 3600_000 ? best.id : null;
 }
 
 async function latestViews(db: Db, videoPostId: string): Promise<{ views: number | null; at: string | null }> {
@@ -159,22 +172,25 @@ async function latestViews(db: Db, videoPostId: string): Promise<{ views: number
   return { views: vp?.views_total ?? null, at: vp?.metrics_updated_at ?? null };
 }
 
-async function evaluateOne(db: Db, pred: PredictionRow): Promise<"evaluated" | "provisional" | "skipped"> {
+async function evaluateOne(db: Db, pred: PredictionRow, spHint?: SpHint | null): Promise<"evaluated" | "provisional" | "skipped"> {
   // Only evaluate posts that actually went live — avoids false posted_at matches
-  // for drafts/scheduled posts that were never published.
-  const { data: sp } = await db
+  // for drafts/scheduled posts that were never published. In sweep mode the
+  // scheduled_post is already joined, so reuse it instead of re-fetching per row.
+  const sp = spHint ?? (await db
     .from("scheduled_posts")
     .select("status, published_at, scheduled_at")
     .eq("id", pred.scheduled_post_id)
-    .maybeSingle();
+    .maybeSingle()).data as SpHint | null;
   if (!sp || (sp.status !== "published" && sp.status !== "partial")) return "skipped";
-  const liveAt = sp.published_at ?? sp.scheduled_at;
+  const liveAt = sp.published_at ?? sp.scheduled_at ?? null;
 
   const videoPostId = await resolveVideoPostId(db, pred, liveAt);
   if (!videoPostId) return "skipped";
 
   const { views: actual, at } = await latestViews(db, videoPostId);
-  if (actual == null) return "skipped";
+  // 0 / negative views ≈ "not scraped yet" — skip and retry rather than finalize a
+  // meaningless error (point/0 → huge %) against it.
+  if (actual == null || actual <= 0) return "skipped";
 
   const days = liveAt ? (Date.now() - new Date(liveAt).getTime()) / 86400_000 : 0;
   const mature = days >= MATURITY_DAYS;
@@ -211,7 +227,7 @@ async function evaluateOne(db: Db, pred: PredictionRow): Promise<"evaluated" | "
 }
 
 const PRED_COLS =
-  "id, owner_id, scheduled_post_id, platform, video_post_id, predicted_virality_score, predicted_views_point, predicted_views_low, predicted_views_high, baseline_snapshot";
+  "id, owner_id, scheduled_post_id, platform, status, video_post_id, predicted_virality_score, predicted_views_point, predicted_views_low, predicted_views_high, baseline_snapshot";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -245,7 +261,7 @@ Deno.serve(async (req) => {
       const cutoff = new Date(Date.now() - MATURITY_DAYS * 86400_000).toISOString();
       const { data } = await service
         .from("post_predictions")
-        .select(`${PRED_COLS}, scheduled_posts!inner(published_at, scheduled_at)`)
+        .select(`${PRED_COLS}, scheduled_posts!inner(status, published_at, scheduled_at)`)
         .eq("status", "predicted")
         .eq("model_version", MODEL_VERSION)
         .or(`published_at.lte.${cutoff},and(published_at.is.null,scheduled_at.lte.${cutoff})`, {
@@ -263,12 +279,16 @@ Deno.serve(async (req) => {
       preds = (data ?? []) as unknown as PredictionRow[];
       // Ownership check for user-invoked calls.
       if (!isServiceRole) preds = preds.filter((p) => p.owner_id === callerId);
+      // Don't re-touch already-finalized rows (refresh/re-bind risk); the sweep
+      // owns re-evaluation of matured rows.
+      preds = preds.filter((p) => p.status !== "evaluated");
     }
 
     const results = { evaluated: 0, provisional: 0, skipped: 0 };
     for (const pred of preds) {
       try {
-        const r = await evaluateOne(service, pred);
+        const embedded = Array.isArray(pred.scheduled_posts) ? pred.scheduled_posts[0] : pred.scheduled_posts;
+        const r = await evaluateOne(service, pred, embedded ?? undefined);
         results[r] += 1;
       } catch (e) {
         console.error(`evaluate-prediction: row ${pred.id} failed: ${e instanceof Error ? e.message : e}`);
