@@ -18,10 +18,10 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import type { ScheduledPostWithJobs } from "@/lib/api/scheduledPosts";
-import { PublishStatusPill } from "@/components/publishing/PublishStatusPill";
-import { PlatformBadge } from "@/components/publishing/PlatformBadge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { CalendarCoverThumb } from "@/components/publishing/CalendarCoverThumb";
+import { ScheduledPostPreview } from "@/components/publishing/ScheduledPostPreview";
 import { cn } from "@/lib/utils";
-import type { PublishPlatform } from "@/lib/publishing/platformLimits";
 
 export default function PublishingCalendar() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
@@ -164,29 +164,29 @@ export default function PublishingCalendar() {
                   <ul className="space-y-1">
                     {items.slice(0, 3).map((p) => (
                       <li key={p.id}>
-                        <Link
-                          to={`/app/admin/publishing/${p.id}`}
-                          className="block space-y-1 rounded bg-[var(--ll-surface-2)] p-1"
-                        >
-                          <div className="flex items-center gap-1">
-                            {p.publish_jobs.slice(0, 3).map((j) => (
-                              <PlatformBadge
-                                key={j.id}
-                                platform={j.platform as PublishPlatform}
-                                size="xs"
-                                iconOnly
-                              />
-                            ))}
-                          </div>
-                          <div
-                            className="truncate text-[10px]"
-                            style={{ color: "var(--ll-text)" }}
-                            title={p.title ?? "Sin título"}
+                        <HoverCard openDelay={2000} closeDelay={150}>
+                          <HoverCardTrigger asChild>
+                            <Link
+                              to={`/app/admin/publishing/${p.id}`}
+                              className="flex items-center gap-1.5 rounded bg-[var(--ll-surface-2)] p-1 transition-shadow hover:ring-1 hover:ring-[var(--ll-border-strong)]"
+                            >
+                              <CalendarCoverThumb cover={p.cover} className="aspect-[9/16] w-3.5" />
+                              <span
+                                className="min-w-0 flex-1 truncate text-[10px]"
+                                style={{ color: "var(--ll-text)" }}
+                                title={p.title ?? "Sin título"}
+                              >
+                                {p.title || "(sin título)"}
+                              </span>
+                            </Link>
+                          </HoverCardTrigger>
+                          <HoverCardContent
+                            align="start"
+                            className="border-[var(--ll-border)] bg-[var(--ll-surface)]"
                           >
-                            {p.title || "(sin título)"}
-                          </div>
-                          <PublishStatusPill status={p.status} className="text-[9px] px-1.5 py-0" />
-                        </Link>
+                            <ScheduledPostPreview post={p} />
+                          </HoverCardContent>
+                        </HoverCard>
                       </li>
                     ))}
                     {items.length > 3 && (

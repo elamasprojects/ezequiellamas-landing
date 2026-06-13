@@ -20,8 +20,15 @@ export const POST_STATUS_LABEL: Record<ScheduledPostStatus, string> = {
   cancelled: "Cancelado",
 };
 
+export interface ScheduledPostCover {
+  id: string;
+  generated_image_path: string | null;
+  status: string;
+}
+
 export interface ScheduledPostWithJobs extends ScheduledPost {
   publish_jobs: PublishJob[];
+  cover?: ScheduledPostCover | null;
 }
 
 export interface ScheduledPostFilters {
@@ -37,7 +44,7 @@ export async function fetchScheduledPosts(
 ): Promise<ScheduledPostWithJobs[]> {
   let query = supabase
     .from("scheduled_posts")
-    .select("*, publish_jobs(*)")
+    .select("*, publish_jobs(*), cover:covers(id, generated_image_path, status)")
     .order("scheduled_at", { ascending: false });
 
   if (filters.status) query = query.eq("status", filters.status);
@@ -59,7 +66,7 @@ export async function fetchScheduledPosts(
 export async function fetchScheduledPost(id: string): Promise<ScheduledPostWithJobs | null> {
   const { data, error } = await supabase
     .from("scheduled_posts")
-    .select("*, publish_jobs(*)")
+    .select("*, publish_jobs(*), cover:covers(id, generated_image_path, status)")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
