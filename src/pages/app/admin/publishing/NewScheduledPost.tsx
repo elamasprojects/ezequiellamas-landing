@@ -285,6 +285,46 @@ export default function NewScheduledPost() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // "Predecir alcance": saves a draft (no auto-publish) and jumps to the detail
+  // page, which auto-runs the AI prediction. The draft IS the post you'll later
+  // schedule/publish from there — no orphan rows.
+  const draftAndPredict = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("No hay sesión");
+      if (assetKind !== "video") throw new Error("La predicción es solo para videos");
+      if (!videoState) throw new Error("Subí un video primero");
+      if (platforms.length === 0) throw new Error("Elegí al menos una plataforma");
+      const post = await createScheduledPost({
+        owner_id: user.id,
+        asset_kind: "video",
+        bunny_video_id: videoState.bunny_video_id ?? null,
+        bunny_library_id: videoState.bunny_library_id ?? null,
+        video_storage_path: null,
+        carousel_id: null,
+        title: title || null,
+        caption_default: defaultCaption || null,
+        captions: captionsByPlatform,
+        hashtags,
+        scheduled_at: (mode === "now" ? new Date() : new Date(scheduledAt)).toISOString(),
+        script_id: scriptId,
+        format_id: formatId,
+        platforms,
+        schedule_now: false,
+        transcript: cachedTranscript,
+        transcript_language: cachedTranscriptLang,
+        transcript_status: cachedTranscript ? "done" : "idle",
+        cover_id: coverId,
+        commentAutomation: null,
+      });
+      return post;
+    },
+    onSuccess: (post) => {
+      qc.invalidateQueries({ queryKey: ["scheduled-posts"] });
+      navigate(`/app/admin/publishing/${post.id}?predict=1`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   return (
     <div className="space-y-8">
       <header className="space-y-3">
@@ -838,10 +878,25 @@ export default function NewScheduledPost() {
         <Button asChild variant="ghost" disabled={create.isPending}>
           <Link to="/app/admin/publishing">Cancelar</Link>
         </Button>
+        {assetKind === "video" && (
+          <Button
+            variant="outline"
+            onClick={() => draftAndPredict.mutate()}
+            disabled={draftAndPredict.isPending || create.isPending || !videoState || platforms.length === 0}
+            title="Guarda un borrador y estima el alcance con IA"
+          >
+            {draftAndPredict.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Predecir alcance
+          </Button>
+        )}
         <Button
           variant="brand"
           onClick={() => create.mutate()}
-          disabled={create.isPending || validation.length > 0 || platforms.length === 0}
+          disabled={create.isPending || draftAndPredict.isPending || validation.length > 0 || platforms.length === 0}
         >
           {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {mode === "now" ? "Publicar ahora" : "Programar"}

@@ -1,18 +1,20 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Send, Trash2, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Loader2, Send, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScheduledPost } from "@/hooks/useScheduledPost";
 import { PublishLogs } from "@/components/publishing/PublishLogs";
+import { ViralityPrediction } from "@/components/publishing/ViralityPrediction";
 import { PublishStatusPill } from "@/components/publishing/PublishStatusPill";
 import { PlatformBadge } from "@/components/publishing/PlatformBadge";
-import { cancelScheduledPost, deleteScheduledPost } from "@/lib/api/scheduledPosts";
+import { cancelScheduledPost, deleteScheduledPost, updateScheduledPost } from "@/lib/api/scheduledPosts";
 import { publishNow } from "@/lib/api/publishing";
 import type { PublishPlatform } from "@/lib/publishing/platformLimits";
 
 export default function ScheduledPostDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: post, isLoading } = useScheduledPost(id);
@@ -42,6 +44,17 @@ export default function ScheduledPostDetail() {
     onSuccess: () => {
       toast.success("Publicación iniciada");
       qc.invalidateQueries({ queryKey: ["scheduled-post", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Flip a draft (e.g. created by "Predecir alcance") to scheduled so the cron picks it up.
+  const schedule = useMutation({
+    mutationFn: () => updateScheduledPost(id!, { status: "scheduled" }),
+    onSuccess: () => {
+      toast.success("Post programado");
+      qc.invalidateQueries({ queryKey: ["scheduled-post", id] });
+      qc.invalidateQueries({ queryKey: ["scheduled-posts"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -106,9 +119,25 @@ export default function ScheduledPostDetail() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(post.status === "scheduled" || post.status === "draft") && (
+            {post.status === "draft" && (
               <Button
                 variant="brand"
+                size="sm"
+                disabled={schedule.isPending}
+                onClick={() => schedule.mutate()}
+                title="Dejar programado para su fecha y que se publique solo"
+              >
+                {schedule.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CalendarClock className="h-4 w-4" />
+                )}
+                Programar
+              </Button>
+            )}
+            {(post.status === "scheduled" || post.status === "draft") && (
+              <Button
+                variant={post.status === "draft" ? "outline" : "brand"}
                 size="sm"
                 disabled={publishAll.isPending}
                 onClick={() => publishAll.mutate()}
@@ -200,6 +229,18 @@ export default function ScheduledPostDetail() {
           </div>
         )}
       </section>
+
+      {post.asset_kind === "video" && (
+        <section className="space-y-3">
+          <SectionHeading>Predicción de viralidad</SectionHeading>
+          <ViralityPrediction
+            scheduledPostId={post.id}
+            status={post.status}
+            platforms={platforms}
+            autoPredict={searchParams.get("predict") === "1"}
+          />
+        </section>
+      )}
 
       <section className="space-y-3">
         <SectionHeading>Jobs de publicación</SectionHeading>
