@@ -40,8 +40,7 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
     { to: "/app/admin/referentes", label: "Referentes", icon: <Compass className="h-4 w-4" />, group: "Crear" },
 
     // ── Producir ──
-    { to: "/app/admin/studio", label: "YouTube Studio", icon: <Film className="h-4 w-4" />, group: "Producir" },
-    { to: "/app/admin/youtube", label: "Mi YouTube", icon: <Youtube className="h-4 w-4" />, group: "Producir" },
+    { to: "/app/admin/youtube", label: "YouTube", icon: <Youtube className="h-4 w-4" />, group: "Producir" },
     { to: "/app/admin/carousels", label: "Carruseles", icon: <LayoutGrid className="h-4 w-4" />, group: "Producir" },
     { to: "/app/admin/resources", label: "Recursos", icon: <BookOpen className="h-4 w-4" />, group: "Producir" },
     { to: "/app/admin/covers", label: "Portadas", icon: <ImagePlay className="h-4 w-4" />, group: "Producir" },

@@ -48,7 +48,7 @@ export default function NewIdeaModal({ open, onOpenChange }: Props) {
             label="Largo"
             sub="Video de YouTube"
             icon={<Youtube className="h-9 w-9" />}
-            onClick={() => go("/app/admin/studio")}
+            onClick={() => go("/app/admin/youtube?tab=proyectos&new=1")}
           />
         </div>
       </DialogContent>
