@@ -1,0 +1,1037 @@
+/* ================================================================
+   Content Center — product sub-landing (/content-center).
+   Bespoke styles scoped under `.cc-page`, reusing the landing brand
+   tokens (--ll-*) and fonts (Instrument Serif / DM Sans / JetBrains
+   Mono). Entrance animation is handled by framer-motion in the
+   components; this file owns layout, the brand visual language, hover
+   states, the logo marquee and the waitlist form.
+================================================================ */
+
+.cc-page {
+  background: var(--ll-bg);
+  color: var(--ll-text);
+  font-family: "DM Sans", sans-serif;
+  font-weight: 300;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.cc-page ::selection {
+  background: var(--ll-accent);
+  color: var(--ll-bg);
+}
+
+/* ── shared shell ── */
+.cc-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 6vw;
+}
+
+.cc-eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--ll-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  margin-bottom: 1rem;
+}
+
+.cc-h2 {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(2.2rem, 4.8vw, 3.9rem);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin-bottom: 1.1rem;
+}
+
+.cc-h2 em {
+  font-style: italic;
+  color: var(--ll-accent);
+}
+
+.cc-lead {
+  color: var(--ll-text-muted);
+  font-size: 1.05rem;
+  max-width: 620px;
+  line-height: 1.7;
+}
+
+/* ── nav ── */
+.cc-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 6vw;
+  background: rgba(10, 10, 10, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--ll-border);
+}
+
+.cc-nav-brand {
+  font-family: "Instrument Serif", serif;
+  font-size: 1.18rem;
+  letter-spacing: -0.02em;
+  color: var(--ll-text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cc-nav-brand b {
+  font-weight: 400;
+  color: var(--ll-accent);
+}
+
+.cc-nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ll-accent);
+  box-shadow: 0 0 12px var(--ll-accent-mid);
+  animation: ccPulse 2.4s ease-in-out infinite;
+}
+
+.cc-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.cc-nav-back {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ll-text-dim);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.cc-nav-back:hover {
+  color: var(--ll-text);
+}
+
+/* ── buttons ── */
+.cc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.cc-btn-primary {
+  background: var(--ll-accent);
+  color: #0a0a0a;
+}
+
+.cc-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -8px var(--ll-accent-mid);
+}
+
+.cc-btn-ghost {
+  background: transparent;
+  color: var(--ll-text);
+  border-color: var(--ll-border-hover);
+}
+
+.cc-btn-ghost:hover {
+  border-color: var(--ll-accent);
+  color: var(--ll-accent);
+}
+
+/* ── hero ── */
+.cc-hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 9rem 6vw 5rem;
+  overflow: hidden;
+}
+
+.cc-hero::before,
+.cc-hero::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cc-hero::before {
+  top: -35%;
+  right: -25%;
+  width: 75vw;
+  height: 75vw;
+  background: radial-gradient(circle, var(--ll-accent-dim) 0%, transparent 62%);
+}
+
+.cc-hero::after {
+  bottom: -30%;
+  left: -22%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, var(--ll-warm-dim) 0%, transparent 60%);
+}
+
+.cc-hero-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--ll-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ll-border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 72%);
+  opacity: 0.5;
+}
+
+.cc-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+}
+
+.cc-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ll-text-muted);
+  border: 1px solid var(--ll-border);
+  background: var(--ll-surface);
+  padding: 0.4rem 0.9rem;
+  border-radius: 100px;
+  margin-bottom: 1.8rem;
+}
+
+.cc-hero-badge .cc-nav-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.cc-hero h1 {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(3rem, 8vw, 6.6rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.cc-hero h1 em {
+  font-style: italic;
+  color: var(--ll-accent);
+}
+
+.cc-hero-tagline {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+  color: var(--ll-text-muted);
+  margin-top: 1.6rem;
+  max-width: 640px;
+  line-height: 1.4;
+}
+
+.cc-hero-tagline strong {
+  color: var(--ll-text);
+  font-weight: 400;
+}
+
+.cc-hero-cta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.6rem;
+  flex-wrap: wrap;
+}
+
+.cc-hero-stats {
+  display: flex;
+  gap: 2.6rem;
+  margin-top: 3.4rem;
+  flex-wrap: wrap;
+}
+
+.cc-stat-num {
+  font-family: "Instrument Serif", serif;
+  font-size: 2.4rem;
+  color: var(--ll-text);
+  line-height: 1;
+}
+
+.cc-stat-num em {
+  font-style: italic;
+  color: var(--ll-accent);
+}
+
+.cc-stat-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ll-text-dim);
+  margin-top: 0.45rem;
+}
+
+/* ── logo marquee ── */
+.cc-marquee {
+  border-top: 1px solid var(--ll-border);
+  border-bottom: 1px solid var(--ll-border);
+  padding: 2.4rem 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.cc-marquee-label {
+  text-align: center;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ll-text-dim);
+  margin-bottom: 1.8rem;
+}
+
+.cc-marquee-viewport {
+  position: relative;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.cc-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 3.2rem;
+  align-items: center;
+  animation: ccMarquee 34s linear infinite;
+}
+
+.cc-marquee:hover .cc-marquee-track {
+  animation-play-state: paused;
+}
+
+.cc-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--ll-text-muted);
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+
+.cc-marquee-item:hover {
+  color: var(--ll-text);
+}
+
+.cc-marquee-item .cc-logo {
+  height: 1.5rem;
+  color: var(--ll-text);
+  opacity: 0.85;
+  transition: opacity 0.3s, color 0.3s;
+}
+
+.cc-marquee-item:hover .cc-logo {
+  opacity: 1;
+  color: var(--ll-accent);
+}
+
+/* shared logo box */
+.cc-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.2em;
+  line-height: 0;
+}
+
+.cc-logo svg {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+
+/* ── generic section ── */
+.cc-section {
+  padding: 7rem 0;
+  border-top: 1px solid var(--ll-border);
+}
+
+.cc-section-head {
+  max-width: 720px;
+  margin-bottom: 3.4rem;
+}
+
+/* ── value prop / pain band ── */
+.cc-valueprop {
+  text-align: center;
+}
+
+.cc-valueprop .cc-section-head {
+  margin: 0 auto 0;
+}
+
+.cc-valueprop .cc-h2 {
+  margin-inline: auto;
+}
+
+.cc-valueprop .cc-lead {
+  margin-inline: auto;
+}
+
+/* ── feature rows ── */
+.cc-feature {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  padding: 5.5rem 0;
+  border-top: 1px solid var(--ll-border);
+}
+
+.cc-feature:first-of-type {
+  border-top: none;
+}
+
+.cc-feature.reverse .cc-feature-copy {
+  order: 2;
+}
+
+.cc-feature-index {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ll-accent);
+  margin-bottom: 0.9rem;
+}
+
+.cc-feature-copy h3 {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(1.8rem, 3.4vw, 2.7rem);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  margin-bottom: 1rem;
+}
+
+.cc-feature-copy h3 em {
+  font-style: italic;
+  color: var(--ll-warm);
+}
+
+.cc-feature-copy > p {
+  color: var(--ll-text-muted);
+  font-size: 1rem;
+  line-height: 1.75;
+  margin-bottom: 1.4rem;
+  max-width: 520px;
+}
+
+.cc-feature-points {
+  list-style: none;
+  margin: 0 0 1.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.cc-feature-points li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  color: var(--ll-text-muted);
+}
+
+.cc-feature-points li::before {
+  content: "→";
+  color: var(--ll-accent);
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.cc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.cc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  color: var(--ll-text-muted);
+  border: 1px solid var(--ll-border);
+  background: var(--ll-surface-2);
+  padding: 0.4rem 0.8rem;
+  border-radius: 100px;
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.cc-chip:hover {
+  border-color: var(--ll-border-hover);
+  color: var(--ll-text);
+}
+
+.cc-chip .cc-logo {
+  height: 0.95rem;
+  color: var(--ll-text);
+}
+
+/* feature visual card (stylised mock) */
+.cc-feature-visual {
+  position: relative;
+  background: linear-gradient(160deg, var(--ll-surface) 0%, #0d0d0d 100%);
+  border: 1px solid var(--ll-border);
+  border-radius: 18px;
+  padding: 1.6rem;
+  min-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.cc-feature-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ll-accent), transparent);
+  opacity: 0.6;
+}
+
+.cc-mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ll-text-dim);
+}
+
+.cc-mock-bar i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ll-border-hover);
+  display: inline-block;
+}
+
+.cc-mock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  background: var(--ll-bg);
+  border: 1px solid var(--ll-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.cc-mock-row span {
+  font-size: 0.82rem;
+  color: var(--ll-text-muted);
+}
+
+.cc-mock-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.22rem 0.6rem;
+  border-radius: 100px;
+  border: 1px solid var(--ll-border-hover);
+  color: var(--ll-text);
+  white-space: nowrap;
+}
+
+.cc-mock-pill.accent {
+  color: var(--ll-accent);
+  border-color: var(--ll-accent-mid);
+  background: var(--ll-accent-dim);
+}
+
+.cc-mock-pill.warm {
+  color: var(--ll-warm);
+  border-color: rgba(255, 107, 53, 0.35);
+  background: var(--ll-warm-dim);
+}
+
+.cc-mock-pill.blue {
+  color: var(--ll-blue);
+  border-color: rgba(74, 158, 255, 0.35);
+  background: var(--ll-blue-dim);
+}
+
+.cc-mock-meter {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--ll-surface-2);
+  overflow: hidden;
+}
+
+.cc-mock-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--ll-accent), var(--ll-warm));
+}
+
+/* ── AI band ── */
+.cc-aiband {
+  border-top: 1px solid var(--ll-border);
+  padding: 6rem 0;
+  background:
+    radial-gradient(60vw 40vw at 80% 0%, var(--ll-accent-dim), transparent 70%),
+    var(--ll-bg);
+}
+
+.cc-ai-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2.6rem;
+}
+
+.cc-ai-card {
+  background: var(--ll-surface);
+  border: 1px solid var(--ll-border);
+  border-radius: 13px;
+  padding: 1.4rem 1.4rem 1.5rem;
+  transition: border-color 0.3s, transform 0.25s;
+}
+
+.cc-ai-card:hover {
+  border-color: var(--ll-border-hover);
+  transform: translateY(-3px);
+}
+
+.cc-ai-card .cc-ai-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ll-accent);
+  margin-bottom: 0.6rem;
+}
+
+.cc-ai-card h4 {
+  font-weight: 600;
+  font-size: 0.96rem;
+  margin-bottom: 0.35rem;
+  color: var(--ll-text);
+}
+
+.cc-ai-card p {
+  font-size: 0.84rem;
+  color: var(--ll-text-muted);
+  line-height: 1.55;
+}
+
+/* ── waitlist ── */
+.cc-waitlist {
+  border-top: 1px solid var(--ll-border);
+  padding: 7rem 0;
+  position: relative;
+  scroll-margin-top: 72px;
+}
+
+.cc-waitlist-card {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--ll-surface);
+  border: 1px solid var(--ll-border);
+  border-radius: 20px;
+  padding: 3.4rem clamp(1.6rem, 5vw, 3.4rem);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.cc-waitlist-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ll-accent), var(--ll-warm));
+}
+
+.cc-waitlist-card .cc-h2 {
+  margin-inline: auto;
+}
+
+.cc-waitlist-note {
+  color: var(--ll-text-muted);
+  font-size: 0.98rem;
+  max-width: 480px;
+  margin: 0 auto 2.2rem;
+}
+
+.cc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 460px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.cc-field-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ll-text-dim);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.cc-input {
+  width: 100%;
+  background: var(--ll-bg);
+  border: 1px solid var(--ll-border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  color: var(--ll-text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.cc-input::placeholder {
+  color: var(--ll-text-dim);
+}
+
+.cc-input:focus {
+  outline: none;
+  border-color: var(--ll-accent);
+  box-shadow: 0 0 0 3px var(--ll-accent-dim);
+}
+
+/* honeypot — visually hidden, off-screen, not display:none (so bots fill it) */
+.cc-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.cc-platforms {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.cc-platform-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ll-text-muted);
+  background: var(--ll-bg);
+  border: 1px solid var(--ll-border);
+  border-radius: 100px;
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, background 0.25s;
+}
+
+.cc-platform-toggle .cc-logo {
+  height: 1rem;
+}
+
+.cc-platform-toggle[data-active="true"] {
+  border-color: var(--ll-accent);
+  color: var(--ll-text);
+  background: var(--ll-accent-dim);
+}
+
+.cc-form .cc-btn-primary {
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.cc-form-fine {
+  font-size: 0.74rem;
+  color: var(--ll-text-dim);
+  text-align: center;
+  margin-top: 0.2rem;
+}
+
+.cc-waitlist-success {
+  max-width: 460px;
+  margin: 1rem auto 0;
+}
+
+.cc-success-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ll-accent-dim);
+  border: 1px solid var(--ll-accent-mid);
+  color: var(--ll-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.4rem;
+  font-size: 1.6rem;
+}
+
+.cc-success-title {
+  font-family: "Instrument Serif", serif;
+  font-size: 1.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.cc-success-body {
+  color: var(--ll-text-muted);
+  font-size: 0.96rem;
+}
+
+/* ── footer ── */
+.cc-footer {
+  border-top: 1px solid var(--ll-border);
+  padding: 3.5rem 6vw;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.cc-footer-left {
+  font-family: "Instrument Serif", serif;
+  font-size: 1rem;
+  color: var(--ll-text-muted);
+}
+
+.cc-footer-left b {
+  font-weight: 400;
+  color: var(--ll-accent);
+}
+
+.cc-footer-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.cc-footer-links a {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ll-text-dim);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.cc-footer-links a:hover {
+  color: var(--ll-accent);
+}
+
+/* ================================================================
+   Features detail page (/content-center/features)
+================================================================ */
+.cc-features-head {
+  padding: 8rem 6vw 3rem;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.cc-features-head h1 {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(2.6rem, 6vw, 4.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0.6rem 0 1rem;
+}
+
+.cc-features-head h1 em {
+  font-style: italic;
+  color: var(--ll-accent);
+}
+
+.cc-cat {
+  border-top: 1px solid var(--ll-border);
+  padding: 3.4rem 0;
+}
+
+.cc-cat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.8rem;
+}
+
+.cc-cat-num {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--ll-accent);
+  letter-spacing: 0.1em;
+}
+
+.cc-cat-head h2 {
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  letter-spacing: -0.02em;
+}
+
+.cc-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.cc-feat {
+  background: var(--ll-surface);
+  border: 1px solid var(--ll-border);
+  border-radius: 13px;
+  padding: 1.4rem 1.5rem;
+  transition: border-color 0.3s, transform 0.25s;
+}
+
+.cc-feat:hover {
+  border-color: var(--ll-border-hover);
+  transform: translateY(-2px);
+}
+
+.cc-feat-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.cc-feat-top h3 {
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--ll-text);
+}
+
+.cc-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid var(--ll-border-hover);
+  color: var(--ll-text-dim);
+}
+
+.cc-badge.ai {
+  color: var(--ll-accent);
+  border-color: var(--ll-accent-mid);
+  background: var(--ll-accent-dim);
+}
+
+.cc-badge.role {
+  color: var(--ll-text-muted);
+}
+
+.cc-feat p {
+  font-size: 0.86rem;
+  color: var(--ll-text-muted);
+  line-height: 1.6;
+}
+
+/* ── responsive ── */
+@media (max-width: 1024px) {
+  .cc-ai-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .cc-nav {
+    padding: 0.8rem 5vw;
+  }
+  .cc-hero {
+    padding: 8rem 5vw 4rem;
+  }
+  .cc-feature {
+    grid-template-columns: 1fr;
+    gap: 2.2rem;
+    padding: 4rem 0;
+  }
+  .cc-feature.reverse .cc-feature-copy {
+    order: 0;
+  }
+  .cc-ai-grid {
+    grid-template-columns: 1fr;
+  }
+  .cc-feat-grid {
+    grid-template-columns: 1fr;
+  }
+  .cc-section,
+  .cc-aiband,
+  .cc-waitlist {
+    padding: 5rem 0;
+  }
+}
+
+/* ── keyframes ── */
+@keyframes ccMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ccPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-marquee-track {
+    animation: none;
+  }
+  .cc-nav-dot {
+    animation: none;
+  }
+}

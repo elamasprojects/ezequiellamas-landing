@@ -25,6 +25,10 @@ import AdvisorLayout from "@/pages/app/advisor/AdvisorLayout";
 import RecursosList from "@/pages/recursos/RecursosList";
 import RecursoDetail from "@/pages/recursos/RecursoDetail";
 
+// Public product landing — lazy (heavy, rarely hit)
+const ContentCenter = lazy(() => import("@/pages/ContentCenter"));
+const ContentCenterFeatures = lazy(() => import("@/pages/ContentCenterFeatures"));
+
 // Lazy-loaded pages
 const AdminDashboard = lazy(() => import("@/pages/app/admin/AdminDashboard"));
 const SettingsPage = lazy(() => import("@/pages/app/admin/settings/SettingsPage"));
@@ -85,6 +89,9 @@ export default function App() {
 
           <Route path="/recursos" element={<RecursosList />} />
           <Route path="/recursos/:slug" element={<RecursoDetail />} />
+
+          <Route path="/content-center" element={<ContentCenter />} />
+          <Route path="/content-center/features" element={<ContentCenterFeatures />} />
 
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<RoleRedirect />} />
