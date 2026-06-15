@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; src: url("fonts/InstrumentSerif-Italic.woff2") format("woff2"); }
+      @font-face { font-family: "DM Sans"; font-style: normal; font-weight: 300 700; src: url("fonts/DMSans.woff2") format("woff2"); }
+      @font-face { font-family: "Poppins"; font-weight: 600; font-style: normal; font-display: block; src: url("fonts/Poppins-600.woff2") format("woff2"); }
+      @font-face { font-family: "Poppins"; font-weight: 700; font-style: normal; font-display: block; src: url("fonts/Poppins-700.woff2") format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; font-style: normal; font-display: block; src: url("fonts/Caveat-600.woff2") format("woff2"); }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a; }
+      body { font-family: "DM Sans", sans-serif; color: #e8e4de; }
+      :root { --accent: #c8ff00; --warm: #ff6b35; --blue: #4a9eff; --ig: #d946ef; --yt: #ef4444; --tt: #06b6d4; --muted: #8a8580; }
+
+      #root { position: relative; width: 1920px; height: 1080px; }
+
+      /* backdrop — always subtly moving */
+      #bg { position: absolute; inset: 0; overflow: hidden; }
+      #bg .grid { position: absolute; inset: -12%; background-image: linear-gradient(#151515 1px, transparent 1px), linear-gradient(90deg, #151515 1px, transparent 1px); background-size: 120px 120px; -webkit-mask-image: radial-gradient(circle at 50% 50%, #000, transparent 75%); mask-image: radial-gradient(circle at 50% 50%, #000, transparent 75%); opacity: 0.4; will-change: transform; }
+      #bg .glow { position: absolute; width: 1500px; height: 1500px; top: 50%; left: 50%; border-radius: 50%; filter: blur(40px); background: radial-gradient(circle, rgba(200,255,0,0.10), transparent 62%); transform: translate(-50%, -50%); will-change: transform, opacity; }
+      #bg .ghost { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: "Poppins"; font-weight: 700; font-size: 520px; color: rgba(255,255,255,0.025); white-space: nowrap; will-change: transform, opacity; pointer-events: none; }
+
+      /* caption stage */
+      #stage { position: absolute; inset: 0; }
+      .blk { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; }
+
+      /* karaoke: one big word at a time, stacked */
+      .kw { position: absolute; left: 0; right: 0; top: 0; transform: translateY(-50%); text-align: center;
+        font-family: "Poppins"; font-weight: 700; font-size: 150px; letter-spacing: -0.02em; line-height: 1;
+        color: #fff; opacity: 0; white-space: nowrap; will-change: transform, opacity; }
+      .kw.big { font-size: 196px; color: var(--accent); }
+      .kw.cav { font-family: "Caveat"; font-weight: 600; font-size: 230px; color: var(--accent); }
+      .kw .lg { display: inline-flex; vertical-align: -0.12em; margin-right: 26px; }
+      .kw .lg svg { width: 1em; height: 1em; }
+      /* a thin baseline that always sits under the karaoke word */
+      .kbar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 300px; width: 120px; height: 5px; border-radius: 99px; background: var(--accent); opacity: 0.5; will-change: transform, opacity; }
+
+      /* full caption: 4-5 words, one line */
+      .cap { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center;
+        font-family: "Poppins"; font-weight: 600; font-size: 78px; letter-spacing: -0.01em; line-height: 1.2;
+        color: #fff; opacity: 0; padding: 0 150px; will-change: transform, opacity; }
+      .cap .w { display: inline-block; margin: 0 5px; color: #fff; will-change: color; }
+      .cap .cav { font-family: "Caveat"; font-weight: 600; font-size: 1.35em; color: var(--accent); }
+
+      .eyebrow { position: absolute; top: 150px; left: 0; right: 0; text-align: center; font-family: "JetBrains Mono", monospace;
+        font-size: 26px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--muted); opacity: 0; will-change: opacity, transform; }
+      .url { position: absolute; bottom: 250px; left: 0; right: 0; text-align: center; font-family: "JetBrains Mono", monospace;
+        font-size: 30px; letter-spacing: 0.05em; color: var(--muted); opacity: 0; will-change: opacity; }
+
+      /* VO progress bar — always advancing (nothing static) */
+      #prog { position: absolute; left: 150px; right: 150px; bottom: 120px; height: 4px; border-radius: 99px; background: #1c1c1c; overflow: hidden; }
+      #prog i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--warm)); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="19.7" data-width="1920" data-height="1080">
+      <div id="bg">
+        <div class="grid" id="bg-grid"></div>
+        <div class="glow" id="bg-glow"></div>
+        <div class="ghost" id="bg-ghost">CONTENT</div>
+      </div>
+      <div class="eyebrow" id="eyebrow">Content Center · en tus palabras</div>
+      <div id="stage"></div>
+      <div class="url" id="url">ezequiellamas.com/content-center</div>
+      <div id="prog"><i id="pbar"></i></div>
+
+      <audio id="aud-music" src="music.mp3" data-start="0" data-duration="19.7" data-track-index="1" data-volume="0.15"></audio>
+      <audio id="aud-vo" src="vo.mp3" data-start="0" data-duration="19.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="aud-wh1" src="whoosh.mp3" data-start="3.55" data-duration="0.5" data-track-index="3" data-volume="0.28"></audio>
+      <audio id="aud-wh2" src="whoosh.mp3" data-start="6.5" data-duration="0.5" data-track-index="3" data-volume="0.28"></audio>
+      <audio id="aud-wh3" src="whoosh.mp3" data-start="9.55" data-duration="0.5" data-track-index="3" data-volume="0.28"></audio>
+      <audio id="aud-wh4" src="whoosh.mp3" data-start="12.9" data-duration="0.5" data-track-index="3" data-volume="0.28"></audio>
+      <audio id="aud-wh5" src="whoosh.mp3" data-start="15.78" data-duration="0.5" data-track-index="3" data-volume="0.28"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const stage = document.getElementById("stage");
+
+      // platform logos
+      const LOGO = {
+        ig: '<svg viewBox="0 0 24 24" fill="#d946ef"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7888-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.084m.1402 21.6932c-1.17-.0509-1.8051-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3815-.895-.4215-.4178-.6819-.8186-.9-1.378-.1626-.4234-.3585-1.058-.4117-2.228-.0582-1.2645-.0702-1.6442-.0775-4.848-.0073-3.2025-.0084-3.5827-.0035-4.847.0053-1.169.2461-1.7793.4082-2.2024.216-.5613.4762-.96.895-1.3814.4187-.4214.8184-.6817 1.3782-.9.4231-.1633 1.0575-.3577 2.227-.4116 1.2655-.0586 1.6441-.0697 4.848-.0744 3.2039-.0047 3.5849-.0036 4.8515.0046 1.169.0539 1.8061.245 2.2275.4083.5613.2161.96.4762 1.3815.895.4215.4189.6816.8181.9 1.3791.1635.4203.3577 1.0556.4109 2.2253.0583 1.2655.0716 1.6443.077 4.848.0053 3.2037-.0006 3.5848-.0036 4.8513-.0506 1.169-.2455 1.8062-.408 2.2299-.2155.5613-.4761.96-.8948 1.3815-.4187.4215-.8189.6818-1.378.9-.4226.1632-1.0577.3576-2.2262.4117-1.2655.0583-1.6442.0717-4.8493.077-3.205.0053-3.5851-.001-4.8454-.0046M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0089a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0089"/></svg>',
+        yt: '<svg viewBox="0 0 24 24" fill="#ef4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+        tt: '<svg viewBox="0 0 24 24" fill="#06b6d4"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>'
+      };
+
+      // ---- VO word timings (62) ----
+      const W = [
+        ["Esto",0.00,0.36],["es",0.36,0.70],["Content",0.70,1.09],["Center",1.09,1.65],["El",1.65,1.82],["estudio",1.82,2.19],["donde",2.19,2.46],["corro",2.46,2.73],["toda",2.73,2.93],["mi",2.93,3.05],["marca",3.05,3.61],
+        ["Tus",3.61,3.81],["métricas",3.81,4.21],["de",4.21,4.31],["todas",4.31,4.51],["las",4.51,4.61],["plataformas",4.61,5.40],["en",5.40,5.56],["una",5.56,5.72],["sola",5.72,5.96],["pantalla",5.96,6.57],
+        ["De",6.57,6.75],["una",6.75,6.90],["idea",6.90,7.34],["a",7.34,7.45],["un",7.45,7.57],["guion",7.57,7.81],["listo",7.81,8.42],["con",8.42,8.87],["I",8.87,9.11],["A",9.11,9.61],
+        ["Publicás",9.61,10.15],["en",10.15,10.26],["Instagram",10.26,10.87],["YouTube",10.87,11.36],["y",11.36,11.51],["TikTok",11.51,12.14],["a",12.14,12.28],["la",12.28,12.40],["vez",12.40,12.98],
+        ["Y",12.98,13.12],["sabés",13.12,13.38],["si",13.38,13.48],["un",13.48,13.56],["video",13.56,13.79],["va",13.79,13.86],["a",13.86,13.91],["explotar",13.91,14.54],["antes",14.54,14.90],["de",14.90,14.99],["subirlo",14.99,15.82],
+        ["Todo",15.82,16.17],["tu",16.17,16.30],["contenido",16.30,16.92],["en",16.92,17.12],["un",17.12,17.25],["solo",17.25,17.51],["lugar",17.51,18.26],
+        ["Sumate",18.26,18.73],["a",18.73,18.79],["la",18.79,18.89],["lista",18.89,19.55]
+      ].map(function(w){ return { t: w[0], s: w[1], e: w[2] }; });
+
+      // ---------- KARAOKE: one word at a time (seek-safe stacked spans) ----------
+      function kara(a, b, opts) {
+        opts = opts || {};
+        var blk = document.createElement("div"); blk.className = "blk"; stage.appendChild(blk);
+        var spans = [];
+        for (var i = a; i <= b; i++) {
+          var w = W[i];
+          var el = document.createElement("span");
+          el.className = "kw";
+          if (opts.big && opts.big.indexOf(i) >= 0) el.className += " big";
+          if (opts.cav && opts.cav.indexOf(i) >= 0) el.className += " cav";
+          if (opts.logo && opts.logo[i]) { el.className += " big"; el.style.color = opts.logo[i].c; el.innerHTML = '<span class="lg">' + LOGO[opts.logo[i].k] + '</span>' + w.t; }
+          else el.textContent = w.t;
+          blk.appendChild(el); spans.push(el);
+          tl.set(el, { opacity: 0, scale: 1 }, 0);
+        }
+        for (var j = a; j <= b; j++) {
+          var k = j - a, w2 = W[j], el2 = spans[k];
+          tl.set(el2, { opacity: 1 }, w2.s);
+          if (k > 0) tl.set(spans[k - 1], { opacity: 0 }, w2.s);
+          var isCav = opts.cav && opts.cav.indexOf(j) >= 0;
+          if (isCav) { tl.fromTo(el2, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: Math.min(0.5, w2.e - w2.s), ease: "none" }, w2.s); }
+          else { tl.fromTo(el2, { scale: 0.84, y: 14 }, { scale: 1, y: 0, duration: 0.12, ease: "back.out(2.2)" }, w2.s); }
+        }
+        tl.set(spans[spans.length - 1], { opacity: 0 }, W[b].e); // kill last
+      }
+
+      // ---------- FULL CAPTION: 4-5 words, spoken word highlighted ----------
+      function full(a, b, opts) {
+        opts = opts || {};
+        var cap = document.createElement("div"); cap.className = "cap"; stage.appendChild(cap);
+        var spans = [];
+        for (var i = a; i <= b; i++) {
+          var w = W[i];
+          var sp = document.createElement("span");
+          sp.className = "w" + (opts.cav && opts.cav.indexOf(i) >= 0 ? " cav" : "");
+          sp.textContent = w.t;
+          cap.appendChild(sp);
+          cap.appendChild(document.createTextNode(" "));
+          spans.push(sp);
+        }
+        // entrance / hold / exit (deterministic kill)
+        var start = W[a].s, end = W[b].e;
+        tl.set(cap, { opacity: 0, y: 28, scale: 0.96 }, 0);
+        tl.to(cap, { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: "power3.out" }, start);
+        tl.to(cap, { opacity: 0, y: -22, duration: 0.16, ease: "power2.in" }, end - 0.16);
+        tl.set(cap, { opacity: 0 }, end);
+        // per-word highlight (color pop on the spoken word)
+        for (var j = a; j <= b; j++) {
+          var k = j - a, w2 = W[j], el = spans[k];
+          var isCav = opts.cav && opts.cav.indexOf(j) >= 0;
+          var hot = (opts.hi && opts.hi.indexOf(j) >= 0);
+          tl.to(el, { color: "#c8ff00", duration: 0.1, ease: "power2.out" }, w2.s);
+          tl.to(el, { color: isCav ? "#c8ff00" : "#ffffff", duration: 0.16, ease: "power2.out" }, w2.e);
+        }
+      }
+
+      // ---------- backdrop (always moving) ----------
+      tl.fromTo("#bg-grid", { y: 0, scale: 1.05 }, { y: -90, scale: 1.0, duration: 19.7, ease: "none" }, 0);
+      tl.fromTo("#bg-glow", { scale: 0.9, opacity: 0.7 }, { scale: 1.15, opacity: 1, duration: 6, ease: "sine.inOut" }, 0);
+      tl.to("#bg-glow", { scale: 0.95, opacity: 0.8, duration: 7, ease: "sine.inOut" }, 6);
+      tl.to("#bg-glow", { scale: 1.1, opacity: 1, duration: 6.7, ease: "sine.inOut" }, 13);
+      tl.from("#eyebrow", { y: -18, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.15);
+      tl.to("#pbar", { width: "100%", duration: 19.55, ease: "none" }, 0); // progress bar — never static
+      // ghost keyword behind — static word, slow drift (no TextPlugin needed)
+      tl.fromTo("#bg-ghost", { scale: 1.12, opacity: 0 }, { scale: 1.0, opacity: 1, duration: 1.4, ease: "power2.out" }, 0.2);
+      tl.to("#bg-ghost", { y: -50, duration: 18.5, ease: "none" }, 0.6);
+
+      // ---------- build the caption blocks ----------
+      kara(0, 10, { big: [2, 3], cav: [10] });                 // Esto es Content Center ... marca(cav)
+      full(11, 16, { hi: [12, 16] });                          // Tus métricas de todas las plataformas
+      full(17, 20, { hi: [20] });                              // en una sola pantalla
+      kara(21, 30, { big: [23, 26], logo: {} });               // De una idea a un guion ... I A
+      kara(31, 39, { big: [], logo: { 33: { k: "ig", c: "#d946ef" }, 34: { k: "yt", c: "#ef4444" }, 36: { k: "tt", c: "#06b6d4" } } }); // Publicás ... Instagram/YouTube/TikTok
+      full(40, 50, { hi: [47], cav: [47] });                   // Y sabés ... explotar(cav) ... subirlo
+      full(51, 57, { hi: [51], cav: [57] });                   // Todo tu contenido ... lugar(cav)
+      kara(58, 61, { big: [58], cav: [61] });                  // Sumate a la lista(cav)
+      tl.to("#url", { opacity: 1, duration: 0.5, ease: "power2.out" }, 18.7);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

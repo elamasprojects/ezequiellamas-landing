@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="es" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("fonts/InstrumentSerif-Regular.woff2") format("woff2"); }
+      @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; src: url("fonts/InstrumentSerif-Italic.woff2") format("woff2"); }
+      @font-face { font-family: "DM Sans"; font-style: normal; font-weight: 300 700; src: url("fonts/DMSans.woff2") format("woff2"); }
+      @font-face { font-family: "Poppins"; font-style: normal; font-weight: 600; font-display: block; src: url("fonts/Poppins-600.woff2") format("woff2"); }
+      @font-face { font-family: "Poppins"; font-style: normal; font-weight: 700; font-display: block; src: url("fonts/Poppins-700.woff2") format("woff2"); }
+      @font-face { font-family: "Caveat"; font-style: normal; font-weight: 600; font-display: block; src: url("fonts/Caveat-600.woff2") format("woff2"); }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a; }
+      body { font-family: "DM Sans", sans-serif; font-weight: 300; color: #e8e4de; }
+
+      :root {
+        --surface: #111111; --surface2: #161616; --border: #232323;
+        --text: #e8e4de; --muted: #8a8580; --dim: #5a5550;
+        --accent: #c8ff00; --warm: #ff6b35; --blue: #4a9eff;
+        --ig: #d946ef; --yt: #ef4444; --tt: #06b6d4;
+      }
+
+      #root { perspective: 1700px; }
+      .scene { position: absolute; inset: 0; background: #0a0a0a; overflow: hidden; will-change: transform, opacity; backface-visibility: hidden; }
+      #s1 { z-index: 1 } #s2 { z-index: 2; opacity: 0 } #s3 { z-index: 3; opacity: 0 }
+      #s4 { z-index: 4; opacity: 0 } #s5 { z-index: 5; opacity: 0 } #s6 { z-index: 6; opacity: 0 }
+      .sc { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 90px; box-sizing: border-box; }
+
+      .grid-bg { position: absolute; inset: -10%; background-image: linear-gradient(#161616 1px, transparent 1px), linear-gradient(90deg, #161616 1px, transparent 1px); background-size: 110px 110px; -webkit-mask-image: radial-gradient(circle at 50% 45%, #000, transparent 72%); mask-image: radial-gradient(circle at 50% 45%, #000, transparent 72%); opacity: 0.45; }
+      .glow { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(30px); }
+      .glow-a { background: radial-gradient(circle, rgba(200,255,0,0.16), transparent 62%); }
+      .glow-w { background: radial-gradient(circle, rgba(255,107,53,0.13), transparent 62%); }
+
+      .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--accent); }
+      .display { font-family: "Poppins"; font-weight: 700; letter-spacing: -0.02em; color: var(--text); line-height: 0.98; text-align: center; }
+      .display .ac { color: var(--accent); }
+      .script { font-family: "Caveat"; font-weight: 600; color: var(--accent); }
+      .sub { font-family: "Instrument Serif", serif; font-size: 46px; color: var(--muted); text-align: center; }
+
+      /* ---- device mocks ---- */
+      .device { position: relative; background: #0d0d0d; border: 1px solid #1d1d1d; box-shadow: 0 50px 130px -30px rgba(0,0,0,0.85), 0 0 0 1px rgba(200,255,0,0.04); will-change: transform; }
+      .device--browser { width: 1180px; border-radius: 18px; overflow: hidden; }
+      .dbar { display: flex; align-items: center; gap: 9px; height: 46px; padding: 0 18px; background: #0c0c0c; border-bottom: 1px solid #191919; }
+      .dot { width: 12px; height: 12px; border-radius: 50%; }
+      .dot.r { background: #ff5f57 } .dot.y { background: #febc2e } .dot.g { background: #28c840 }
+      .durl { margin-left: 16px; padding: 6px 16px; border-radius: 8px; background: #161616; color: #7a7a7a; font-family: "JetBrains Mono", monospace; font-size: 15px; }
+      .dview { position: relative; height: 660px; overflow: hidden; background: #0a0a0a; }
+      .screen { position: absolute; inset: 0; padding: 44px 50px; will-change: transform; }
+      .device--phone { width: 360px; border-radius: 46px; padding: 14px; }
+      .device--phone .dview { height: 720px; border-radius: 34px; }
+
+      /* ---- app screen bits (faithful-ish recreations) ---- */
+      .s-kick { font-family: "JetBrains Mono", monospace; font-size: 17px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+      .s-h { font-family: "Instrument Serif", serif; font-size: 52px; margin-top: 8px; }
+      .s-h em { font-style: italic; color: var(--accent); }
+      .pcards { display: flex; gap: 22px; margin-top: 34px; }
+      .pcard { flex: 1; background: var(--surface); border: 1px solid #313a0a; border-radius: 14px; padding: 26px 28px; }
+      .pcard .pt { display: flex; align-items: center; justify-content: space-between; }
+      .pname { display: inline-flex; align-items: center; gap: 12px; font-family: "JetBrains Mono", monospace; font-size: 20px; letter-spacing: 0.1em; text-transform: uppercase; }
+      .plogo { width: 30px; height: 30px; }
+      .plogo svg { width: 100%; height: 100%; display: block; }
+      .pnum { font-family: "Instrument Serif", serif; font-size: 76px; line-height: 1; margin-top: 10px; color: var(--text); }
+      .pbar { height: 9px; border-radius: 99px; background: var(--surface2); margin-top: 20px; overflow: hidden; }
+      .pbar i { display: block; height: 100%; border-radius: 99px; transform-origin: left center; }
+      .gbtn { display: inline-flex; align-items: center; gap: 12px; font-family: "Poppins"; font-weight: 600; font-size: 26px; background: var(--accent); color: #0a0a0a; padding: 16px 30px; border-radius: 12px; will-change: transform; }
+      .gbtn.ghost { background: var(--surface); color: var(--text); border: 1px solid #313a0a; }
+
+      /* big icons / logos */
+      .biglogo { width: 220px; height: 220px; will-change: transform; }
+      .biglogo svg { width: 100%; height: 100%; display: block; }
+
+      /* guion rows */
+      .grow { display: flex; align-items: center; justify-content: space-between; padding: 22px 4px; border-bottom: 1px solid var(--border); }
+      .grow:last-child { border-bottom: none; }
+      .glabel { font-family: "Instrument Serif", serif; font-size: 40px; }
+      .gtag { font-family: "JetBrains Mono", monospace; font-size: 18px; padding: 7px 15px; border-radius: 7px; border: 1px solid var(--border); color: var(--muted); }
+      .gtag.a { color: var(--accent); border-color: rgba(200,255,0,0.4); background: rgba(200,255,0,0.08); }
+      .gtag.w { color: var(--warm); border-color: rgba(255,107,53,0.4); background: rgba(255,107,53,0.08); }
+
+      /* gauge */
+      .mult { font-family: "Poppins"; font-weight: 700; font-size: 300px; color: var(--accent); line-height: 0.9; }
+      .tierbig { font-family: "JetBrains Mono", monospace; font-size: 34px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(200,255,0,0.4); background: rgba(200,255,0,0.08); padding: 14px 30px; border-radius: 99px; }
+      .spark { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); will-change: transform, opacity; }
+
+      .btnXL { display: inline-flex; align-items: center; gap: 16px; font-family: "Poppins"; font-weight: 700; font-size: 44px; background: var(--accent); color: #0a0a0a; padding: 30px 60px; border-radius: 18px; will-change: transform; box-shadow: 0 0 0 0 rgba(200,255,0,0); }
+      .url { font-family: "JetBrains Mono", monospace; font-size: 34px; letter-spacing: 0.05em; color: var(--muted); }
+      .toast { position: absolute; display: inline-flex; align-items: center; gap: 9px; font-family: "JetBrains Mono", monospace; font-size: 18px; color: var(--accent); background: rgba(200,255,0,0.1); border: 1px solid rgba(200,255,0,0.4); padding: 8px 16px; border-radius: 99px; will-change: transform, opacity; }
+
+      /* ---- global cursor + ripple (above all scenes) ---- */
+      #cursor { position: absolute; left: 0; top: 0; z-index: 50; filter: drop-shadow(0 5px 12px rgba(0,0,0,0.6)); will-change: transform; }
+      #ripple { position: absolute; left: 0; top: 0; z-index: 49; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--accent); opacity: 0; transform: translate(-50%, -50%) scale(0); pointer-events: none; will-change: transform, opacity; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="19.7" data-width="1920" data-height="1080">
+
+      <!-- S1 INTRO -->
+      <div id="s1" class="scene">
+        <div class="grid-bg" id="s1-grid"></div>
+        <div class="glow glow-a" id="s1-glow" style="width:1300px;height:1300px;top:-360px;right:-260px"></div>
+        <div class="glow glow-w" style="width:760px;height:760px;bottom:-300px;left:-200px"></div>
+        <div class="sc">
+          <div class="eyebrow" id="s1-eye">Producto · en uso diario</div>
+          <div class="display" id="s1-title" style="font-size:172px;margin-top:38px">Content<br /><span class="ac">Center</span></div>
+          <div class="sub" id="s1-sub" style="margin-top:52px">El estudio donde corro toda mi <span class="script" style="font-size:64px">marca</span></div>
+        </div>
+      </div>
+
+      <!-- S2 DASHBOARD (browser mock, scroll/zoom/click) -->
+      <div id="s2" class="scene">
+        <div class="glow glow-a" style="width:1100px;height:1100px;top:-300px;left:-200px"></div>
+        <div class="sc">
+          <div class="eyebrow" id="s2-eye" style="position:absolute;top:90px;left:120px">Tus métricas · en una pantalla</div>
+          <div class="device device--browser" id="s2-dev">
+            <div class="dbar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="durl">app.ezequiellamas.com/app/admin</span></div>
+            <div class="dview">
+              <div class="screen" id="s2-screen">
+                <div class="s-kick">Dashboard</div>
+                <div class="s-h">Hola, <em>ezequiellamas.</em></div>
+                <div class="pcards" id="s2-cards">
+                  <div class="pcard">
+                    <div class="pt"><span class="pname" style="color:var(--ig)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7888-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.084m.1402 21.6932c-1.17-.0509-1.8051-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3815-.895-.4215-.4178-.6819-.8186-.9-1.378-.1626-.4234-.3585-1.058-.4117-2.228-.0582-1.2645-.0702-1.6442-.0775-4.848-.0073-3.2025-.0084-3.5827-.0035-4.847.0053-1.169.2461-1.7793.4082-2.2024.216-.5613.4762-.96.895-1.3814.4187-.4214.8184-.6817 1.3782-.9.4231-.1633 1.0575-.3577 2.227-.4116 1.2655-.0586 1.6441-.0697 4.848-.0744 3.2039-.0047 3.5849-.0036 4.8515.0046 1.169.0539 1.8061.245 2.2275.4083.5613.2161.96.4762 1.3815.895.4215.4189.6816.8181.9 1.3791.1635.4203.3577 1.0556.4109 2.2253.0583 1.2655.0716 1.6443.077 4.848.0053 3.2037-.0006 3.5848-.0036 4.8513-.0506 1.169-.2455 1.8062-.408 2.2299-.2155.5613-.4761.96-.8948 1.3815-.4187.4215-.8189.6818-1.378.9-.4226.1632-1.0577.3576-2.2262.4117-1.2655.0583-1.6442.0717-4.8493.077-3.205.0053-3.5851-.001-4.8454-.0046M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0089a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0089"/></svg></span>IG</span><span style="color:var(--ig);font-family:'JetBrains Mono';font-size:20px">↗13.9%</span></div>
+                    <div class="pnum">49</div><div class="pbar"><i style="width:62%;background:var(--ig)"></i></div>
+                  </div>
+                  <div class="pcard">
+                    <div class="pt"><span class="pname" style="color:var(--tt)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></span>TT</span><span style="color:var(--tt);font-family:'JetBrains Mono';font-size:20px">↗62.2%</span></div>
+                    <div class="pnum">73</div><div class="pbar"><i style="width:78%;background:var(--tt)"></i></div>
+                  </div>
+                  <div class="pcard">
+                    <div class="pt"><span class="pname" style="color:var(--yt)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span>YT</span><span style="color:var(--yt);font-family:'JetBrains Mono';font-size:20px">↗35.9%</span></div>
+                    <div class="pnum">125</div><div class="pbar"><i style="width:88%;background:var(--yt)"></i></div>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:30px"><span class="gbtn" id="s2-refresh">↻ Refrescar métricas</span></div>
+                <svg width="1000" height="150" viewBox="0 0 1000 150" style="margin-top:24px" preserveAspectRatio="none">
+                  <path d="M0,120 C160,110 240,96 360,88 C520,78 620,52 760,44 C880,38 950,26 1000,20" fill="none" stroke="#c8ff00" stroke-width="4" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" id="s2-line"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S3 GUIONES (phone mock + big IA icon + click) -->
+      <div id="s3" class="scene">
+        <div class="glow glow-a" style="width:900px;height:900px;top:-200px;right:-120px"></div>
+        <div class="sc" style="flex-direction:row;gap:90px">
+          <div style="display:flex;flex-direction:column;align-items:flex-start;max-width:740px">
+            <div class="eyebrow">Ideación · con IA</div>
+            <div class="display" id="s3-title" style="font-size:120px;text-align:left;margin-top:14px">De una idea<br />a un <span class="ac">guion</span></div>
+            <div class="biglogo" id="s3-ia" style="margin-top:40px;width:160px;height:160px">
+              <svg viewBox="0 0 24 24" fill="#c8ff00"><path fill-rule="evenodd" d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0h3.767L16.906 20h-3.674l-1.343-3.461H5.017l-1.344 3.46H0L6.57 3.522zm4.132 9.959L8.453 7.687 6.205 13.48H10.7z"/></svg>
+            </div>
+            <span class="gbtn" id="s3-gen" style="margin-top:34px">✨ Generar con IA</span>
+          </div>
+          <div class="device device--phone" id="s3-dev">
+            <div class="dview">
+              <div class="screen" id="s3-screen" style="padding:40px 38px">
+                <div class="s-kick">Nueva idea</div>
+                <div class="s-h" style="font-size:40px">Tu <em>guion</em></div>
+                <div id="s3-rows" style="margin-top:24px">
+                  <div class="grow"><span class="glabel" style="font-size:34px">Hook</span><span class="gtag a">0–5s</span></div>
+                  <div class="grow"><span class="glabel" style="font-size:34px">Desarrollo</span><span class="gtag">120p</span></div>
+                  <div class="grow"><span class="glabel" style="font-size:34px">CTA</span><span class="gtag w">"IA"</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S4 PUBLICACIÓN (3 big logos + publicar click) -->
+      <div id="s4" class="scene">
+        <div class="glow glow-w" style="width:1000px;height:1000px;bottom:-300px;left:-160px"></div>
+        <div class="sc">
+          <div class="display" id="s4-title" style="font-size:96px">Publicá en las 3 plataformas <span class="ac">a la vez</span></div>
+          <div style="display:flex;gap:120px;margin-top:70px" id="s4-logos">
+            <div class="biglogo" id="s4-ig"><svg viewBox="0 0 24 24" fill="#d946ef"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7888-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.084m.1402 21.6932c-1.17-.0509-1.8051-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3815-.895-.4215-.4178-.6819-.8186-.9-1.378-.1626-.4234-.3585-1.058-.4117-2.228-.0582-1.2645-.0702-1.6442-.0775-4.848-.0073-3.2025-.0084-3.5827-.0035-4.847.0053-1.169.2461-1.7793.4082-2.2024.216-.5613.4762-.96.895-1.3814.4187-.4214.8184-.6817 1.3782-.9.4231-.1633 1.0575-.3577 2.227-.4116 1.2655-.0586 1.6441-.0697 4.848-.0744 3.2039-.0047 3.5849-.0036 4.8515.0046 1.169.0539 1.8061.245 2.2275.4083.5613.2161.96.4762 1.3815.895.4215.4189.6816.8181.9 1.3791.1635.4203.3577 1.0556.4109 2.2253.0583 1.2655.0716 1.6443.077 4.848.0053 3.2037-.0006 3.5848-.0036 4.8513-.0506 1.169-.2455 1.8062-.408 2.2299-.2155.5613-.4761.96-.8948 1.3815-.4187.4215-.8189.6818-1.378.9-.4226.1632-1.0577.3576-2.2262.4117-1.2655.0583-1.6442.0717-4.8493.077-3.205.0053-3.5851-.001-4.8454-.0046M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0089a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0089"/></svg></div>
+            <div class="biglogo" id="s4-yt"><svg viewBox="0 0 24 24" fill="#ef4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></div>
+            <div class="biglogo" id="s4-tt"><svg viewBox="0 0 24 24" fill="#06b6d4"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></div>
+          </div>
+          <span class="btnXL" id="s4-pub" style="margin-top:64px;font-size:34px;padding:22px 46px">Publicar ahora →</span>
+        </div>
+      </div>
+
+      <!-- S5 PREDICCIÓN (gauge + burst) -->
+      <div id="s5" class="scene">
+        <div class="glow glow-a" style="width:1200px;height:1200px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+        <div class="sc">
+          <div class="eyebrow" id="s5-eye">Predicción de viralidad</div>
+          <div class="mult" id="s5-mult" style="font-size:184px;line-height:1;margin-top:66px">5×</div>
+          <div class="tierbig" id="s5-tier" style="margin-top:40px">Tier · Outlier</div>
+          <div class="sub" id="s5-sub" style="margin-top:40px">Sabés si va a <span class="script" style="color:var(--warm);font-size:64px">explotar</span> antes de subirlo</div>
+          <div id="s5-burst"></div>
+        </div>
+      </div>
+
+      <!-- S6 CTA (final click) -->
+      <div id="s6" class="scene">
+        <div class="grid-bg" id="s6-grid"></div>
+        <div class="glow glow-a" style="width:1300px;height:1300px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+        <div class="sc">
+          <div class="eyebrow" id="s6-eye">Lista de espera privada</div>
+          <div class="display" id="s6-title" style="font-size:144px;margin-top:40px">Content <span class="ac">Center</span></div>
+          <div class="sub" id="s6-sub" style="margin-top:40px">Todo tu contenido, en un <span class="script" style="font-size:60px">solo lugar</span></div>
+          <span class="btnXL" id="s6-btn" style="margin-top:50px">Sumate a la lista →</span>
+          <div class="url" id="s6-url" style="margin-top:30px">ezequiellamas.com/content-center</div>
+        </div>
+      </div>
+
+      <!-- GLOBAL cursor + ripple -->
+      <svg id="cursor" width="30" height="34" viewBox="0 0 26 30"><path d="M2 2 L2 22 L8 16 L12 25 L15 24 L11 15 L20 15 Z" fill="#0a0a0a" stroke="#c8ff00" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <span id="ripple"></span>
+
+      <!-- AUDIO -->
+      <audio id="aud-music" src="music.mp3" data-start="0" data-duration="19.7" data-track-index="1" data-volume="0.15"></audio>
+      <audio id="aud-vo" src="vo.mp3" data-start="0" data-duration="19.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="aud-wh1" src="whoosh.mp3" data-start="3.31" data-duration="0.55" data-track-index="3" data-volume="0.36"></audio>
+      <audio id="aud-wh2" src="whoosh.mp3" data-start="6.27" data-duration="0.55" data-track-index="3" data-volume="0.36"></audio>
+      <audio id="aud-wh3" src="whoosh.mp3" data-start="9.31" data-duration="0.55" data-track-index="3" data-volume="0.36"></audio>
+      <audio id="aud-wh4" src="whoosh.mp3" data-start="12.68" data-duration="0.55" data-track-index="3" data-volume="0.36"></audio>
+      <audio id="aud-wh5" src="whoosh.mp3" data-start="15.52" data-duration="0.55" data-track-index="3" data-volume="0.36"></audio>
+      <audio id="aud-clk1" src="click.mp3" data-start="5.05" data-duration="0.18" data-track-index="4" data-volume="0.8"></audio>
+      <audio id="aud-clk2" src="click.mp3" data-start="8.05" data-duration="0.18" data-track-index="4" data-volume="0.8"></audio>
+      <audio id="aud-clk3" src="click.mp3" data-start="11.7" data-duration="0.18" data-track-index="4" data-volume="0.8"></audio>
+      <audio id="aud-clk4" src="click.mp3" data-start="17.6" data-duration="0.18" data-track-index="4" data-volume="0.9"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const P3 = "power3.out", P4 = "power4.out", EXPO = "expo.out", BACK = "back.out(2)";
+
+      // ---- transitions (3D carousel, same-ease, no gap) ----
+      function tH(o, n, t, dur, dir) {
+        tl.set(n, { x: 1920 * dir, y: 0, rotationX: 0, rotationY: -16 * dir, scale: 0.985, opacity: 1, transformOrigin: "50% 50%" }, t);
+        tl.to(n, { x: 0, rotationY: 0, scale: 1, duration: dur, ease: "power3.inOut" }, t);
+        tl.to(o, { x: -1920 * dir, rotationY: 16 * dir, scale: 0.985, duration: dur, ease: "power3.inOut" }, t);
+        tl.set(o, { opacity: 0, x: 0, rotationY: 0, scale: 1 }, t + dur + 0.05);
+      }
+      function tV(o, n, t, dur, dir) {
+        tl.set(n, { y: 1080 * dir, x: 0, rotationX: 14 * dir, scale: 0.985, opacity: 1, transformOrigin: "50% 50%" }, t);
+        tl.to(n, { y: 0, rotationX: 0, scale: 1, duration: dur, ease: "power3.inOut" }, t);
+        tl.to(o, { y: -1080 * dir, rotationX: -14 * dir, scale: 0.985, duration: dur, ease: "power3.inOut" }, t);
+        tl.set(o, { opacity: 0, y: 0, rotationX: 0, scale: 1 }, t + dur + 0.05);
+      }
+      const D = 0.5;
+
+      // ---- cursor click helper: cursor travels to (bx,by), presses, ripples, button reacts ----
+      function moveCursor(bx, by, atArrive, dur) {
+        tl.to("#cursor", { x: bx - 4, y: by - 4, duration: dur, ease: "power2.inOut" }, atArrive - dur);
+      }
+      function clickFX(bx, by, btnSel, tPress) {
+        // cursor press
+        tl.to("#cursor", { scale: 0.8, duration: 0.07, ease: "power2.in" }, tPress);
+        tl.to("#cursor", { scale: 1, duration: 0.16, ease: "back.out(3)" }, tPress + 0.07);
+        // ripple
+        tl.set("#ripple", { x: bx, y: by, scale: 0, opacity: 0.9 }, tPress);
+        tl.to("#ripple", { scale: 11, opacity: 0, duration: 0.5, ease: "power2.out" }, tPress);
+        // button reaction
+        tl.to(btnSel, { scale: 0.95, duration: 0.07, ease: "power2.in" }, tPress);
+        tl.to(btnSel, { scale: 1, duration: 0.3, ease: "back.out(2.2)" }, tPress + 0.07);
+        tl.fromTo(btnSel, { boxShadow: "0 0 0 0 rgba(200,255,0,0)" }, { boxShadow: "0 0 30px 7px rgba(200,255,0,0.6)", duration: 0.16, ease: "power2.out" }, tPress);
+        tl.to(btnSel, { boxShadow: "0 0 0 0 rgba(200,255,0,0)", duration: 0.5, ease: "power2.in" }, tPress + 0.18);
+      }
+
+      // cursor starts off-screen
+      tl.set("#cursor", { x: -200, y: 1200 }, 0);
+      tl.set("#s2 .pbar i", { scaleX: 1 }, 0);
+
+      // ===== S1 (0) =====
+      tl.from("#s1-eye", { y: 28, opacity: 0, duration: 0.5, ease: BACK }, 0.2);
+      tl.from("#s1-title", { y: 80, opacity: 0, scale: 0.92, duration: 0.8, ease: EXPO }, 0.35);
+      tl.set("#s1-sub .script", { clipPath: "inset(0 100% 0 0)" }, 0);
+      tl.from("#s1-sub", { y: 26, opacity: 0, duration: 0.55, ease: P3 }, 0.85);
+      tl.to("#s1-sub .script", { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "none" }, 2.55);
+      tl.to("#s1-glow", { x: 80, y: 60, scale: 1.12, duration: 3.0, ease: "sine.inOut" }, 0.3);
+      tl.fromTo("#cursor", { x: -200, y: 1150 }, { x: 1300, y: 300, duration: 2.6, ease: "power1.inOut" }, 0.4);
+
+      // ===== S1 -> S2 =====
+      tH("#s1", "#s2", 3.31, D, 1);
+      tl.from("#s2-eye", { x: -34, duration: 0.45, ease: P3 }, 3.6);
+      tl.from("#s2-dev", { y: 60, scale: 0.95, rotationX: 8, transformPerspective: 1200, duration: 0.7, ease: P3 }, 3.5);
+      // dashboard scroll + chart draw + parallax
+      tl.to("#s2-screen", { y: -120, duration: 2.1, ease: "power1.inOut" }, 3.9);
+      tl.to("#s2-cards", { y: -40, duration: 2.1, ease: "power1.inOut" }, 3.9);
+      tl.to("#s2-line", { strokeDashoffset: 0, duration: 1.2, ease: "power1.inOut" }, 4.2);
+      // cursor to refresh button (right side of device ~ x:1430 y:610) and CLICK at 5.05
+      moveCursor(1430, 612, 4.95, 0.9);
+      clickFX(1430, 612, "#s2-refresh", 5.05);
+      tl.set("#s2 .pbar i", { scaleX: 0 }, 5.12);
+      tl.to("#s2 .pbar i", { scaleX: 1, duration: 0.6, ease: P4, stagger: 0.08 }, 5.12);
+
+      // ===== S2 -> S3 =====
+      tV("#s2", "#s3", 6.27, D, 1);
+      tl.from("#s3-title", { y: 50, duration: 0.6, ease: EXPO }, 6.55);
+      tl.from("#s3-dev", { x: 80, scale: 0.95, duration: 0.6, ease: P3 }, 6.6);
+      tl.from("#s3-ia", { scale: 0, rotation: -40, duration: 0.6, ease: BACK }, 6.9);
+      tl.to("#s3-ia", { y: -16, duration: 1.0, ease: "sine.inOut", repeat: 1, yoyo: true }, 7.5);
+      // cursor to "Generar con IA" (~ x:430 y:680) click at 8.05 -> guion rows cascade
+      moveCursor(430, 685, 7.95, 0.9);
+      clickFX(430, 685, "#s3-gen", 8.05);
+      tl.from("#s3-rows .grow", { x: 40, opacity: 0, duration: 0.4, ease: P3, stagger: 0.13 }, 8.15);
+
+      // ===== S3 -> S4 =====
+      tH("#s3", "#s4", 9.31, D, -1);
+      tl.from("#s4-title", { y: 44, duration: 0.55, ease: EXPO }, 9.6);
+      // logos pop at the word times (Instagram 10.26, YouTube 10.87, TikTok 11.51)
+      tl.from("#s4-ig", { scale: 0, rotation: -30, duration: 0.5, ease: BACK }, 10.2);
+      tl.from("#s4-yt", { scale: 0, rotation: 30, duration: 0.5, ease: BACK }, 10.8);
+      tl.from("#s4-tt", { scale: 0, rotation: -30, duration: 0.5, ease: BACK }, 11.45);
+      // cursor to "Publicar" (~ x:960 y:830) click 11.7 -> logos shoot up
+      moveCursor(960, 832, 11.6, 0.7);
+      clickFX(960, 832, "#s4-pub", 11.7);
+      tl.to("#s4-ig", { y: -120, scale: 0.7, opacity: 0.85, duration: 0.5, ease: "power2.in" }, 11.85);
+      tl.to("#s4-yt", { y: -140, scale: 0.7, opacity: 0.85, duration: 0.5, ease: "power2.in" }, 11.9);
+      tl.to("#s4-tt", { y: -120, scale: 0.7, opacity: 0.85, duration: 0.5, ease: "power2.in" }, 11.95);
+
+      // ===== S4 -> S5 =====
+      tV("#s4", "#s5", 12.68, D, -1);
+      tl.from("#s5-eye", { y: 22, duration: 0.45, ease: P3 }, 12.95);
+      tl.from("#s5-mult", { scale: 0.5, opacity: 0, duration: 0.6, ease: BACK }, 13.05);
+      tl.from("#s5-tier", { y: 24, duration: 0.45, ease: P3 }, 13.3);
+      tl.set("#s5-sub .script", { clipPath: "inset(0 100% 0 0)" }, 13.4);
+      tl.from("#s5-sub", { y: 20, duration: 0.5, ease: P3 }, 13.4);
+      tl.to("#s5-sub .script", { clipPath: "inset(0 0% 0 0)", duration: 0.45, ease: "none" }, 13.91);
+      tl.to("#s5-mult", { scale: 1.06, duration: 0.18, ease: "power2.out" }, 13.91);
+      tl.to("#s5-mult", { scale: 1, duration: 0.3, ease: "power2.in" }, 14.09);
+
+      // ===== S5 -> S6 =====
+      tH("#s5", "#s6", 15.52, D, 1);
+      tl.from("#s6-eye", { y: 20, duration: 0.45, ease: P3 }, 15.8);
+      tl.from("#s6-title", { y: 60, scale: 0.93, duration: 0.8, ease: EXPO }, 15.86);
+      tl.set("#s6-sub .script", { clipPath: "inset(0 100% 0 0)" }, 16.1);
+      tl.from("#s6-sub", { y: 22, duration: 0.5, ease: P3 }, 16.1);
+      tl.to("#s6-sub .script", { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "none" }, 16.5);
+      tl.from("#s6-btn", { scale: 0.82, duration: 0.5, ease: "back.out(2.2)" }, 16.7);
+      // final cursor click on the CTA (~ x:960 y:715) at 17.6
+      tl.fromTo("#cursor", { x: 200, y: 1150 }, { x: 960, y: 712, duration: 0.85, ease: "power2.inOut" }, 16.7);
+      clickFX(960, 712, "#s6-btn", 17.6);
+      tl.from("#s6-url", { y: 16, opacity: 0, duration: 0.5, ease: P3 }, 17.85);
+      tl.to("#cursor", { opacity: 0, duration: 0.4 }, 18.4);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

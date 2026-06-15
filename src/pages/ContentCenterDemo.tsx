@@ -5,7 +5,43 @@ import "@/styles/content-center.css";
 import Footer from "@/components/content-center/Footer";
 import { reveal } from "@/components/content-center/motion";
 
-const STACK = ["HyperFrames", "GSAP", "ElevenLabs", "1080p"];
+type Variant = {
+  id: string;
+  badge: string;
+  titleLead: string;
+  titleEm: string;
+  desc: string;
+  stack: string[];
+  autoPlay?: boolean;
+};
+
+const VARIANTS: Variant[] = [
+  {
+    id: "kinetic",
+    badge: "01 · Kinética",
+    titleLead: "Versión ",
+    titleEm: "Kinética",
+    desc: "Energía alta: escenas que se empujan (sin pisarse), tipografía grande, count-ups, gráficos que se dibujan y SFX en cada transición.",
+    stack: ["HyperFrames", "GSAP", "ElevenLabs", "1080p"],
+    autoPlay: true,
+  },
+  {
+    id: "cursor",
+    badge: "02 · Cursor-flow",
+    titleLead: "Versión ",
+    titleEm: "Cursor-flow",
+    desc: "Elementos grandes y pantallas de la app en movimiento: un cursor hace clic en botones reales —con sonido de clic, reacción del botón y transición— recorriendo el flujo de la herramienta.",
+    stack: ["HyperFrames", "GSAP", "Click SFX", "1080p"],
+  },
+  {
+    id: "captions",
+    badge: "03 · Captions",
+    titleLead: "Versión ",
+    titleEm: "Captions",
+    desc: "Subtítulos kinéticos sincronizados a la voz: palabra por palabra estilo karaoke y frases completas con la keyword resaltada, combinando Poppins con la cursiva manuscrita Caveat.",
+    stack: ["HyperFrames", "GSAP", "Karaoke", "Poppins + Caveat"],
+  },
+];
 
 export default function ContentCenterDemo() {
   useEffect(() => {
@@ -25,8 +61,8 @@ export default function ContentCenterDemo() {
           El producto, <em>en movimiento</em>
         </h1>
         <p className="cc-lead">
-          Un product showcase de motion graphics — voz en off argentina, música y transiciones
-          dinámicas — que recrea las pantallas reales de la app con datos reales. Animado con
+          Tres variaciones de un product showcase de motion graphics —voz en off argentina, música y
+          transiciones dinámicas— que recrean las pantallas reales de la app. Animadas con
           HyperFrames + GSAP.{" "}
           <Link to="/content-center" style={{ color: "var(--ll-accent)" }}>
             Volver a la presentación
@@ -36,51 +72,53 @@ export default function ContentCenterDemo() {
       </header>
 
       <div className="cc-shell">
-        <motion.section
-          className="cc-demo-block"
-          initial={reveal.initial}
-          whileInView={reveal.whileInView}
-          viewport={reveal.viewport}
-          transition={reveal.transition}
-        >
-          <div className="cc-demo-meta">
-            <div>
-              <h2>
-                Versión <em>Kinética</em>
-              </h2>
-              <p>
-                Energía alta: escenas que se empujan (sin pisarse), tipografía grande, count-ups,
-                gráficos que se dibujan y SFX en cada transición.
-              </p>
+        {VARIANTS.map((v) => (
+          <motion.section
+            key={v.id}
+            className="cc-demo-block"
+            initial={reveal.initial}
+            whileInView={reveal.whileInView}
+            viewport={reveal.viewport}
+            transition={reveal.transition}
+          >
+            <div className="cc-demo-meta">
+              <div>
+                <div className="cc-demo-badge">{v.badge}</div>
+                <h2>
+                  {v.titleLead}
+                  <em>{v.titleEm}</em>
+                </h2>
+                <p>{v.desc}</p>
+              </div>
+              <div className="cc-demo-stack">
+                {v.stack.map((s) => (
+                  <span className="cc-demo-tag" key={s}>
+                    {s}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="cc-demo-stack">
-              {STACK.map((s) => (
-                <span className="cc-demo-tag" key={s}>
-                  {s}
-                </span>
-              ))}
+
+            <div className="cc-demo-player">
+              <video
+                src={`/demo/cc-${v.id}.mp4`}
+                poster={`/demo/cc-${v.id}.png`}
+                controls
+                autoPlay={v.autoPlay}
+                muted={v.autoPlay}
+                loop
+                playsInline
+                preload="metadata"
+              />
             </div>
-          </div>
+          </motion.section>
+        ))}
 
-          <div className="cc-demo-player">
-            <video
-              src="/demo/cc-kinetic.mp4"
-              poster="/demo/cc-kinetic.png"
-              controls
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
-          </div>
-
-          <p className="cc-demo-note">
-            🔊 Tiene <strong>voz en off</strong> (argentina, vía ElevenLabs), música y efectos de
-            sonido — activá el sonido del reproductor para escucharla. El video arranca silenciado
-            para poder autoreproducirse.
-          </p>
-        </motion.section>
+        <p className="cc-demo-note">
+          🔊 Las tres tienen <strong>voz en off</strong> (argentina, vía ElevenLabs), música y
+          efectos de sonido — activá el sonido del reproductor para escucharlas. La primera arranca
+          silenciada para poder autoreproducirse.
+        </p>
       </div>
 
       <Footer />
