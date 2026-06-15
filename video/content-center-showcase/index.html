@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="es" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("fonts/InstrumentSerif-Regular.woff2") format("woff2"); }
+      @font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; src: url("fonts/InstrumentSerif-Italic.woff2") format("woff2"); }
+      @font-face { font-family: "DM Sans"; font-style: normal; font-weight: 300 700; src: url("fonts/DMSans.woff2") format("woff2"); }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a; }
+      body { font-family: "DM Sans", sans-serif; font-weight: 300; color: #e8e4de; }
+
+      :root {
+        --surface: #111111; --surface2: #161616; --border: #232323;
+        --text: #e8e4de; --muted: #8a8580; --dim: #5a5550;
+        --accent: #c8ff00; --warm: #ff6b35; --blue: #4a9eff;
+        --ig: #d946ef; --yt: #ef4444; --tt: #06b6d4;
+      }
+
+      /* perspective for 3D transitions */
+      #root { perspective: 1900px; }
+      .scene {
+        position: absolute; inset: 0; background: #0a0a0a; overflow: hidden;
+        will-change: transform, opacity; backface-visibility: hidden;
+      }
+      #s1 { z-index: 1 } #s2 { z-index: 2; opacity: 0 } #s3 { z-index: 3; opacity: 0 }
+      #s4 { z-index: 4; opacity: 0 } #s5 { z-index: 5; opacity: 0 } #s6 { z-index: 6; opacity: 0 }
+      .scene-content {
+        position: relative; display: flex; flex-direction: column;
+        width: 100%; height: 100%; padding: 120px 150px; box-sizing: border-box;
+      }
+
+      .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent); }
+      .kicker { font-family: "JetBrains Mono", monospace; font-size: 23px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); border-left: 5px solid var(--accent); padding-left: 18px; }
+      h1.serif { font-family: "Instrument Serif", serif; font-size: 152px; line-height: 0.94; letter-spacing: -0.03em; color: var(--text); }
+      h2.serif { font-family: "Instrument Serif", serif; font-size: 116px; line-height: 0.96; letter-spacing: -0.03em; color: var(--text); }
+      .serif em { font-style: italic; color: var(--accent); }
+      .serif em.warm { color: var(--warm); }
+      .lead { font-family: "Instrument Serif", serif; font-size: 44px; color: var(--muted); line-height: 1.35; }
+
+      .glow { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(20px); }
+      .glow-accent { background: radial-gradient(circle, rgba(200,255,0,0.16), transparent 62%); }
+      .glow-warm { background: radial-gradient(circle, rgba(255,107,53,0.12), transparent 62%); }
+
+      .grid-bg {
+        position: absolute; inset: 0;
+        background-image: linear-gradient(#1a1a1a 1px, transparent 1px), linear-gradient(90deg, #1a1a1a 1px, transparent 1px);
+        background-size: 96px 96px;
+        -webkit-mask-image: radial-gradient(circle at 50% 42%, #000, transparent 70%);
+        mask-image: radial-gradient(circle at 50% 42%, #000, transparent 70%);
+        opacity: 0.5;
+      }
+
+      .card { background: var(--surface); border: 1px solid #313a0a; border-radius: 10px; box-shadow: 0 0 0 1px rgba(200,255,0,0.05), 0 30px 70px -34px rgba(200,255,0,0.22); }
+      .platform-row { display: flex; gap: 28px; }
+      .pcard { flex: 1; padding: 34px 36px; }
+      .pcard .ptop { display: flex; align-items: center; justify-content: space-between; }
+      .pname { display: inline-flex; align-items: center; font-family: "JetBrains Mono", monospace; font-size: 24px; letter-spacing: 0.12em; text-transform: uppercase; }
+      .pdelta { font-family: "JetBrains Mono", monospace; font-size: 24px; }
+      .pnum { font-family: "Instrument Serif", serif; font-size: 92px; line-height: 1; margin-top: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+      .pbar { height: 8px; border-radius: 99px; background: var(--surface2); margin-top: 22px; overflow: hidden; }
+      .pbar i { display: block; height: 100%; border-radius: 99px; transform-origin: left center; }
+      .plogo { width: 0.95em; height: 0.95em; margin-right: 11px; }
+      .plogo svg { width: 100%; height: 100%; display: block; }
+
+      .chip { display: inline-flex; align-items: center; gap: 13px; font-family: "JetBrains Mono", monospace; font-size: 24px; color: var(--muted);
+        border: 1px solid var(--border); background: var(--surface2); padding: 14px 24px; border-radius: 99px; }
+      .chip .dot { width: 13px; height: 13px; border-radius: 50%; }
+      .clogo { width: 1.15em; height: 1.15em; flex-shrink: 0; }
+      .clogo svg { width: 100%; height: 100%; display: block; }
+
+      .gcard { width: 980px; padding: 48px 52px; }
+      .grow { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; border-bottom: 1px solid var(--border); }
+      .grow:last-child { border-bottom: none; }
+      .glabel { font-family: "Instrument Serif", serif; font-size: 46px; color: var(--text); }
+      .gtag { font-family: "JetBrains Mono", monospace; font-size: 22px; padding: 8px 18px; border-radius: 7px; border: 1px solid var(--border); color: var(--muted); }
+      .gtag.accent { color: var(--accent); border-color: rgba(200,255,0,0.4); background: rgba(200,255,0,0.08); }
+      .gtag.warm { color: var(--warm); border-color: rgba(255,107,53,0.4); background: rgba(255,107,53,0.08); }
+
+      .stat-hero { font-family: "Instrument Serif", serif; font-size: 176px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+      .mult { font-family: "Instrument Serif", serif; font-size: 128px; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+      .tier { font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+        border: 1px solid rgba(200,255,0,0.4); background: rgba(200,255,0,0.08); padding: 12px 26px; border-radius: 99px; }
+
+      .meter { height: 16px; border-radius: 99px; background: var(--surface2); overflow: hidden; width: 760px; }
+      .meter i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--warm)); width: 0; }
+
+      .btn { display: inline-flex; align-items: center; gap: 14px; font-family: "DM Sans"; font-weight: 600; font-size: 34px;
+        background: var(--accent); color: #0a0a0a; padding: 26px 50px; border-radius: 14px; }
+      .url { font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: 0.06em; color: var(--muted); }
+      .topbar { position:absolute; top:120px; left:150px; display:flex; align-items:center; gap:18px; }
+      .topbar .b-dot { width:16px; height:16px; border-radius:50%; background: var(--accent); box-shadow: 0 0 22px rgba(200,255,0,0.6); }
+      .topbar .b-name { font-family: "Instrument Serif", serif; font-size: 34px; }
+      .topbar .b-name b { font-weight:400; color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="19.7" data-width="1920" data-height="1080">
+
+      <!-- S1 — INTRO -->
+      <div id="s1" class="scene">
+        <div class="grid-bg" id="s1-grid"></div>
+        <div class="glow glow-accent" id="s1-glow" style="width:1100px;height:1100px;top:-300px;right:-200px"></div>
+        <div class="glow glow-warm" style="width:700px;height:700px;bottom:-260px;left:-180px"></div>
+        <div class="scene-content" style="justify-content:center;align-items:flex-start">
+          <div class="eyebrow" id="s1-eye">Producto · en uso diario</div>
+          <h1 class="serif" id="s1-title" style="margin-top:26px">Tu <em>command center</em><br />de contenido</h1>
+          <div class="lead" id="s1-lead" style="margin-top:30px">De la idea a la métrica, en un solo lugar.</div>
+        </div>
+      </div>
+
+      <!-- S2 — DASHBOARD -->
+      <div id="s2" class="scene">
+        <div class="topbar" id="s2-top"><span class="b-dot"></span><span class="b-name">Content <b>Center</b></span></div>
+        <div class="scene-content" style="justify-content:center">
+          <div class="kicker" id="s2-kick">Dashboard · todas tus plataformas</div>
+          <div style="display:flex;align-items:center;gap:60px;margin-top:48px">
+            <div>
+              <div class="stat-hero" id="s2-hero" style="margin-bottom:12px">0</div>
+              <div class="lead" id="s2-herolabel" style="font-size:34px;margin-top:40px">seguidores totales</div>
+            </div>
+            <div class="platform-row" style="flex:1">
+              <div class="card pcard">
+                <div class="ptop"><span class="pname" style="color:var(--ig)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7888-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.084m.1402 21.6932c-1.17-.0509-1.8051-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3815-.895-.4215-.4178-.6819-.8186-.9-1.378-.1626-.4234-.3585-1.058-.4117-2.228-.0582-1.2645-.0702-1.6442-.0775-4.848-.0073-3.2025-.0084-3.5827-.0035-4.847.0053-1.169.2461-1.7793.4082-2.2024.216-.5613.4762-.96.895-1.3814.4187-.4214.8184-.6817 1.3782-.9.4231-.1633 1.0575-.3577 2.227-.4116 1.2655-.0586 1.6441-.0697 4.848-.0744 3.2039-.0047 3.5849-.0036 4.8515.0046 1.169.0539 1.8061.245 2.2275.4083.5613.2161.96.4762 1.3815.895.4215.4189.6816.8181.9 1.3791.1635.4203.3577 1.0556.4109 2.2253.0583 1.2655.0716 1.6443.077 4.848.0053 3.2037-.0006 3.5848-.0036 4.8513-.0506 1.169-.2455 1.8062-.408 2.2299-.2155.5613-.4761.96-.8948 1.3815-.4187.4215-.8189.6818-1.378.9-.4226.1632-1.0577.3576-2.2262.4117-1.2655.0583-1.6442.0717-4.8493.077-3.205.0053-3.5851-.001-4.8454-.0046M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0089a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0089"/></svg></span>Instagram</span><span class="pdelta" style="color:var(--ig)">↗ 13.9%</span></div>
+                <div class="pnum">49</div>
+                <div class="pbar"><i style="width:62%;background:var(--ig)"></i></div>
+              </div>
+              <div class="card pcard">
+                <div class="ptop"><span class="pname" style="color:var(--tt)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></span>TikTok</span><span class="pdelta" style="color:var(--tt)">↗ 62.2%</span></div>
+                <div class="pnum">73</div>
+                <div class="pbar"><i style="width:78%;background:var(--tt)"></i></div>
+              </div>
+              <div class="card pcard">
+                <div class="ptop"><span class="pname" style="color:var(--yt)"><span class="plogo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span>YouTube</span><span class="pdelta" style="color:var(--yt)">↗ 35.9%</span></div>
+                <div class="pnum">125</div>
+                <div class="pbar"><i style="width:88%;background:var(--yt)"></i></div>
+              </div>
+            </div>
+          </div>
+          <svg width="1620" height="220" viewBox="0 0 1620 220" style="margin-top:46px" preserveAspectRatio="none">
+            <defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(200,255,0,0.22)"/><stop offset="1" stop-color="rgba(200,255,0,0)"/>
+            </linearGradient></defs>
+            <path d="M0,180 C260,170 360,150 560,140 C820,126 980,96 1180,86 C1380,76 1500,52 1620,40 L1620,220 L0,220 Z" fill="url(#ar)"/>
+            <path id="s2-line" d="M0,180 C260,170 360,150 560,140 C820,126 980,96 1180,86 C1380,76 1500,52 1620,40" fill="none" stroke="#c8ff00" stroke-width="4" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- S3 — GUIONES IA -->
+      <div id="s3" class="scene">
+        <div class="glow glow-accent" id="s3-glow" style="width:900px;height:900px;top:-220px;left:-180px"></div>
+        <div class="scene-content" style="justify-content:center">
+          <div class="kicker" id="s3-kick">Ideación · guiones con IA</div>
+          <h2 class="serif" id="s3-title" style="margin-top:18px">De una idea suelta<br />a un <em class="warm">guion listo</em></h2>
+          <div class="card gcard" id="s3-card" style="margin-top:44px">
+            <div class="grow"><span class="glabel">Hook</span><span class="gtag accent">0–5s</span></div>
+            <div class="grow"><span class="glabel">Desarrollo</span><span class="gtag">120 palabras</span></div>
+            <div class="grow"><span class="glabel">CTA</span><span class="gtag warm">comentá "IA"</span></div>
+          </div>
+          <div style="display:flex;gap:18px;margin-top:36px" id="s3-chips">
+            <span class="chip"><span class="dot" style="background:var(--accent)"></span>Generado con Claude</span>
+            <span class="chip"><span class="dot" style="background:var(--blue)"></span>Transcrito con Whisper</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- S4 — PUBLICACIÓN -->
+      <div id="s4" class="scene">
+        <div class="scene-content" style="justify-content:center">
+          <div class="kicker" id="s4-kick">Distribución</div>
+          <h2 class="serif" id="s4-title" style="margin-top:18px">Publicá en las 3 plataformas<br /><em>a la vez</em></h2>
+          <div class="card" id="s4-card" style="width:1180px;margin-top:46px;padding:44px 50px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-family:'Instrument Serif',serif;font-size:42px;color:var(--muted)">Programado</span>
+              <span class="gtag accent">jue · 18:00</span>
+            </div>
+            <div style="display:flex;gap:20px;margin-top:34px" id="s4-rows">
+              <span class="chip pchip" style="font-size:26px"><span class="clogo"><svg viewBox="0 0 24 24" fill="#d946ef"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7888-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.084m.1402 21.6932c-1.17-.0509-1.8051-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3815-.895-.4215-.4178-.6819-.8186-.9-1.378-.1626-.4234-.3585-1.058-.4117-2.228-.0582-1.2645-.0702-1.6442-.0775-4.848-.0073-3.2025-.0084-3.5827-.0035-4.847.0053-1.169.2461-1.7793.4082-2.2024.216-.5613.4762-.96.895-1.3814.4187-.4214.8184-.6817 1.3782-.9.4231-.1633 1.0575-.3577 2.227-.4116 1.2655-.0586 1.6441-.0697 4.848-.0744 3.2039-.0047 3.5849-.0036 4.8515.0046 1.169.0539 1.8061.245 2.2275.4083.5613.2161.96.4762 1.3815.895.4215.4189.6816.8181.9 1.3791.1635.4203.3577 1.0556.4109 2.2253.0583 1.2655.0716 1.6443.077 4.848.0053 3.2037-.0006 3.5848-.0036 4.8513-.0506 1.169-.2455 1.8062-.408 2.2299-.2155.5613-.4761.96-.8948 1.3815-.4187.4215-.8189.6818-1.378.9-.4226.1632-1.0577.3576-2.2262.4117-1.2655.0583-1.6442.0717-4.8493.077-3.205.0053-3.5851-.001-4.8454-.0046M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0089a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0089"/></svg></span>Instagram Reel</span>
+              <span class="chip pchip" style="font-size:26px"><span class="clogo"><svg viewBox="0 0 24 24" fill="#ef4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span>YouTube Short</span>
+              <span class="chip pchip" style="font-size:26px"><span class="clogo"><svg viewBox="0 0 24 24" fill="#06b6d4"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></span>TikTok</span>
+            </div>
+          </div>
+          <div class="lead" id="s4-sub" style="font-size:36px;margin-top:34px">Captions por plataforma, subida en lote y horarios óptimos.</div>
+        </div>
+      </div>
+
+      <!-- S5 — PREDICCIÓN -->
+      <div id="s5" class="scene">
+        <div class="glow glow-accent" id="s5-glow" style="width:1000px;height:1000px;top:-260px;right:-220px"></div>
+        <div class="scene-content" style="justify-content:center">
+          <div class="kicker" id="s5-kick">Inteligencia de datos</div>
+          <h2 class="serif" id="s5-title" style="margin-top:18px">Sabé si va a ser viral<br /><em>antes</em> de publicar</h2>
+          <div style="display:flex;align-items:center;gap:70px;margin-top:50px">
+            <div id="s5-mult"><div class="mult">5×</div><div class="kicker" style="color:var(--muted);border-color:var(--muted);margin-top:24px">multiplier estimado</div></div>
+            <div style="flex:1">
+              <div class="tier" id="s5-tier">Tier · Outlier</div>
+              <div class="meter" style="margin-top:30px"><i id="s5-meter"></i></div>
+              <div style="display:flex;gap:18px;margin-top:28px" id="s5-chips">
+                <span class="chip" style="font-size:24px"><span class="dot" style="background:var(--accent)"></span>Hook fuerte</span>
+                <span class="chip" style="font-size:24px"><span class="dot" style="background:var(--warm)"></span>Riesgo: CTA largo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S6 — OUTRO -->
+      <div id="s6" class="scene">
+        <div class="grid-bg" id="s6-grid"></div>
+        <div class="glow glow-accent" id="s6-glow" style="width:1200px;height:1200px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+        <div class="scene-content" style="justify-content:center;align-items:center;text-align:center">
+          <div class="eyebrow" id="s6-eye">Lista de espera privada</div>
+          <h1 class="serif" id="s6-title" style="margin-top:24px">Content <em>Center</em></h1>
+          <div class="lead" id="s6-lead" style="margin-top:18px">El estudio que uso para correr mi marca.</div>
+          <div class="btn" id="s6-btn" style="margin-top:48px">Sumate a la lista →</div>
+          <div class="url" id="s6-url" style="margin-top:30px">ezequiellamas.com/content-center</div>
+        </div>
+      </div>
+
+      <!-- AUDIO TRACKS -->
+      <audio id="aud-music" src="music.mp3" data-start="0" data-duration="19.7" data-track-index="1" data-volume="0.15"></audio>
+      <audio id="aud-vo" src="vo.mp3" data-start="0" data-duration="19.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="aud-wh0" src="whoosh.mp3" data-start="0.1" data-duration="0.55" data-track-index="3" data-volume="0.32"></audio>
+      <audio id="aud-wh1" src="whoosh.mp3" data-start="3.31" data-duration="0.55" data-track-index="3" data-volume="0.38"></audio>
+      <audio id="aud-wh2" src="whoosh.mp3" data-start="6.27" data-duration="0.55" data-track-index="3" data-volume="0.38"></audio>
+      <audio id="aud-wh3" src="whoosh.mp3" data-start="9.31" data-duration="0.55" data-track-index="3" data-volume="0.38"></audio>
+      <audio id="aud-wh4" src="whoosh.mp3" data-start="12.68" data-duration="0.55" data-track-index="3" data-volume="0.38"></audio>
+      <audio id="aud-wh5" src="whoosh.mp3" data-start="15.52" data-duration="0.55" data-track-index="3" data-volume="0.38"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const EXPO = "expo.out", BACK = "back.out(1.7)", P3 = "power3.out", P4 = "power4.out", OUT = "power3.out", IN = "power2.in";
+
+      tl.set("#s2 .pbar i", { scaleX: 0 }, 0);
+
+      // ===== clean 3D carousel transitions (adjacent scenes — no blend, no edge-on blink) =====
+      // dir +1: incoming from right/bottom; dir -1: from left/top
+      // same ease for in & out keeps scenes edge-to-edge (zero gap, never black);
+      // subtle rotateY/X + perspective gives the 3D carousel depth.
+      function tH(o, n, t, dur, dir) {
+        tl.set(n, { x: 1920 * dir, y: 0, rotationX: 0, rotationY: -18 * dir, scale: 0.985, opacity: 1, transformOrigin: "50% 50%" }, t);
+        tl.to(n, { x: 0, rotationY: 0, scale: 1, duration: dur, ease: "power3.inOut" }, t);
+        tl.to(o, { x: -1920 * dir, rotationY: 18 * dir, scale: 0.985, duration: dur, ease: "power3.inOut" }, t);
+        tl.set(o, { opacity: 0, x: 0, rotationY: 0, scale: 1 }, t + dur + 0.05);
+      }
+      function tV(o, n, t, dur, dir) {
+        tl.set(n, { y: 1080 * dir, x: 0, rotationY: 0, rotationX: 16 * dir, scale: 0.985, opacity: 1, transformOrigin: "50% 50%" }, t);
+        tl.to(n, { y: 0, rotationX: 0, scale: 1, duration: dur, ease: "power3.inOut" }, t);
+        tl.to(o, { y: -1080 * dir, rotationX: -16 * dir, scale: 0.985, duration: dur, ease: "power3.inOut" }, t);
+        tl.set(o, { opacity: 0, y: 0, rotationX: 0, scale: 1 }, t + dur + 0.05);
+      }
+      const D = 0.5;
+
+      // ---- S1 entrances (opener) ----
+      tl.from("#s1-eye", { y: 30, opacity: 0, duration: 0.5, ease: BACK }, 0.2);
+      tl.from("#s1-title", { y: 70, opacity: 0, duration: 0.75, ease: EXPO }, 0.35);
+      tl.from("#s1-lead", { y: 32, opacity: 0, duration: 0.6, ease: P4 }, 0.72);
+      tl.to("#s1-glow", { x: 70, y: 50, scale: 1.1, duration: 3.0, ease: "sine.inOut" }, 0.3);
+
+      // ===== S1 -> S2 (from right) =====
+      tH("#s1", "#s2", 3.31, D, 1);
+      tl.from("#s2-top", { y: -22, duration: 0.5, ease: P3 }, 3.85);
+      tl.from("#s2-kick", { x: -38, duration: 0.45, ease: P3 }, 3.9);
+      tl.from("#s2-hero", { y: 28, duration: 0.45, ease: P3 }, 3.95);
+      tl.from("#s2-herolabel", { y: 20, duration: 0.45, ease: P3 }, 4.15);
+      const fol = { v: 0 };
+      tl.to(fol, { v: 247, duration: 1.1, ease: "power2.out", snap: { v: 1 },
+        onUpdate: () => { document.getElementById("s2-hero").textContent = Math.round(fol.v); } }, 4.0);
+      tl.from("#s2 .pcard", { y: 50, rotationX: 16, transformPerspective: 1000, transformOrigin: "50% 100%", duration: 0.55, ease: P3, stagger: 0.11 }, 4.0);
+      tl.to("#s2 .pbar i", { scaleX: 1, duration: 0.7, ease: P3, stagger: 0.1 }, 4.55);
+      tl.to("#s2-line", { strokeDashoffset: 0, duration: 1.2, ease: "power1.inOut" }, 4.5);
+
+      // ===== S2 -> S3 (from bottom) =====
+      tV("#s2", "#s3", 6.27, D, 1);
+      tl.from("#s3-kick", { x: -38, duration: 0.45, ease: P3 }, 6.78);
+      tl.from("#s3-title", { y: 44, duration: 0.55, ease: EXPO }, 6.84);
+      tl.from("#s3-card", { y: 56, scale: 0.96, duration: 0.55, ease: P3 }, 7.0);
+      tl.from("#s3-card .grow", { x: 44, duration: 0.45, ease: P3, stagger: 0.11 }, 7.12);
+      tl.from("#s3-chips .chip", { y: 24, scale: 0.9, duration: 0.45, ease: BACK, stagger: 0.1 }, 7.45);
+      tl.to("#s3-glow", { x: 60, y: 40, scale: 1.08, duration: 2.0, ease: "sine.inOut" }, 6.8);
+
+      // ===== S3 -> S4 (from left) =====
+      tH("#s3", "#s4", 9.31, D, -1);
+      tl.from("#s4-kick", { x: -38, duration: 0.45, ease: P3 }, 9.82);
+      tl.from("#s4-title", { y: 44, duration: 0.55, ease: EXPO }, 9.88);
+      tl.from("#s4-card", { y: 52, scale: 0.96, duration: 0.55, ease: P3 }, 10.05);
+      // platform chips: subtle 3D flip-in (the elements you called out)
+      tl.from("#s4-rows .pchip", { rotationY: -68, transformPerspective: 900, transformOrigin: "left center", duration: 0.5, ease: BACK, stagger: 0.13 }, 10.28);
+      tl.from("#s4-sub", { y: 22, duration: 0.45, ease: P3 }, 10.78);
+
+      // ===== S4 -> S5 (from top) =====
+      tV("#s4", "#s5", 12.68, D, -1);
+      tl.from("#s5-kick", { x: -38, duration: 0.45, ease: P3 }, 13.19);
+      tl.from("#s5-title", { y: 44, duration: 0.55, ease: EXPO }, 13.25);
+      tl.from("#s5-mult", { scale: 0.7, rotationY: 38, transformPerspective: 1000, duration: 0.55, ease: BACK }, 13.45);
+      tl.from("#s5-tier", { x: 40, duration: 0.45, ease: P3 }, 13.55);
+      tl.to("#s5-meter", { width: "78%", duration: 0.9, ease: "power2.out" }, 13.7);
+      tl.from("#s5-chips .chip", { y: 22, duration: 0.45, ease: P3, stagger: 0.1 }, 13.8);
+      tl.to("#s5-glow", { x: -60, y: 50, scale: 1.1, duration: 2.0, ease: "sine.inOut" }, 13.2);
+
+      // ===== S5 -> S6 (from right) =====
+      tH("#s5", "#s6", 15.52, D, 1);
+      tl.from("#s6-eye", { y: 22, duration: 0.45, ease: P3 }, 16.05);
+      tl.from("#s6-title", { y: 56, scale: 0.94, duration: 0.7, ease: EXPO }, 16.12);
+      tl.from("#s6-lead", { y: 24, duration: 0.55, ease: P3 }, 16.45);
+      tl.from("#s6-btn", { scale: 0.82, duration: 0.5, ease: "back.out(2.4)" }, 16.68);
+      tl.from("#s6-url", { duration: 0.55, ease: P3 }, 16.98);
+      tl.to("#s6-glow", { scale: 1.16, duration: 2.6, ease: "sine.inOut" }, 16.1);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
