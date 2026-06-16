@@ -135,8 +135,8 @@ Every one of these cost real render cycles. If you see the symptom, jump straigh
    space SFX out).
 10. **`content_overlap` — a huge number/word overlaps its label.** Cause: display font-size too
     large with tight line-height → glyph box overflows. **Fix:** reduce size, `line-height:1`,
-    add explicit margin. (This is exactly what forced the captions highlight to be color-only,
-    not scaled — see `captions.md`.)
+    add explicit margin. (This is exactly what forced the one-word-captions highlight to be
+    color-only, not scaled — see `one-word-captions.md`.)
 11. **`multiple_root_compositions` lint error.** Cause: several root HTML files each have
     `data-composition-id`. **Fix:** exactly one `index.html` with it; render others via
     `render -c <file>`.

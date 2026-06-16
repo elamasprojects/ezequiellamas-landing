@@ -75,7 +75,7 @@ policy) and shows a "🔊 activá el sonido" note; the others play on demand. Se
 
 ## Inspect quirks that are NOT bugs
 
-- A deliberately oversized decorative element (e.g. the captions watermark at 520px, or a `.glow`)
+- A deliberately oversized decorative element (e.g. the one-word-captions watermark at 520px, or a `.glow`)
   will emit `text_box_overflow` / `canvas_overflow`. That's expected for bleed-off decoration — mark
   it `data-layout-allow-overflow` or just ignore those specific notes (Bug 13).
 - `inspect` measuring a scene "off-canvas" usually means a `fromTo` parked it off-screen at build —

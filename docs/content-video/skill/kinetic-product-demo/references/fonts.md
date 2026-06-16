@@ -10,8 +10,8 @@ mistake this section exists to prevent.
   mono). These carry the brand. The kinetic and cursor-flow variants use them for headlines, body,
   and mono labels.
 - **Stylistic caption fonts (a detachable layer).** **Poppins** (geometric sans) + **Caveat**
-  (handwritten cursive) were chosen *only* for the captions variant's look. **They are NOT the
-  brand typeface.** Do not present "Poppins + Caveat" as the brand, do not pull them onto brand
+  (handwritten cursive) were chosen *only* for the one-word captions template's look. **They are
+  NOT the brand typeface.** Do not present "Poppins + Caveat" as the brand, do not pull them onto brand
   surfaces, and when reusing this skill for a different brand, swap them for that brand's chosen
   geometric-sans + cursive pair while leaving the brand identity fonts to the brand.
 
@@ -44,7 +44,7 @@ Brand kit (kinetic / cursor variants):
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 700; src: url("fonts/JetBrainsMono.woff2") format("woff2"); }
 ```
 
-Stylistic caption layer (captions variant only):
+Stylistic caption layer (one-word captions template only):
 ```css
 @font-face { font-family: "Poppins"; font-style: normal; font-weight: 600; font-display: block; src: url("fonts/Poppins-600.woff2") format("woff2"); }
 @font-face { font-family: "Poppins"; font-style: normal; font-weight: 700; font-display: block; src: url("fonts/Poppins-700.woff2") format("woff2"); }

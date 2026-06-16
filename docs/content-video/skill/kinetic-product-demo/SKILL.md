@@ -5,15 +5,18 @@ description: >-
   HyperFrames HTML compositions (HTML + GSAP rendered to MP4) — the kind where nothing
   sits static for more than a beat. Use this skill whenever the user wants to create or
   iterate on a kinetic motion-graphics product video, a SaaS/app showcase reel, an
-  animated feature walkthrough, a "presentation video", "otra versión del video", or
-  specifically the two signature variants: (A) a CURSOR-FLOW demo where an animated cursor
-  clicks real-looking app buttons with click SFX, button press-reactions and transitions,
-  and (B) a KINETIC CAPTIONS / KARAOKE video with word-by-word and full-phrase subtitles
-  synced to a voiceover, highlighted keywords, and animated handwritten cursive. Covers the
-  seek-safe HyperFrames authoring model, ElevenLabs voiceover with word timings,
-  ffmpeg-synthesized SFX, fonts, and the render/deploy loop. Trigger even if the user just
-  says "make another version of the video", "add captions to the reel", "a cursor clicking
-  through the app", "más dinamismo / más dopamina", or names HyperFrames/GSAP motion graphics.
+  animated feature walkthrough, a "presentation video", "otra versión del video", or one of
+  the reusable TEMPLATES this skill ships. There is a small, growing template library —
+  two templates today: (A) CURSOR-FLOW, where an animated cursor clicks real-looking app
+  buttons with click SFX, button press-reactions and transitions, walking the product flow;
+  and (B) ONE-WORD CAPTIONS, word-by-word karaoke subtitles (one word per frame, swapping
+  nearly instantly, very visual) plus full multi-word caption lines, synced to a voiceover
+  with highlighted keywords and animated handwritten cursive. Covers the seek-safe
+  HyperFrames authoring model, ElevenLabs voiceover with word timings, ffmpeg-synthesized
+  SFX, fonts, and the render/deploy loop. Trigger even if the user just says "make another
+  version of the video", "a new video template", "add captions to the reel", "one word at a
+  time captions", "karaoke subtitles", "a cursor clicking through the app", "más dinamismo /
+  más dopamina", or names HyperFrames/GSAP motion graphics.
 ---
 
 # Kinetic product-demo videos (HyperFrames)
@@ -21,8 +24,8 @@ description: >-
 This skill captures a proven, repeatable process for producing short (15–25s),
 high-energy product-showcase videos as **HyperFrames** compositions: a single HTML
 file driven by one **GSAP** timeline, rendered to MP4 by headless Chrome. It was
-distilled from building three variants of a real SaaS showcase reel — a **kinetic**
-base, a **cursor-flow** demo, and a **kinetic-captions** demo — and it encodes both
+distilled from building a real SaaS showcase reel in several forms — a **kinetic** base
+plus two reusable templates, **cursor-flow** and **one-word-captions** — and it encodes both
 the *creative direction* (what makes them feel good) and the *exact technical stack*
 (how to make them render correctly and deterministically).
 
@@ -91,25 +94,31 @@ north star — when a variant feels flat, it is almost always violating one of t
 4. **Fonts** — drop the needed woff2 into `fonts/` and wire `@font-face` with literal
    family names. See `references/fonts.md`.
 5. **Compose** — author `index.html`: persistent-scene model, one GSAP timeline, the
-   variant-specific rig (cursor or captions). See the variant references.
+   template-specific rig (cursor-flow or one-word captions). See the template references.
 6. **Validate** — `npx hyperframes lint` then `inspect --at t1,t2,…`; fix overlaps /
    black frames / desync. Read the frames.
 7. **Render + ship** — `render --output renders/x.mp4`, extract a poster, copy the MP4 +
    PNG into the app. See `references/render-pipeline.md`.
 
-## The two signature variants
+## Templates (a growing library)
 
-Pick the reference that matches the brief; both build on the seek-safe base.
+This skill ships a small library of reusable video **templates**, all built on the shared
+seek-safe base (persistent scenes + 3D carousel transitions + the audio rig). **Two
+templates exist today; the library is designed to grow** — add a new one as its own
+`references/<template>.md` following the same pattern, and list it here. Pick the template
+that matches the brief.
 
-- **Cursor-flow** (`references/cursor-flow.md`) — "elementos grandes y pantallas de la
-  app en movimiento; un cursor hace clic en botones reales, con sonido de clic, reacción
-  del botón y transición". A global animated cursor + ripple, device mocks (browser/phone),
-  big logos/numbers, and a `clickFX()` helper that syncs a press-scale + ripple + button
-  glow + click SFX at exact timestamps, each clic triggering a scene transition.
-- **Kinetic captions** (`references/captions.md`) — subtitles synced to the VO: a
-  `kara()` karaoke mode (one word at a time, swapping almost instantly) and a `full()`
-  mode (4–5 words at once with the spoken keyword highlighted). Combines a geometric sans
-  with an animated handwritten cursive, over an always-moving backdrop + progress bar.
+| Template | What it is | Reference |
+|---|---|---|
+| **Cursor-flow** | Big elements + app screens in motion. A global animated cursor + ripple, device mocks (browser/phone), big logos/numbers, and a `clickFX()` helper that syncs a press-scale + ripple + button glow + click SFX at exact timestamps — **each click triggers the next scene/action**. "elementos grandes y pantallas de la app en movimiento; un cursor hace clic en botones reales, con sonido de clic, reacción del botón y transición." | `references/cursor-flow.md` |
+| **One-word captions** | Subtitles synced to the VO. Primarily a `kara()` **karaoke** mode — **one word per frame**, swapping almost instantly (very visual) — plus a `full()` mode (4–5 words at once with the spoken keyword highlighted) for some lines. Combines a geometric sans with an animated handwritten cursive, over an always-moving backdrop + progress bar. | `references/one-word-captions.md` |
+
+*The original **kinetic** reel (fast scenes, count-ups, draw-on charts) is the shared base
+these templates extend, not a separate template — its rig lives in `references/seek-safe-model.md`.*
+
+**More templates are coming** (e.g. split-screen comparisons, data-dashboard fly-throughs,
+testimonial/quote reels). When you add one, keep it a self-contained `references/*.md` so the
+library stays composable.
 
 ## Fonts: brand vs. stylistic (important)
 
@@ -119,7 +128,7 @@ Keep these straight — they are NOT the same thing:
   **JetBrains Mono**. These are the identity; use them for the kinetic/cursor variants’
   headlines, body, and mono labels.
 - **Stylistic caption fonts**: **Poppins** (geometric sans) + **Caveat** (handwritten
-  cursive) were used **only** for the captions variant as a deliberate styling choice —
+  cursive) were used **only** for the one-word captions template as a deliberate styling choice —
   they are **not** the brand typeface. Do not present "Poppins + Caveat" as the brand, and
   do not pull them into the brand surfaces. When reusing this skill for a different brand,
   swap the brand fonts for that brand’s identity and treat the caption fonts as a
@@ -130,8 +139,8 @@ Keep these straight — they are NOT the same thing:
 | File | When to read |
 |---|---|
 | `references/seek-safe-model.md` | **Always, first.** Determinism rules, persistent-scene model, 3D transition recipe, and the full bug→fix log. |
-| `references/cursor-flow.md` | Building/iterating the cursor-flow variant. Cursor rig, `clickFX()`, device mocks, click-sync timings. |
-| `references/captions.md` | Building/iterating the captions variant. `kara()`/`full()`, Caveat handwriting, highlight, backdrop. |
+| `references/cursor-flow.md` | Building/iterating the **cursor-flow** template. Cursor rig, `clickFX()`, device mocks, click-sync timings. |
+| `references/one-word-captions.md` | Building/iterating the **one-word captions** template. `kara()`/`full()`, Caveat handwriting, highlight, backdrop. |
 | `references/audio-voice-sfx.md` | Generating the VO (ElevenLabs word timings), the ffmpeg SFX recipe, music bed, audio wiring. |
 | `references/fonts.md` | Wiring fonts; brand vs stylistic; the `@font-face` literal-name gotcha. |
 | `references/render-pipeline.md` | The CLI dev loop, frame inspection, render, poster extraction, and copy-into-app convention. |

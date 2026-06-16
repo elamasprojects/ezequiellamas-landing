@@ -1,4 +1,10 @@
-# Variant B — Kinetic captions / karaoke
+# Template — One-word captions (karaoke + full captions)
+
+> **Template name: "one-word captions."** The name reflects its signature look — **one word
+> per frame**, swapping nearly instantly, which is far more visual than a static subtitle line.
+> The template also includes a full multi-word caption mode (`full()`) for some phrases, but the
+> one-word karaoke (`kara()`) is its identity. This is one of two templates in the library today
+> (the other is **cursor-flow**); more will be added — see `../SKILL.md`.
 
 **Brief (verbatim intent):** "en la parte en la que se dice algo importante, se haga un highlight
 en el texto que se está diciendo, poniendo captions/subtítulos… un solo caption a la vez, una
@@ -202,7 +208,7 @@ fonts are Instrument Serif / DM Sans / JetBrains Mono. Do not pull Poppins/Cavea
 surfaces, and when reusing this for another brand, swap the geometric sans + cursive for that
 brand's chosen pair. All render-critical faces use `font-display: block`. See `fonts.md`.
 
-## 8. Captions checklist
+## 8. One-word captions checklist
 
 - [ ] `W` built from real `/with-timestamps` word timings (not eyeballed).
 - [ ] `kara()` swaps with `tl.set` opacity (seek-safe); last word killed at its `e`.
