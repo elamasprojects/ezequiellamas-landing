@@ -17,29 +17,29 @@ type Variant = {
 
 const VARIANTS: Variant[] = [
   {
-    id: "kinetic",
-    badge: "01 · Kinética",
-    titleLead: "Versión ",
-    titleEm: "Kinética",
-    desc: "Energía alta: escenas que se empujan (sin pisarse), tipografía grande, count-ups, gráficos que se dibujan y SFX en cada transición.",
-    stack: ["HyperFrames", "GSAP", "ElevenLabs", "1080p"],
-    autoPlay: true,
-  },
-  {
     id: "cursor",
-    badge: "02 · Cursor-flow",
+    badge: "01 · Cursor-flow",
     titleLead: "Versión ",
     titleEm: "Cursor-flow",
     desc: "Elementos grandes y pantallas de la app en movimiento: un cursor hace clic en botones reales —con sonido de clic, reacción del botón y transición— recorriendo el flujo de la herramienta.",
     stack: ["HyperFrames", "GSAP", "Click SFX", "1080p"],
+    autoPlay: true,
   },
   {
     id: "captions",
-    badge: "03 · Captions",
+    badge: "02 · Captions",
     titleLead: "Versión ",
     titleEm: "Captions",
-    desc: "Subtítulos kinéticos sincronizados a la voz: palabra por palabra estilo karaoke y frases completas con la keyword resaltada, combinando Poppins con la cursiva manuscrita Caveat.",
-    stack: ["HyperFrames", "GSAP", "Karaoke", "Poppins + Caveat"],
+    desc: "Subtítulos kinéticos sincronizados a la voz: palabra por palabra estilo karaoke y frases completas con la keyword resaltada, con tipografía geométrica más una cursiva manuscrita animada.",
+    stack: ["HyperFrames", "GSAP", "Karaoke", "Captions"],
+  },
+  {
+    id: "kinetic",
+    badge: "03 · Kinética",
+    titleLead: "Versión ",
+    titleEm: "Kinética",
+    desc: "Energía alta: escenas que se empujan (sin pisarse), tipografía grande, count-ups, gráficos que se dibujan y SFX en cada transición.",
+    stack: ["HyperFrames", "GSAP", "ElevenLabs", "1080p"],
   },
 ];
 
