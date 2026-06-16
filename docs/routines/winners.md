@@ -37,7 +37,7 @@ Brand Hub) and pass `project_id` on every call. The other project is a different
   `{ "summary": "...", "factors": ["...", "..."] }`.
 - Write `comments_summary` = `{ "summary": "..." }` distilled from real comments (or omit if none).
 
-## Write back (do NOT run SQL)
+## Write the ideas back (via the ingest endpoint, not SQL)
 POST every idea to `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea`
 with header `x-ingest-token: <INGEST_TOKEN>` and body:
 ```
@@ -53,8 +53,9 @@ with header `x-ingest-token: <INGEST_TOKEN>` and body:
 Send the whole batch in one POST (one notification fires). `concept` is required.
 
 ## Don't duplicate
-The trigger message lists ideas already pending in the queue under "do NOT duplicate these". Skip any
-winner whose recycled idea would overlap one of them. The endpoint also dedups by hash as a backstop.
+Before generating, read `public.content_ideas` where `status='pending'` via the MCP and skip any
+winner whose recycled idea would overlap one. (If you were started by the on-demand button, the
+trigger message also lists those pending ideas.) The endpoint dedups by hash as a backstop.
 
 ## Volume
 Aim for **3–6 ideas** per run from the top winners. Quality over quantity — only recycle genuine wins.

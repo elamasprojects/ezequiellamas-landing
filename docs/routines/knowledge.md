@@ -37,7 +37,7 @@ Spread across the 4 pillars. Each idea: a clear `concept` (1–3 sentences), a s
 knowledge-based angles with 1–2 broader, high-ceiling ideas for reach. Keep his voice: warm, simple,
 action-oriented, building-in-public, no talking about his own money, no clichés.
 
-## Write back (do NOT run SQL)
+## Write the ideas back (via the ingest endpoint, not SQL)
 POST the whole batch to `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea`
 with header `x-ingest-token: <INGEST_TOKEN>`:
 ```

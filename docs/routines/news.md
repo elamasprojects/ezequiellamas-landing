@@ -41,8 +41,10 @@ it"). Then:
 ```
 
 ## Don't duplicate
-The trigger message lists pending ideas under "do NOT duplicate these" — skip overlaps. Also skip news
-you already turned into an idea on a previous run (it'll be in the pending list, or already approved).
+Before creating ideas, read `public.content_ideas` where `status='pending'` via the Supabase MCP
+(project `zsbligbfsmdwbxcvoysu`) and skip overlaps. Also skip news you already turned into an idea on a
+previous run (it'll be pending, or already approved). (If started by the on-demand button, the trigger
+message also lists the pending ideas.)
 
 ## Volume
 **3–6 ideas** per run from the freshest, highest-ceiling news. Don't force ideas from low-signal items.
