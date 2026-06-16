@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Compass, Download, Pencil, RefreshCw } from "lucide-react";
+import { ArrowLeft, Compass, Download, Pencil, RefreshCw, LayoutGrid, GalleryVerticalEnd } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReferent } from "@/hooks/useReferent";
 import { useReferentVideos } from "@/hooks/useReferentVideos";
@@ -11,6 +11,7 @@ import { PlatformBadges } from "@/pages/app/admin/referentes/ReferentesList";
 import ReferenteDialog from "@/pages/app/admin/referentes/ReferenteDialog";
 import ReferentVideoCard from "@/pages/app/admin/referentes/ReferentVideoCard";
 import ReferentStrategySection from "@/pages/app/admin/referentes/ReferentStrategySection";
+import { ReferentFeedContainer } from "@/components/referentes/feed/ReferentFeedContainer";
 
 export default function ReferenteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,8 @@ export default function ReferenteDetail() {
   const [toDate, setToDate] = useState("");
   // (M33) Platform/format mode: "short" = IG + TikTok, "youtube" = the channel.
   const [mode, setMode] = useState<"short" | "youtube">("short");
+  // Grid (default — keeps the analysis panel primary) vs Instagram-style feed.
+  const [view, setView] = useState<"grid" | "feed">("grid");
   const qc = useQueryClient();
 
   const modePlatforms = mode === "youtube" ? ["youtube"] : ["instagram", "tiktok"];
@@ -227,13 +230,42 @@ export default function ReferenteDetail() {
               Limpiar
             </Button>
           )}
-          <span className="ml-auto text-xs" style={{ color: "var(--ll-text-muted)" }}>
-            {filteredVideos.length} de {modeVideos.length}
-          </span>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="inline-flex gap-1 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-1">
+              {([
+                { value: "grid", icon: LayoutGrid, label: "Grilla" },
+                { value: "feed", icon: GalleryVerticalEnd, label: "Feed" },
+              ] as const).map((v) => {
+                const Icon = v.icon;
+                return (
+                  <button
+                    key={v.value}
+                    type="button"
+                    onClick={() => setView(v.value)}
+                    className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors"
+                    style={{
+                      background: view === v.value ? "var(--ll-accent-dim)" : "transparent",
+                      color: view === v.value ? "var(--ll-accent)" : "var(--ll-text-muted)",
+                    }}
+                    aria-label={v.label}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {v.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-xs" style={{ color: "var(--ll-text-muted)" }}>
+              {filteredVideos.length} de {modeVideos.length}
+            </span>
+          </div>
         </div>
       )}
 
-      <VideoGrid videos={filteredVideos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
+      {view === "feed" && filteredVideos.length > 0 ? (
+        <ReferentFeedContainer videos={filteredVideos} referentName={referent.name} />
+      ) : (
+        <VideoGrid videos={filteredVideos} loading={vidLoading} referent={referent} onScrape={() => scrapeMutation.mutate()} />
+      )}
 
       <ReferenteDialog
         open={editOpen}

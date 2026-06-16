@@ -11,6 +11,8 @@ import {
   fetchAdminScriptApprovals,
   type ScriptApproval,
 } from "@/lib/api/scriptApprovals";
+import { usePendingContentIdeasCount } from "@/hooks/useContentIdeas";
+import IdeaReviewQueue from "./IdeaReviewQueue";
 
 const TABS: { value: ScriptStatus; label: string }[] = [
   { value: "draft", label: "Drafts" },
@@ -21,7 +23,9 @@ const TABS: { value: ScriptStatus; label: string }[] = [
 ];
 
 export default function IdeasInbox() {
+  const [view, setView] = useState<"bandeja" | "guiones">("bandeja");
   const [tab, setTab] = useState<ScriptStatus>("draft");
+  const pendingIdeas = usePendingContentIdeasCount();
   const { data: scripts, isLoading } = useScripts({ status: tab });
   const { data: approvals } = useQuery({
     queryKey: ["script_approvals_admin"],
@@ -43,10 +47,10 @@ export default function IdeasInbox() {
             className="text-3xl"
             style={{ fontFamily: "'Instrument Serif', serif", letterSpacing: "-0.025em", lineHeight: 1.1 }}
           >
-            Tus <em style={{ color: "var(--ll-warm)" }}>guiones</em>
+            Tus <em style={{ color: "var(--ll-warm)" }}>ideas</em>
           </h1>
           <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Cargás una idea (audio o texto), la IA te genera un guion en tu tono. Lo editás, lo agendás, lo grabás.
+            Revisá las ideas que generan tus rutinas (deslizá para aprobar o descartar), o cargá una manual. Al aprobar, la IA te arma el guion en tu tono.
           </p>
         </div>
         <Button asChild variant="brand">
@@ -56,38 +60,63 @@ export default function IdeasInbox() {
         </Button>
       </header>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as ScriptStatus)}>
+      <Tabs value={view} onValueChange={(v) => setView(v as "bandeja" | "guiones")}>
         <TabsList className="bg-[var(--ll-surface)] border border-[var(--ll-border)]">
-          {TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-[var(--ll-surface-2)]">
-              {t.label}
-            </TabsTrigger>
-          ))}
+          <TabsTrigger value="bandeja" className="data-[state=active]:bg-[var(--ll-surface-2)]">
+            Bandeja
+            {pendingIdeas > 0 && (
+              <span
+                className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold"
+                style={{ background: "var(--ll-accent)", color: "#0a0a0a" }}
+              >
+                {pendingIdeas}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="guiones" className="data-[state=active]:bg-[var(--ll-surface-2)]">
+            Guiones
+          </TabsTrigger>
         </TabsList>
 
-        {TABS.map((t) => (
-          <TabsContent key={t.value} value={t.value} className="mt-6">
-            {isLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-                <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
-              </div>
-            ) : !scripts || scripts.length === 0 ? (
-              <EmptyState status={t.value} />
-            ) : (
-              <ul className="space-y-2">
-                {scripts.map((s) => (
-                  <ScriptRow
-                    key={s.id}
-                    script={s}
-                    approval={approvals?.get(s.id)}
-                  />
-                ))}
-              </ul>
-            )}
-          </TabsContent>
-        ))}
+        <TabsContent value="bandeja" className="mt-6">
+          <IdeaReviewQueue />
+        </TabsContent>
+
+        <TabsContent value="guiones" className="mt-6">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as ScriptStatus)}>
+            <TabsList className="bg-[var(--ll-surface)] border border-[var(--ll-border)]">
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-[var(--ll-surface-2)]">
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {TABS.map((t) => (
+              <TabsContent key={t.value} value={t.value} className="mt-6">
+                {isLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+                    <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+                    <Skeleton className="h-20 w-full bg-[var(--ll-surface)]" />
+                  </div>
+                ) : !scripts || scripts.length === 0 ? (
+                  <EmptyState status={t.value} />
+                ) : (
+                  <ul className="space-y-2">
+                    {scripts.map((s) => (
+                      <ScriptRow
+                        key={s.id}
+                        script={s}
+                        approval={approvals?.get(s.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
+        </TabsContent>
       </Tabs>
     </div>
   );

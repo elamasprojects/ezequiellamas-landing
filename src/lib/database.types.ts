@@ -1787,6 +1787,120 @@ export type Database = {
         }
         Relationships: []
       }
+      content_ideas: {
+        Row: {
+          angle: string | null
+          comments_summary: Json | null
+          concept: string | null
+          created_at: string
+          dedup_key: string | null
+          derived_from: string[]
+          generated_script_id: string | null
+          hook: string | null
+          id: string
+          idea_reference_id: string | null
+          model_version: string | null
+          news_refs: Json | null
+          owner_id: string
+          pillar: string | null
+          rationale: string | null
+          referent_video_id: string | null
+          source: string
+          source_metrics: Json
+          source_video_id: string | null
+          status: string
+          suggested_format_id: string | null
+          updated_at: string
+          winner_analysis: Json | null
+        }
+        Insert: {
+          angle?: string | null
+          comments_summary?: Json | null
+          concept?: string | null
+          created_at?: string
+          dedup_key?: string | null
+          derived_from?: string[]
+          generated_script_id?: string | null
+          hook?: string | null
+          id?: string
+          idea_reference_id?: string | null
+          model_version?: string | null
+          news_refs?: Json | null
+          owner_id: string
+          pillar?: string | null
+          rationale?: string | null
+          referent_video_id?: string | null
+          source: string
+          source_metrics?: Json
+          source_video_id?: string | null
+          status?: string
+          suggested_format_id?: string | null
+          updated_at?: string
+          winner_analysis?: Json | null
+        }
+        Update: {
+          angle?: string | null
+          comments_summary?: Json | null
+          concept?: string | null
+          created_at?: string
+          dedup_key?: string | null
+          derived_from?: string[]
+          generated_script_id?: string | null
+          hook?: string | null
+          id?: string
+          idea_reference_id?: string | null
+          model_version?: string | null
+          news_refs?: Json | null
+          owner_id?: string
+          pillar?: string | null
+          rationale?: string | null
+          referent_video_id?: string | null
+          source?: string
+          source_metrics?: Json
+          source_video_id?: string | null
+          status?: string
+          suggested_format_id?: string | null
+          updated_at?: string
+          winner_analysis?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_ideas_suggested_format_id_fkey"
+            columns: ["suggested_format_id"]
+            isOneToOne: false
+            referencedRelation: "formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_referent_video_id_fkey"
+            columns: ["referent_video_id"]
+            isOneToOne: false
+            referencedRelation: "referent_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_idea_reference_id_fkey"
+            columns: ["idea_reference_id"]
+            isOneToOne: false
+            referencedRelation: "idea_references"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_source_video_id_fkey"
+            columns: ["source_video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_generated_script_id_fkey"
+            columns: ["generated_script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reel_proposals: {
         Row: {
           baseline_median: number | null
@@ -1864,6 +1978,66 @@ export type Database = {
             columns: ["scheduled_post_id"]
             isOneToOne: false
             referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referent_collections: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referent_collection_items: {
+        Row: {
+          collection_id: string
+          created_at: string
+          id: string
+          referent_video_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          id?: string
+          referent_video_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          id?: string
+          referent_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referent_collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "referent_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referent_collection_items_referent_video_id_fkey"
+            columns: ["referent_video_id"]
+            isOneToOne: false
+            referencedRelation: "referent_videos"
             referencedColumns: ["id"]
           },
         ]
