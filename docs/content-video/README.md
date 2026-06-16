@@ -16,6 +16,15 @@ description: >
 How we make brand videos. Read this before authoring; read **[ERRORS.md](./ERRORS.md)**
 before debugging — every gotcha we hit is logged there with cause + fix.
 
+> **Reusable skill — `kinetic-product-demo`.** The full step-by-step SOP for the two
+> signature variants (the **cursor-flow** demo and the **kinetic-captions / karaoke**
+> reel), with verbatim code, lives as a self-contained, portable skill. The loadable
+> copy is installed at user level (`~/.claude/skills/kinetic-product-demo/`) so it
+> triggers in any repo/conversation; the version-controlled source is mirrored here at
+> [`skill/kinetic-product-demo/`](./skill/kinetic-product-demo/SKILL.md). It separates
+> the **brand fonts** (Instrument Serif / DM Sans / JetBrains Mono) from the **stylistic
+> caption fonts** (Poppins + Caveat) — the latter are a detachable layer, not the brand.
+
 ## Stack & when to use which
 
 | Tool | Use it for | Install |
