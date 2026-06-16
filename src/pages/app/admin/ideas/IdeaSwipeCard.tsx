@@ -3,20 +3,12 @@ import {
   motion,
   useMotionValue,
   useTransform,
+  animate,
   type PanInfo,
 } from "framer-motion";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Check,
-  X,
-  Pencil,
-  Loader2,
-  Trophy,
-  Newspaper,
-  Brain,
-  Mic,
-} from "lucide-react";
+import { Check, X, Pencil, Trophy, Newspaper, Brain, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -47,16 +39,18 @@ interface Props {
   active: boolean;
   /** Depth in the stack (0 = top). Drives the peek transform. */
   depth: number;
-  /** Approve generates a script — long-running, so the card locks + shows a spinner. */
-  generating: boolean;
-  onApprove: () => void;
-  onReject: () => void;
+  /** Fires the (background) generation; the card does NOT wait for it. */
+  onApprove: (idea: ContentIdea) => void;
+  onReject: (idea: ContentIdea) => void;
+  /** Called once the fly-off animation finishes, so the parent can drop it. */
+  onExited: (id: string) => void;
 }
 
-export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onReject }: Props) {
+export function IdeaSwipeCard({ idea, active, depth, onApprove, onReject, onExited }: Props) {
   const qc = useQueryClient();
   const { data: formats } = useFormats();
   const [editing, setEditing] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [concept, setConcept] = useState(idea.concept ?? "");
   const [hook, setHook] = useState(idea.hook ?? "");
   const [formatId, setFormatId] = useState<string | null>(idea.suggested_format_id);
@@ -89,14 +83,28 @@ export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onRe
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function handleDragEnd(_e: unknown, info: PanInfo) {
-    if (generating || editing) return;
-    if (info.offset.x > SWIPE_THRESHOLD) onApprove();
-    else if (info.offset.x < -SWIPE_THRESHOLD) onReject();
-    // else: framer's dragSnapToOrigin springs it back.
+  // Fly the card off-screen, kick off the background work immediately, and drop
+  // the card from the stack once the animation completes. Generation keeps
+  // running in the parent's fire-and-forget handler — the card never waits.
+  function fly(dir: 1 | -1) {
+    if (exiting || editing) return;
+    setExiting(true);
+    if (dir > 0) onApprove(idea);
+    else onReject(idea);
+    animate(x, dir * 540, {
+      duration: 0.26,
+      ease: "easeIn",
+      onComplete: () => onExited(idea.id),
+    });
   }
 
-  // Behind-card depth transform (Tinder-style stacked deck).
+  function handleDragEnd(_e: unknown, info: PanInfo) {
+    if (exiting || editing) return;
+    if (info.offset.x > SWIPE_THRESHOLD) fly(1);
+    else if (info.offset.x < -SWIPE_THRESHOLD) fly(-1);
+    else animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+  }
+
   const stackStyle =
     depth > 0
       ? { scale: 1 - depth * 0.04, y: depth * 12, opacity: depth > 2 ? 0 : 1 }
@@ -111,8 +119,7 @@ export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onRe
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       <motion.div
-        drag={active && !generating && !editing ? "x" : false}
-        dragSnapToOrigin
+        drag={active && !exiting && !editing ? "x" : false}
         dragElastic={0.6}
         onDragEnd={handleDragEnd}
         style={{ x, rotate }}
@@ -152,7 +159,7 @@ export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onRe
               </span>
             )}
           </div>
-          {active && !generating && (
+          {active && (
             <button
               type="button"
               onClick={() => setEditing((v) => !v)}
@@ -277,8 +284,8 @@ export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onRe
             <>
               <button
                 type="button"
-                onClick={onReject}
-                disabled={generating}
+                onClick={() => fly(-1)}
+                disabled={exiting}
                 className="flex h-14 w-14 items-center justify-center rounded-full border border-red-500/40 bg-red-500/10 text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-40"
                 aria-label="Descartar idea"
               >
@@ -286,26 +293,16 @@ export function IdeaSwipeCard({ idea, active, depth, generating, onApprove, onRe
               </button>
               <button
                 type="button"
-                onClick={onApprove}
-                disabled={generating}
+                onClick={() => fly(1)}
+                disabled={exiting}
                 className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--ll-accent)]/50 bg-[var(--ll-accent)]/15 text-[var(--ll-accent)] transition-colors hover:bg-[var(--ll-accent)]/25 disabled:opacity-40"
                 aria-label="Aprobar y generar guion"
               >
-                {generating ? <Loader2 className="h-7 w-7 animate-spin" /> : <Check className="h-7 w-7" />}
+                <Check className="h-7 w-7" />
               </button>
             </>
           )}
         </div>
-
-        {/* Generating overlay */}
-        {generating && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--ll-surface)]/85 backdrop-blur">
-            <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--ll-accent)" }} />
-            <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-              Generando guion…
-            </p>
-          </div>
-        )}
       </motion.div>
 
       <FormatDialog

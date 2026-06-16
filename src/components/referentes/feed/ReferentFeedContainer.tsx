@@ -3,8 +3,12 @@ import type { ReferentVideo } from "@/lib/api/referents";
 import { useSavedReferentVideoIds } from "@/hooks/useReferentCollections";
 import { ReferentFeedItem } from "./ReferentFeedItem";
 
+// Videos may carry their own referent_name (global feed across all referents);
+// otherwise the single-referent `referentName` prop is used.
+type FeedVideo = ReferentVideo & { referent_name?: string | null };
+
 interface Props {
-  videos: ReferentVideo[];
+  videos: FeedVideo[];
   referentName?: string | null;
   readOnly?: boolean;
 }
@@ -56,7 +60,7 @@ export function ReferentFeedContainer({ videos, referentName, readOnly }: Props)
           <ReferentFeedItem
             video={video}
             active={i === activeIndex}
-            referentName={referentName}
+            referentName={video.referent_name ?? referentName}
             saved={savedSet.has(video.id)}
             readOnly={readOnly}
           />

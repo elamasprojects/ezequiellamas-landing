@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useContentIdeas } from "@/hooks/useContentIdeas";
 import { approveIdea, rejectIdea, type ContentIdea } from "@/lib/api/contentIdeas";
+import { sendNotification } from "@/lib/api/notifications";
 import {
   triggerContentRoutine,
   ROUTINE_LABELS,
@@ -27,26 +28,52 @@ export default function IdeaReviewQueue() {
   const qc = useQueryClient();
   const { data: ideas, isLoading } = useContentIdeas("pending");
   const [showRejected, setShowRejected] = useState(false);
+  // Locally hidden as soon as a card flies off, so the queue advances instantly
+  // while generation runs in the background. Cleared if the action errors.
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
 
-  const approveMut = useMutation({
-    mutationFn: (idea: ContentIdea) => approveIdea(idea),
-    onSuccess: (scriptId) => {
-      qc.invalidateQueries({ queryKey: ["content-ideas"] });
-      qc.invalidateQueries({ queryKey: ["scripts"] });
-      toast.success("Guion generado", {
-        action: { label: "Abrir", onClick: () => navigate(`/app/admin/ideas/${scriptId}`) },
+  const dismiss = (id: string) => setDismissed((prev) => new Set(prev).add(id));
+  const undismiss = (id: string) =>
+    setDismissed((prev) => {
+      const n = new Set(prev);
+      n.delete(id);
+      return n;
+    });
+
+  // Fire-and-forget: NOT a React mutation, so generation keeps running even if the
+  // user switches tabs (this component unmounts) — the promise resolves regardless.
+  function runApprove(idea: ContentIdea) {
+    approveIdea(idea)
+      .then(async (scriptId) => {
+        qc.invalidateQueries({ queryKey: ["content-ideas"] });
+        qc.invalidateQueries({ queryKey: ["scripts"] });
+        // Push (+ in-app) when the guion is ready; tapping it opens the script.
+        await sendNotification({
+          user_id: idea.owner_id,
+          kind: "script.ready",
+          title: "Tu guion está listo",
+          body: (idea.concept ?? "Idea aprobada").slice(0, 120),
+          link: `/app/admin/ideas/${scriptId}`,
+          send_push: true,
+        }).catch(() => {});
+        toast.success("Guion generado", {
+          action: { label: "Abrir", onClick: () => navigate(`/app/admin/ideas/${scriptId}`) },
+        });
+      })
+      .catch((e: Error) => {
+        toast.error(e?.message ?? "No se pudo generar el guion");
+        undismiss(idea.id); // bring the card back so it can be retried
       });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  }
 
-  const rejectMut = useMutation({
-    mutationFn: (id: string) => rejectIdea(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["content-ideas"] }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const anyPending = approveMut.isPending || rejectMut.isPending;
+  function runReject(id: string) {
+    rejectIdea(id)
+      .then(() => qc.invalidateQueries({ queryKey: ["content-ideas"] }))
+      .catch((e: Error) => {
+        toast.error(e?.message ?? "No se pudo descartar");
+        undismiss(id);
+      });
+  }
 
   if (isLoading) {
     return (
@@ -56,7 +83,7 @@ export default function IdeaReviewQueue() {
     );
   }
 
-  const pending = ideas ?? [];
+  const pending = (ideas ?? []).filter((i) => !dismissed.has(i.id));
 
   if (pending.length === 0) {
     return (
@@ -82,7 +109,8 @@ export default function IdeaReviewQueue() {
         <GenerateIdeasMenu />
       </div>
 
-      {/* Card stack — top card is interactive; the rest are visual depth. */}
+      {/* Card stack — top card is interactive; the rest are visual depth.
+          Approve/reject fly the card off and run generation in the background. */}
       <div className="relative mx-auto h-[520px] max-w-lg">
         {stack
           .map((idea, depth) => (
@@ -90,10 +118,10 @@ export default function IdeaReviewQueue() {
               key={idea.id}
               idea={idea}
               depth={depth}
-              active={depth === 0 && !anyPending}
-              generating={approveMut.isPending && approveMut.variables?.id === idea.id}
-              onApprove={() => !anyPending && approveMut.mutate(idea)}
-              onReject={() => !anyPending && rejectMut.mutate(idea.id)}
+              active={depth === 0}
+              onApprove={runApprove}
+              onReject={(i) => runReject(i.id)}
+              onExited={dismiss}
             />
           ))
           // Render bottom-of-stack first so the top card paints last (and on top).

@@ -158,6 +158,24 @@ export async function fetchAnalyzedReferentVideos(): Promise<AnalyzedReferentVid
   });
 }
 
+// Every referent's videos in one feed, best metrics first, each tagged with its
+// referent's name. Powers the global feed reachable from the referents list.
+export async function fetchAllReferentVideos(limit = 400): Promise<AnalyzedReferentVideo[]> {
+  const { data, error } = await supabase
+    .from("referent_videos")
+    .select("*, referents(name)")
+    .order("views_total", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const { referents, ...rest } = row as ReferentVideo & {
+      referents: { name: string | null } | { name: string | null }[] | null;
+    };
+    const ref = Array.isArray(referents) ? referents[0] : referents;
+    return { ...(rest as ReferentVideo), referent_name: ref?.name ?? null };
+  });
+}
+
 export interface ScrapeResult {
   ok: boolean;
   scraped: { instagram: number; youtube: number; tiktok: number };
