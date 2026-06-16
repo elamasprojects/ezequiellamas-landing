@@ -13,11 +13,19 @@ them into the app's swipe **bandeja** (`/app/admin/ideas`). They are the automat
 Each routine's system prompt is in this folder: [`knowledge.md`](./knowledge.md),
 [`news.md`](./news.md), [`winners.md`](./winners.md). Paste it into the routine when you create it.
 
+## Supabase MCP — which project
+
+Each routine's Supabase connector lists **two** projects. Always target the Personal Brand Hub:
+**`zsbligbfsmdwbxcvoysu`** (pass `project_id` on every MCP call). The other one belongs to a different
+app — see the repo `CLAUDE.md` ("MCP routing"). The routines use the MCP to **read** (metrics,
+baselines, dedup checks) against this project.
+
 ## How a routine writes back (the contract)
 
-Routines do **not** run SQL against the DB (the default Supabase MCP points at the wrong project —
-that would silently write to another database). Instead they `POST` each idea to a thin service-role
-edge function that owns ownership-stamping, dedup, and the notification:
+For **writing** ideas, routines `POST` to a thin service-role edge function rather than running
+`INSERT` SQL — not because of any project-scoping risk (the MCP can reach the right project), but
+because the edge function centralizes three things in one auditable place: **ownership-stamping,
+dedup, and a single batched notification** (one push/email per call, not one per idea). Contract:
 
 ```
 POST https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea

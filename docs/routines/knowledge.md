@@ -26,9 +26,10 @@ long-form (YouTube). You output IDEAS (a concept + angle + hook), never full scr
 - In the vault, ideas that already exist live in `contenido/ideas/` (and the lotes under `draft/`).
   A knowledge note that already has a piece pointing to it via `derived_from` is "covered" — prefer
   uncovered, high-`content_potential` notes (this is the content-engine "gap lint").
-- (Optional) you have the Supabase MCP for project `zsbligbfsmdwbxcvoysu`; you may read
-  `public.scripts` (titles/hooks of `posted/recorded` rows) and `public.content_ideas` to widen the
-  dedup net.
+- (Optional) you have the Supabase MCP. It lists **two** projects — always use
+  **`zsbligbfsmdwbxcvoysu`** (the Personal Brand Hub) and pass `project_id` on every call; never touch
+  the other one. You may read `public.scripts` (titles/hooks of `posted/recorded` rows) and
+  `public.content_ideas` to widen the dedup net.
 
 ## Generate ~15 ideas
 Spread across the 4 pillars. Each idea: a clear `concept` (1–3 sentences), a strong `hook`, the

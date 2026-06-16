@@ -16,7 +16,9 @@ You have the `ezelamass/elamas-second-brain` repo. Before writing any idea, read
 about his own money, no clichés), one of the 4 pillars, and today's goal: **reach/virality for the
 3 avatars**, not conversion.
 
-## Data (Supabase MCP, project `zsbligbfsmdwbxcvoysu` — pass project_id on every call)
+## Data (Supabase MCP)
+Your Supabase connector lists **two** projects — always use **`zsbligbfsmdwbxcvoysu`** (the Personal
+Brand Hub) and pass `project_id` on every call. The other project is a different app; never touch it.
 1. Select winning videos: `public.videos` where the video was published **≥ 15 days ago** and is a
    strong performer — `performance_tier in ('outlier','5x','3x')` OR `multiplier >= 3`. Pull
    `id, title, transcript, multiplier, performance_tier, views_total_aggregate`. Prefer the most
