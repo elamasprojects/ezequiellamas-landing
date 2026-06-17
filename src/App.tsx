@@ -49,6 +49,7 @@ const AssignmentDetail = lazy(() => import("@/pages/app/admin/assignments/Assign
 const ResourcesHub = lazy(() => import("@/pages/app/admin/resources/ResourcesHub"));
 const ResourceEditor = lazy(() => import("@/pages/app/admin/resources/ResourceEditor"));
 const ReferentesList = lazy(() => import("@/pages/app/admin/referentes/ReferentesList"));
+const ReferentesFeed = lazy(() => import("@/pages/app/admin/referentes/ReferentesFeed"));
 const ReferenteDetail = lazy(() => import("@/pages/app/admin/referentes/ReferenteDetail"));
 const ReferentReportView = lazy(() => import("@/pages/app/admin/referentes/ReferentReportView"));
 const CarouselsList = lazy(() => import("@/pages/app/admin/carousels/CarouselsList"));
@@ -117,6 +118,7 @@ export default function App() {
                 <Route path="resources/new" element={<ResourceEditor />} />
                 <Route path="resources/:id" element={<ResourceEditor />} />
                 <Route path="referentes" element={<ReferentesList />} />
+                <Route path="referentes/feed" element={<ReferentesFeed />} />
                 <Route path="referentes/:id" element={<ReferenteDetail />} />
                 <Route path="referentes/:id/reportes/:reportId" element={<ReferentReportView />} />
                 <Route path="youtube" element={<YoutubeHub />} />

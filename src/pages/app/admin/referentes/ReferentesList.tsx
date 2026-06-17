@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Compass, ExternalLink, Instagram, Music2, Pencil, Plus, Trash2, Youtube } from "lucide-react";
+import { Compass, ExternalLink, GalleryVerticalEnd, Instagram, Music2, Pencil, Plus, Trash2, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteReferent, type Referent } from "@/lib/api/referents";
 import { useReferents } from "@/hooks/useReferents";
@@ -54,9 +54,16 @@ export default function ReferentesList() {
           </p>
         </div>
         {referents && referents.length > 0 && (
-          <Button variant="brand" onClick={openCreate}>
-            <Plus className="h-4 w-4" /> Nuevo referente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link to="/app/admin/referentes/feed">
+                <GalleryVerticalEnd className="h-4 w-4" /> Ver feed
+              </Link>
+            </Button>
+            <Button variant="brand" onClick={openCreate}>
+              <Plus className="h-4 w-4" /> Nuevo referente
+            </Button>
+          </div>
         )}
       </header>
 

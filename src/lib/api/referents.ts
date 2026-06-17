@@ -158,6 +158,24 @@ export async function fetchAnalyzedReferentVideos(): Promise<AnalyzedReferentVid
   });
 }
 
+// Every referent's videos in one feed, best metrics first, each tagged with its
+// referent's name. Powers the global feed reachable from the referents list.
+export async function fetchAllReferentVideos(limit = 400): Promise<AnalyzedReferentVideo[]> {
+  const { data, error } = await supabase
+    .from("referent_videos")
+    .select("*, referents(name)")
+    .order("views_total", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const { referents, ...rest } = row as ReferentVideo & {
+      referents: { name: string | null } | { name: string | null }[] | null;
+    };
+    const ref = Array.isArray(referents) ? referents[0] : referents;
+    return { ...(rest as ReferentVideo), referent_name: ref?.name ?? null };
+  });
+}
+
 export interface ScrapeResult {
   ok: boolean;
   scraped: { instagram: number; youtube: number; tiktok: number };
@@ -193,6 +211,82 @@ export async function bulkAnalyzeReferent(
   if (error) throw error;
   if (!data) throw new Error("bulk-analyze-referents returned empty response");
   return data;
+}
+
+// ---- (M24) Referent collections: save virals from the feed into named collections ----
+
+export type ReferentCollection = Tables<"referent_collections"> & { item_count: number };
+
+export const DEFAULT_REFERENT_COLLECTION = "Guardados";
+
+export async function fetchReferentCollections(): Promise<ReferentCollection[]> {
+  const { data, error } = await supabase
+    .from("referent_collections")
+    .select("*, referent_collection_items(count)")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((c) => {
+    const { referent_collection_items, ...rest } = c as Tables<"referent_collections"> & {
+      referent_collection_items?: { count: number }[];
+    };
+    return { ...(rest as Tables<"referent_collections">), item_count: referent_collection_items?.[0]?.count ?? 0 };
+  });
+}
+
+// Ids of every referent video the owner has saved (any collection) — drives the
+// "saved" pill state in the feed.
+export async function fetchSavedReferentVideoIds(): Promise<string[]> {
+  const { data, error } = await supabase.from("referent_collection_items").select("referent_video_id");
+  if (error) throw error;
+  return Array.from(new Set((data ?? []).map((r) => r.referent_video_id)));
+}
+
+export async function createReferentCollection(name: string, ownerId: string): Promise<ReferentCollection> {
+  const { data, error } = await supabase
+    .from("referent_collections")
+    .insert({ owner_id: ownerId, name: name.trim() })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return { ...data, item_count: 0 };
+}
+
+async function ensureDefaultCollection(ownerId: string): Promise<string> {
+  const { data: existing } = await supabase
+    .from("referent_collections")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .eq("name", DEFAULT_REFERENT_COLLECTION)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+  const created = await createReferentCollection(DEFAULT_REFERENT_COLLECTION, ownerId);
+  return created.id;
+}
+
+export async function saveToReferentCollection(opts: {
+  referentVideoId: string;
+  ownerId: string;
+  collectionId?: string;
+}): Promise<void> {
+  const collectionId = opts.collectionId ?? (await ensureDefaultCollection(opts.ownerId));
+  const { error } = await supabase
+    .from("referent_collection_items")
+    .insert({ collection_id: collectionId, referent_video_id: opts.referentVideoId });
+  // 23505 = already in this collection; treat as success.
+  if (error && error.code !== "23505") throw error;
+}
+
+export async function removeFromReferentCollection(opts: {
+  collectionId: string;
+  referentVideoId: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("referent_collection_items")
+    .delete()
+    .eq("collection_id", opts.collectionId)
+    .eq("referent_video_id", opts.referentVideoId);
+  if (error) throw error;
 }
 
 export interface AnalyzeResult {
