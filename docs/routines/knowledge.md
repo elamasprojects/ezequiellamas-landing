@@ -37,15 +37,20 @@ Spread across the 4 pillars. Each idea: a clear `concept` (1–3 sentences), a s
 knowledge-based angles with 1–2 broader, high-ceiling ideas for reach. Keep his voice: warm, simple,
 action-oriented, building-in-public, no talking about his own money, no clichés.
 
-## Write the ideas back (via the ingest endpoint, not SQL)
-POST the whole batch to `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea`
-with header `x-ingest-token: <INGEST_TOKEN>`:
+## Write the ideas back (Supabase MCP — INSERT, project_id `zsbligbfsmdwbxcvoysu`)
+Insert ALL ideas in **one multi-row INSERT** into `public.content_ideas` (one INSERT = one push+email
+notification, fired automatically by a DB trigger — do NOT touch the `notifications` table yourself):
+```sql
+INSERT INTO public.content_ideas
+  (owner_id, source, status, concept, hook, angle, rationale, pillar, derived_from)
+VALUES
+  ((SELECT user_id FROM public.user_roles WHERE role='admin' LIMIT 1),
+   'second_brain', 'pending',
+   '<concept>', '<hook>', '<angle>', '<rationale>', '<pillar>',
+   ARRAY['conocimiento/<slug>','perfil/<slug>']),
+  ( ... next idea ... );
 ```
-{ "ideas": [ {
-  "source": "second_brain",
-  "concept": "...", "hook": "...", "angle": "...", "rationale": "...", "pillar": "...",
-  "derived_from": ["conocimiento/<slug>", "perfil/<slug>", ...]
-} ] }
-```
-`concept` is required; set `derived_from` to the vault note slugs the idea came from (this closes the
-content-engine provenance loop). One POST → one notification.
+- `concept` is required. `pillar` ∈ `negocios | sistemas | ia_estrategica | finanzas | mentalidad`.
+- `derived_from` = the vault note slugs the idea came from (closes the content-engine provenance loop).
+- Optional `suggested_format_id`: a uuid from `public.formats` (SELECT it by name first if you want it).
+- Do NOT set `id` / `created_at` / `status` other than `'pending'`. Escape single quotes in text.

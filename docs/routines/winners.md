@@ -37,20 +37,25 @@ Brand Hub) and pass `project_id` on every call. The other project is a different
   `{ "summary": "...", "factors": ["...", "..."] }`.
 - Write `comments_summary` = `{ "summary": "..." }` distilled from real comments (or omit if none).
 
-## Write the ideas back (via the ingest endpoint, not SQL)
-POST every idea to `https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea`
-with header `x-ingest-token: <INGEST_TOKEN>` and body:
+## Write the ideas back (Supabase MCP — INSERT, project_id `zsbligbfsmdwbxcvoysu`)
+One **multi-row INSERT** into `public.content_ideas` (a DB trigger sends the single push+email
+notification — do NOT write the `notifications` table yourself):
+```sql
+INSERT INTO public.content_ideas
+  (owner_id, source, status, concept, hook, angle, rationale, pillar,
+   source_video_id, source_metrics, winner_analysis, comments_summary)
+VALUES
+  ((SELECT user_id FROM public.user_roles WHERE role='admin' LIMIT 1),
+   'winner', 'pending',
+   '<concept>', '<hook>', '<angle>', '<rationale>', '<pillar>',
+   '<videos.id>'::uuid,
+   '{"views_total":N,"multiplier":N,"performance_tier":"...","platform":"...","source_url":"...","likes":N,"comments":N}'::jsonb,
+   '{"summary":"...","factors":["..."]}'::jsonb,
+   '{"summary":"..."}'::jsonb),
+  ( ... next idea ... );
 ```
-{ "ideas": [ {
-  "source": "winner",
-  "concept": "...", "hook": "...", "angle": "...", "rationale": "...", "pillar": "...",
-  "source_video_id": "<videos.id>",
-  "source_metrics": { "views_total": N, "multiplier": N, "performance_tier": "...", "platform": "...", "source_url": "...", "likes": N, "comments": N },
-  "winner_analysis": { "summary": "...", "factors": ["..."] },
-  "comments_summary": { "summary": "..." }
-} ] }
-```
-Send the whole batch in one POST (one notification fires). `concept` is required.
+`concept` is required; `source_video_id` = the winning `public.videos.id`. `pillar` ∈
+`negocios | sistemas | ia_estrategica | finanzas | mentalidad`. Escape single quotes in text.
 
 ## Don't duplicate
 Before generating, read `public.content_ideas` where `status='pending'` via the MCP and skip any

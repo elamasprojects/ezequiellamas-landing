@@ -20,71 +20,41 @@ Each routine's Supabase connector lists **two** projects. Always target the Pers
 app — see the repo `CLAUDE.md` ("MCP routing"). The routines use the MCP to **read** (metrics,
 baselines, dedup checks) against this project.
 
-## How a routine writes back (the contract)
+## How a routine writes back — direct SQL via the MCP
 
-For **writing** ideas, routines `POST` to a thin service-role edge function rather than running
-`INSERT` SQL — not because of any project-scoping risk (the MCP can reach the right project), but
-because the edge function centralizes three things in one auditable place: **ownership-stamping,
-dedup, and a single batched notification** (one push/email per call, not one per idea). Contract:
+Routines write ideas **directly into the DB with their Supabase MCP** (no token, no HTTP endpoint —
+the MCP already has the rich database). Each prompt's "Write the ideas back" section has the exact
+`INSERT INTO public.content_ideas (...)` (and the **news** one also `INSERT INTO public.ai_news`).
+Rules the prompts enforce:
 
-```
-POST https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-content-idea
-Header: x-ingest-token: <INGEST_TOKEN>
-Body:
-{
-  "owner_id": "<optional — defaults to the sole admin>",
-  "ideas": [
-    {
-      "source": "second_brain" | "ai_news" | "winner",
-      "concept": "the idea, 1-3 sentences",        // required
-      "hook": "optional opening line",
-      "angle": "optional framing",
-      "rationale": "why this idea / why now",
-      "pillar": "negocios | sistemas | ia_estrategica | finanzas | mentalidad",
-      "suggested_format_id": "<uuid from public.formats, optional>",
-      "derived_from": ["second-brain/note-slug", ...],   // S3: vault provenance
-      "source_video_id": "<videos.id>",                   // S5 only
-      "source_metrics": { "views_total": 0, "multiplier": 0, "performance_tier": "", "platform": "", "source_url": "", "likes": 0, "comments": 0 }, // S5
-      "winner_analysis": { "summary": "...", "factors": ["..."] },   // S5
-      "comments_summary": { "summary": "..." }                       // S5
-    }
-  ]
-}
-```
+- **One multi-row INSERT per batch** → a DB trigger (`content_ideas_notify_new`) sends **one**
+  push+email notification (`send-notification`, kind `ideas.new`). Routines must NOT touch the
+  `notifications` table themselves.
+- **`concept` required**; `pillar` ∈ `negocios|sistemas|ia_estrategica|finanzas|mentalidad`;
+  `status='pending'`. S5 also sets `source_video_id` + `source_metrics`/`winner_analysis`/`comments_summary`
+  (jsonb); S4 sets `news_refs` (jsonb); S3 sets `derived_from` (text[]).
+- **Dedup**: the routine reads `public.content_ideas WHERE status='pending'` via the MCP first and
+  skips overlaps (the fire brief also lists them). `unique(owner_id, dedup_key)` is a soft backstop.
 
-- `concept` is required; everything else is optional. Send the whole week's batch in one call —
-  the function sends **one** push + email notification per call.
-- **Dedup is automatic**: the function computes a `dedup_key` from `source + normalized concept` and
-  upserts on `(owner_id, dedup_key)` do-nothing. The trigger brief also lists the currently-pending
-  ideas under "do NOT duplicate these" — honor it to avoid near-duplicates the hash won't catch.
-
-The **news** routine first records raw items (idempotent on the Gmail message id), then turns the
-relevant ones into ideas:
-
-```
-POST .../functions/v1/ingest-ai-news    (header x-ingest-token)
-Body: { "items": [ { "external_id": "<gmail msg id>", "headline": "...", "summary": "...", "url": "...", "published_at": "...", "relevance_score": 0.0 } ] }
-```
+> The old `ingest-content-idea` / `ingest-ai-news` edge functions + `INGEST_TOKEN` are **removed** —
+> routines no longer need them.
 
 ## One-time setup (Ezequiel)
 
 1. **Create 3 routines** on claude.ai, each with its `environment` bound to the GitHub repos
    `ezelamass/elamas-second-brain` + `ezelamass/ezequiellamas-landing`, and the **Supabase** MCP
    connector (the **news** one also needs the **Gmail** connector). Paste the matching system prompt.
-2. **Give each routine the `INGEST_TOKEN`** (so it can call the ingest endpoints) — store it however
-   the routine lets you keep a secret/env, or inline it in the routine's own config. Generate it:
-   `openssl rand -hex 32`.
-3. **Set Supabase Edge Function secrets** (Dashboard → Project Settings → Edge Functions):
-   - `INGEST_TOKEN` = the value from step 2.
+2. **Set Supabase Edge Function secrets** (Dashboard → Project Settings → Edge Functions):
    - `ANTHROPIC_ROUTINE_URL_KNOWLEDGE` / `_NEWS` / `_WINNERS` = each routine's fire URL
      (`https://api.anthropic.com/v1/claude_code/routines/<trigger_id>/fire`).
    - `ANTHROPIC_ROUTINE_TOKEN_KNOWLEDGE` / `_NEWS` / `_WINNERS` = each routine's API token.
-4. **Vault secrets** (for the pg_cron schedule — run once via SQL if not already set):
+3. **Vault secrets** (used by the pg_cron schedule **and** the notification trigger — run once if not set):
    ```sql
    select vault.create_secret('https://zsbligbfsmdwbxcvoysu.supabase.co', 'project_url');
    select vault.create_secret('<SERVICE_ROLE_KEY>', 'scheduler_service_role_key');
    ```
-   Without these the cron is a silent no-op (the on-demand button still works once step 3 is done).
+   Without these the cron is a silent no-op **and** the new-ideas notification won't fire (the ideas
+   still land in the bandeja; you just won't get the push/email until the secrets are set).
 
 ## Triggering
 
@@ -94,4 +64,4 @@ Body: { "items": [ { "external_id": "<gmail msg id>", "headline": "...", "summar
   `dispatch_content_routine_tick(<system>)` → same `trigger-content-routine`. Same code path as the button.
 
 Fire is fire-and-forget: a 200 only means the routine started. Ideas appear in the bandeja a few
-minutes later (via `ingest-content-idea`), and Realtime refreshes the queue + the nav badge.
+minutes later (the routine INSERTs them via the MCP), and Realtime refreshes the queue + the nav badge.

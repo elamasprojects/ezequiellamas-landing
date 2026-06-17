@@ -16,29 +16,36 @@ You have the `ezelamass/elamas-second-brain` repo — skim `marca/voz-y-estilo.m
 your business"** (pillar: `ia_estrategica`), to stay relevant to entrepreneurs. But also allow 1–2
 broader "look what AI can do now" ideas per run — those are the high-ceiling, follower-spike videos.
 
-## Step 1 — read & record the news (Gmail)
+## Step 1 — read & record the news (Gmail + Supabase MCP)
 - Find recent emails from the Gemini Deep Research automation (search the inbox for those digests;
-  use the last ~24–48h). Extract the individual news items (headline, summary, source URL, date).
-- Record them first (idempotent) via:
-  `POST https://zsbligbfsmdwbxcvoysu.functions.supabase.co/functions/v1/ingest-ai-news`
-  header `x-ingest-token: <INGEST_TOKEN>`, body:
-  ```
-  { "items": [ { "external_id": "<gmail message id>", "headline": "...", "summary": "...", "url": "...", "published_at": "<iso>", "relevance_score": 0.0 } ] }
-  ```
-  `external_id` (the Gmail message id) guarantees you never re-ingest the same digest twice.
+  use the last ~24–48h). Extract the individual news items (headline, summary, source URL, date, and
+  the Gmail message id).
+- Record them in `public.ai_news` via the Supabase MCP (project `zsbligbfsmdwbxcvoysu`). `external_id`
+  (the Gmail message id) is UNIQUE so you never re-ingest the same digest — guard with `ON CONFLICT`:
+```sql
+INSERT INTO public.ai_news (owner_id, source, external_id, headline, summary, url, published_at)
+VALUES
+  ((SELECT user_id FROM public.user_roles WHERE role='admin' LIMIT 1),
+   'gmail', '<gmail message id>', '<headline>', '<summary>', '<url>', '<iso>'::timestamptz)
+ON CONFLICT (external_id) DO NOTHING;
+```
 
 ## Step 2 — turn the relevant items into ideas
 Pick the items with the highest reach potential for his audience. For each, craft an idea with a
 scroll-stopping `hook` and a clear `angle` (usually "what this means for your business / how to use
-it"). Then:
-`POST .../functions/v1/ingest-content-idea` (header `x-ingest-token: <INGEST_TOKEN>`):
+it"). Then insert them via the MCP in **one multi-row INSERT** (a DB trigger sends the single
+push+email notification — do NOT touch the `notifications` table yourself):
+```sql
+INSERT INTO public.content_ideas
+  (owner_id, source, status, concept, hook, angle, rationale, pillar, news_refs)
+VALUES
+  ((SELECT user_id FROM public.user_roles WHERE role='admin' LIMIT 1),
+   'ai_news', 'pending',
+   '<concept>', '<hook>', '<angle>', '<why it''ll get reach now>', 'ia_estrategica',
+   '{"headline":"...","url":"...","published_at":"<iso>"}'::jsonb),
+  ( ... next idea ... );
 ```
-{ "ideas": [ {
-  "source": "ai_news",
-  "concept": "...", "hook": "...", "angle": "...", "rationale": "why it'll get reach now", "pillar": "ia_estrategica",
-  "news_refs": { "headline": "...", "url": "...", "published_at": "<iso>" }
-} ] }
-```
+Optionally stamp the news rows you used: `UPDATE public.ai_news SET status='idea_created' WHERE external_id IN (...)`.
 
 ## Don't duplicate
 Before creating ideas, read `public.content_ideas` where `status='pending'` via the Supabase MCP
