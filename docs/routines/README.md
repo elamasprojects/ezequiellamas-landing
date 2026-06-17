@@ -58,10 +58,16 @@ Rules the prompts enforce:
 
 ## Triggering
 
+- **Scheduled** (current setup): each routine's cron lives **on claude.ai** (its `cron_expression`).
+  knowledge = Mon 09:00 ART, winners = Fri 09:00 ART, news = daily 07:00 ART. The system prompts are
+  self-sufficient for the scheduled path (they read `content_ideas` pending via the MCP for dedup and
+  resolve the owner themselves).
 - **On demand**: the "Generar ideas" button in `/app/admin/ideas` → edge fn `trigger-content-routine`
-  → fires the routine. (Admin-gated via `has_role`.)
-- **Scheduled**: `pg_cron` jobs `content-routine-knowledge` / `-winners` / `-news` →
-  `dispatch_content_routine_tick(<system>)` → same `trigger-content-routine`. Same code path as the button.
+  → fires the routine (admin-gated via `has_role`). Only **knowledge** and **winners** have a button;
+  **news is schedule-only** (no manual trigger).
+- The `pg_cron` jobs `content-routine-*` + `dispatch_content_routine_tick()` exist as an alternative
+  scheduler but are **unscheduled** while the claude.ai schedule is in use (re-schedule them only if
+  you move scheduling back into the DB — otherwise routines would fire twice).
 
 Fire is fire-and-forget: a 200 only means the routine started. Ideas appear in the bandeja a few
 minutes later (the routine INSERTs them via the MCP), and Realtime refreshes the queue + the nav badge.

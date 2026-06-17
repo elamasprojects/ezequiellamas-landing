@@ -1,6 +1,7 @@
 # Routine: NEWS (S4) — turn AI news into reach-oriented ideas
 
-Paste the block below as the routine's system prompt. Schedule: daily 07:00 ART (or on-demand).
+Paste the block below as the routine's system prompt. **Schedule-only** — daily 07:00 ART on
+claude.ai; no manual app button (it reads the daily AI-news digests, so on-demand adds nothing).
 Requires the **Gmail** connector in addition to Supabase.
 
 ---

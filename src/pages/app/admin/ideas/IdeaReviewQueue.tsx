@@ -17,6 +17,7 @@ import { sendNotification } from "@/lib/api/notifications";
 import {
   triggerContentRoutine,
   ROUTINE_LABELS,
+  MANUAL_ROUTINES,
   type RoutineSystem,
 } from "@/lib/api/contentRoutines";
 import { IdeaSwipeCard } from "./IdeaSwipeCard";
@@ -197,7 +198,7 @@ function GenerateIdeasMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="border-[var(--ll-border)] bg-[var(--ll-surface)]">
-        {(Object.keys(ROUTINE_LABELS) as RoutineSystem[]).map((sys) => {
+        {MANUAL_ROUTINES.map((sys) => {
           const Icon = ROUTINE_ICONS[sys];
           return (
             <DropdownMenuItem

@@ -8,6 +8,10 @@ export const ROUTINE_LABELS: Record<RoutineSystem, string> = {
   winners: "Reciclar ganadores",
 };
 
+// Systems exposed as on-demand buttons. `news` runs ONLY on its claude.ai schedule
+// (it reads the daily AI-news digests), so it has no manual trigger.
+export const MANUAL_ROUTINES: RoutineSystem[] = ["knowledge", "winners"];
+
 // Fire-and-forget: a 200 only acks that the cloud routine started. The generated
 // ideas land in the bandeja a few minutes later (via ingest-content-idea), and
 // Realtime refreshes the queue.
