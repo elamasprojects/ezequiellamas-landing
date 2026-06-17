@@ -60,7 +60,7 @@ VALUES
 ## Don't duplicate
 Before generating, read `public.content_ideas` where `status='pending'` via the MCP and skip any
 winner whose recycled idea would overlap one. (If you were started by the on-demand button, the
-trigger message also lists those pending ideas.) The endpoint dedups by hash as a backstop.
+trigger message also lists those pending ideas.) The `unique(owner_id, dedup_key)` index is a backstop.
 
 ## Volume
 Aim for **3–6 ideas** per run from the top winners. Quality over quantity — only recycle genuine wins.
