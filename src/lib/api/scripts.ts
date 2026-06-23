@@ -7,6 +7,16 @@ export type BrollSuggestion = Tables<"broll_suggestions">;
 
 export type ScriptStatus = "draft" | "scheduled" | "recorded" | "posted" | "archived";
 
+export type ScriptContentLength = "corto" | "largo";
+
+export const SCRIPT_STATUSES: ScriptStatus[] = [
+  "draft",
+  "scheduled",
+  "recorded",
+  "posted",
+  "archived",
+];
+
 export interface ScriptWithBrolls extends Script {
   broll_suggestions: BrollSuggestion[];
   formats: { id: string; name: string } | null;
@@ -26,13 +36,19 @@ export interface ScriptWithBrolls extends Script {
 export async function fetchScripts(opts?: {
   status?: ScriptStatus;
   statuses?: ScriptStatus[];
+  contentLength?: ScriptContentLength;
 }): Promise<Script[]> {
   let query = supabase.from("scripts").select("*").order("created_at", { ascending: false });
   if (opts?.status) query = query.eq("status", opts.status);
   else if (opts?.statuses && opts.statuses.length > 0) query = query.in("status", opts.statuses);
+  if (opts?.contentLength) query = query.eq("content_length", opts.contentLength);
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
+}
+
+export async function updateScriptStatus(id: string, status: ScriptStatus): Promise<Script> {
+  return updateScript(id, { status });
 }
 
 export async function fetchScript(id: string): Promise<ScriptWithBrolls | null> {

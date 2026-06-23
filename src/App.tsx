@@ -39,6 +39,7 @@ const StudioProjectEditor = lazy(() => import("@/pages/app/admin/studio/ProjectE
 const IdeasInbox = lazy(() => import("@/pages/app/admin/ideas/IdeasInbox"));
 const NewIdea = lazy(() => import("@/pages/app/admin/ideas/NewIdea"));
 const ScriptEditor = lazy(() => import("@/pages/app/admin/ideas/ScriptEditor"));
+const GuionesBoard = lazy(() => import("@/pages/app/admin/guiones/GuionesBoard"));
 const VideosList = lazy(() => import("@/pages/app/admin/videos/VideosList"));
 const NewVideo = lazy(() => import("@/pages/app/admin/videos/NewVideo"));
 const VideoDetail = lazy(() => import("@/pages/app/admin/videos/VideoDetail"));
@@ -105,7 +106,10 @@ export default function App() {
                 <Route path="crear" element={<CrearPage />} />
                 <Route path="ideas" element={<IdeasInbox />} />
                 <Route path="ideas/new" element={<NewIdea />} />
+                {/* Legacy detail path — kept so old push/notification links still resolve. */}
                 <Route path="ideas/:id" element={<ScriptEditor />} />
+                <Route path="guiones" element={<GuionesBoard />} />
+                <Route path="guiones/:id" element={<ScriptEditor />} />
                 <Route path="formats" element={<Navigate to="/app/admin/settings?tab=formatos" replace />} />
                 <Route path="videos" element={<VideosList />} />
                 <Route path="videos/new" element={<NewVideo />} />

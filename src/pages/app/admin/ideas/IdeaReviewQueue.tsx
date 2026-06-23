@@ -26,11 +26,10 @@ import {
   MANUAL_ROUTINES,
   type RoutineSystem,
 } from "@/lib/api/contentRoutines";
+import LengthSwitch from "@/components/app/LengthSwitch";
 import { IdeaSwipeCard } from "./IdeaSwipeCard";
 
 const VISIBLE = 3; // cards rendered in the stack for depth
-
-const LENGTHS: ContentLength[] = ["corto", "largo"];
 
 export default function IdeaReviewQueue() {
   const navigate = useNavigate();
@@ -61,7 +60,7 @@ export default function IdeaReviewQueue() {
         const isYoutube = result.kind === "youtube";
         const link = isYoutube
           ? `/app/admin/studio/${result.id}`
-          : `/app/admin/ideas/${result.id}`;
+          : `/app/admin/guiones/${result.id}`;
         // Push (+ in-app) when the asset is ready; tapping it opens the editor.
         await sendNotification({
           user_id: idea.owner_id,
@@ -111,7 +110,7 @@ export default function IdeaReviewQueue() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <LengthToggle length={length} setLength={setLength} counts={counts} />
+        <LengthSwitch value={length} onChange={setLength} counts={counts} />
         <GenerateIdeasMenu length={length} />
       </div>
 
@@ -147,68 +146,6 @@ export default function IdeaReviewQueue() {
 
       <RejectedToggle showRejected={showRejected} setShowRejected={setShowRejected} />
       {showRejected && <RejectedList />}
-    </div>
-  );
-}
-
-const LENGTH_LABELS: Record<ContentLength, string> = {
-  corto: "Corto",
-  largo: "Largo",
-};
-
-const LENGTH_HINTS: Record<ContentLength, string> = {
-  corto: "Reels / Shorts / TikTok — al aprobar, la IA arma el guion.",
-  largo: "YouTube long-form — al aprobar, la IA arma la estructura del video.",
-};
-
-function LengthToggle({
-  length,
-  setLength,
-  counts,
-}: {
-  length: ContentLength;
-  setLength: (v: ContentLength) => void;
-  counts: Record<ContentLength, number>;
-}) {
-  return (
-    <div
-      className="inline-flex items-center gap-1 rounded-lg border border-[var(--ll-border)] bg-[var(--ll-surface)] p-1"
-      role="tablist"
-      aria-label="Duración del contenido"
-    >
-      {LENGTHS.map((opt) => {
-        const active = opt === length;
-        return (
-          <button
-            key={opt}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            title={`${counts[opt]} ${counts[opt] === 1 ? "idea pendiente" : "ideas pendientes"} · ${LENGTH_HINTS[opt]}`}
-            onClick={() => setLength(opt)}
-            className="inline-flex items-center gap-2 rounded-md px-4 py-1.5 text-sm transition-colors"
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.05em",
-              background: active ? "var(--ll-surface-2)" : "transparent",
-              color: active ? "var(--ll-text)" : "var(--ll-text-dim)",
-            }}
-          >
-            {LENGTH_LABELS[opt]}
-            {counts[opt] > 0 && (
-              <span
-                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold"
-                style={{
-                  background: active ? "var(--ll-accent)" : "var(--ll-surface-2)",
-                  color: active ? "#0a0a0a" : "var(--ll-text-muted)",
-                }}
-              >
-                {counts[opt]}
-              </span>
-            )}
-          </button>
-        );
-      })}
     </div>
   );
 }

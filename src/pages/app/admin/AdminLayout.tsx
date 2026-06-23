@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   Lightbulb,
+  FileText,
   Video,
   ClipboardList,
   BookOpen,
@@ -29,7 +30,8 @@ function buildNav(openIdeaModal: () => void): NavItem[] {
 
     // ── Crear ──
     { to: "/app/admin/crear", label: "Crear de ideas", icon: <Wand2 className="h-4 w-4" />, group: "Crear" },
-    { to: "/app/admin/ideas", label: "Idea → Guion", icon: <Lightbulb className="h-4 w-4" />, group: "Crear" },
+    { to: "/app/admin/ideas", label: "Ideas", icon: <Lightbulb className="h-4 w-4" />, group: "Crear" },
+    { to: "/app/admin/guiones", label: "Guiones", icon: <FileText className="h-4 w-4" />, group: "Crear" },
     { to: "/app/admin/referentes", label: "Referentes", icon: <Compass className="h-4 w-4" />, group: "Crear" },
 
     // ── Producir ──

@@ -232,7 +232,7 @@ export default function ScriptEditor() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["scripts"] });
       toast.success("Guion eliminado");
-      navigate("/app/admin/ideas", { replace: true });
+      navigate("/app/admin/guiones", { replace: true });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -273,7 +273,7 @@ export default function ScriptEditor() {
       <div className="space-y-4">
         <p style={{ color: "var(--ll-text-muted)" }}>Guion no encontrado.</p>
         <Button asChild variant="outline">
-          <Link to="/app/admin/ideas">
+          <Link to="/app/admin/guiones">
             <ArrowLeft className="h-4 w-4" /> Volver
           </Link>
         </Button>
@@ -294,7 +294,7 @@ export default function ScriptEditor() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm" className="-ml-3 text-[var(--ll-text-muted)]">
-          <Link to="/app/admin/ideas">
+          <Link to="/app/admin/guiones">
             <ArrowLeft className="h-4 w-4" /> Volver
           </Link>
         </Button>
