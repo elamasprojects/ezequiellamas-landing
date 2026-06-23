@@ -30,8 +30,9 @@ const SCRIPT_COLUMNS: KanbanColumn[] = [
   { id: "archived", label: "Archivado", accent: "#6b7280" },
 ];
 
-// ── Largo: own lifecycle of YouTube projects. `idea` is the fallback bucket
-// for projects whose generation status isn't an editorial column (idle/empty).
+// ── Largo: own editorial lifecycle of YouTube projects, tracked in the
+// dedicated `content_status` column (separate from `status`, which is the
+// generation-pipeline state). `idea` is the fallback for any unknown value.
 const YT_COLUMNS: KanbanColumn[] = [
   { id: "idea", label: "Idea", accent: "var(--ll-text-dim)" },
   { id: "structured", label: "Estructurado", accent: "#60a5fa" },
@@ -41,7 +42,7 @@ const YT_COLUMNS: KanbanColumn[] = [
 ];
 const YT_COLUMN_IDS = new Set(YT_COLUMNS.map((c) => c.id));
 const ytColumnOf = (p: YoutubeProject) =>
-  YT_COLUMN_IDS.has(p.status) ? p.status : "idea";
+  YT_COLUMN_IDS.has(p.content_status) ? p.content_status : "idea";
 
 const SCRIPTS_KEY = ["scripts", { status: null, statuses: null, contentLength: "corto" }] as const;
 
@@ -153,12 +154,12 @@ function LongBoard({ projects }: { projects: YoutubeProject[] }) {
 
   const move = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      updateYoutubeProject(id, { status }),
+      updateYoutubeProject(id, { content_status: status }),
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: ["youtube-projects"] });
       const prev = qc.getQueryData<YoutubeProject[]>(["youtube-projects"]);
       qc.setQueryData<YoutubeProject[]>(["youtube-projects"], (old) =>
-        (old ?? []).map((p) => (p.id === id ? { ...p, status } : p)),
+        (old ?? []).map((p) => (p.id === id ? { ...p, content_status: status } : p)),
       );
       return { prev };
     },

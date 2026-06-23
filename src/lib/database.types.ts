@@ -3421,6 +3421,7 @@ export type Database = {
           audio_upload_id: string | null
           chosen_thumbnail_cover_id: string | null
           chosen_title: string | null
+          content_status: string
           created_at: string
           default_audio_mode: string
           default_heygen_avatar_id: string | null
@@ -3440,6 +3441,7 @@ export type Database = {
           audio_upload_id?: string | null
           chosen_thumbnail_cover_id?: string | null
           chosen_title?: string | null
+          content_status?: string
           created_at?: string
           default_audio_mode?: string
           default_heygen_avatar_id?: string | null
@@ -3459,6 +3461,7 @@ export type Database = {
           audio_upload_id?: string | null
           chosen_thumbnail_cover_id?: string | null
           chosen_title?: string | null
+          content_status?: string
           created_at?: string
           default_audio_mode?: string
           default_heygen_avatar_id?: string | null
