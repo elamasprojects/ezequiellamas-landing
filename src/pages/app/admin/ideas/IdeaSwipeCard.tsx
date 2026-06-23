@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import FormatDialog from "@/pages/app/admin/formats/FormatDialog";
 import { useFormats } from "@/hooks/useFormats";
-import { updateIdea, type ContentIdea, type ContentIdeaSource } from "@/lib/api/contentIdeas";
+import { updateIdea, ideaLength, type ContentIdea, type ContentIdeaSource } from "@/lib/api/contentIdeas";
 import { WinnerReference } from "./WinnerReference";
 
 const SWIPE_THRESHOLD = 120;
@@ -63,9 +63,19 @@ export function IdeaSwipeCard({ idea, active, depth, onApprove, onReject, onExit
 
   const meta = SOURCE_META[idea.source as ContentIdeaSource] ?? SOURCE_META.manual;
   const SourceIcon = meta.icon;
+  const length = ideaLength(idea);
   const formatName = useMemo(
     () => formats?.find((f) => f.id === idea.suggested_format_id)?.name ?? null,
     [formats, idea.suggested_format_id],
+  );
+  // Only formats that support this idea's duration are selectable. The currently
+  // assigned format is always kept in the list so an existing pick is never hidden.
+  const availableFormats = useMemo(
+    () =>
+      (formats ?? []).filter(
+        (f) => (f.content_lengths ?? []).includes(length) || f.id === formatId,
+      ),
+    [formats, length, formatId],
   );
 
   const saveMutation = useMutation({
@@ -158,6 +168,13 @@ export function IdeaSwipeCard({ idea, active, depth, onApprove, onReject, onExit
                 {idea.pillar}
               </span>
             )}
+            <span
+              className="rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface-2)] px-2 py-0.5 text-[10px] uppercase tracking-[0.15em]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-warm)" }}
+              title={length === "largo" ? "Contenido largo (YouTube)" : "Contenido corto (Reels/Shorts/TT)"}
+            >
+              {length}
+            </span>
           </div>
           {active && (
             <button
@@ -242,7 +259,7 @@ export function IdeaSwipeCard({ idea, active, depth, onApprove, onReject, onExit
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin formato</SelectItem>
-                  {formats?.map((f) => (
+                  {availableFormats.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
                       {f.name}
                     </SelectItem>
@@ -296,7 +313,7 @@ export function IdeaSwipeCard({ idea, active, depth, onApprove, onReject, onExit
                 onClick={() => fly(1)}
                 disabled={exiting}
                 className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--ll-accent)]/50 bg-[var(--ll-accent)]/15 text-[var(--ll-accent)] transition-colors hover:bg-[var(--ll-accent)]/25 disabled:opacity-40"
-                aria-label="Aprobar y generar guion"
+                aria-label={length === "largo" ? "Aprobar y generar estructura" : "Aprobar y generar guion"}
               >
                 <Check className="h-7 w-7" />
               </button>

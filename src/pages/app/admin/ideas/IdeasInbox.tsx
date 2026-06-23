@@ -41,7 +41,7 @@ export default function IdeasInbox() {
             className="text-[10px] uppercase tracking-[0.25em]"
             style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
           >
-            Ideas → Guion
+            Ideas
           </div>
           <h1
             className="text-3xl"
@@ -50,7 +50,7 @@ export default function IdeasInbox() {
             Tus <em style={{ color: "var(--ll-warm)" }}>ideas</em>
           </h1>
           <p className="max-w-xl text-sm" style={{ color: "var(--ll-text-muted)" }}>
-            Revisá las ideas que generan tus rutinas (deslizá para aprobar o descartar), o cargá una manual. Al aprobar, la IA te arma el guion en tu tono.
+            Revisá las ideas que generan tus rutinas (deslizá para aprobar o descartar), o cargá una manual. Al aprobar, la IA te arma el guion (corto) o la estructura de YouTube (largo) en tu tono.
           </p>
         </div>
         <Button asChild variant="brand">

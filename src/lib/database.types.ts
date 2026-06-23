@@ -1112,6 +1112,7 @@ export type Database = {
       }
       formats: {
         Row: {
+          content_lengths: string[]
           created_at: string
           description: string | null
           example_storage_path: string | null
@@ -1123,6 +1124,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          content_lengths?: string[]
           created_at?: string
           description?: string | null
           example_storage_path?: string | null
@@ -1134,6 +1136,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          content_lengths?: string[]
           created_at?: string
           description?: string | null
           example_storage_path?: string | null
@@ -1792,10 +1795,12 @@ export type Database = {
           angle: string | null
           comments_summary: Json | null
           concept: string | null
+          content_length: string
           created_at: string
           dedup_key: string | null
           derived_from: string[]
           generated_script_id: string | null
+          generated_youtube_project_id: string | null
           hook: string | null
           id: string
           idea_reference_id: string | null
@@ -1817,10 +1822,12 @@ export type Database = {
           angle?: string | null
           comments_summary?: Json | null
           concept?: string | null
+          content_length?: string
           created_at?: string
           dedup_key?: string | null
           derived_from?: string[]
           generated_script_id?: string | null
+          generated_youtube_project_id?: string | null
           hook?: string | null
           id?: string
           idea_reference_id?: string | null
@@ -1842,10 +1849,12 @@ export type Database = {
           angle?: string | null
           comments_summary?: Json | null
           concept?: string | null
+          content_length?: string
           created_at?: string
           dedup_key?: string | null
           derived_from?: string[]
           generated_script_id?: string | null
+          generated_youtube_project_id?: string | null
           hook?: string | null
           id?: string
           idea_reference_id?: string | null
@@ -1897,6 +1906,13 @@ export type Database = {
             columns: ["generated_script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_ideas_generated_youtube_project_id_fkey"
+            columns: ["generated_youtube_project_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2574,6 +2590,7 @@ export type Database = {
           avatar_target: string | null
           caption: string | null
           content_bucket: string | null
+          content_length: string
           created_at: string
           cta: string | null
           development: string | null
@@ -2617,6 +2634,7 @@ export type Database = {
           avatar_target?: string | null
           caption?: string | null
           content_bucket?: string | null
+          content_length?: string
           created_at?: string
           cta?: string | null
           development?: string | null
@@ -2660,6 +2678,7 @@ export type Database = {
           avatar_target?: string | null
           caption?: string | null
           content_bucket?: string | null
+          content_length?: string
           created_at?: string
           cta?: string | null
           development?: string | null
