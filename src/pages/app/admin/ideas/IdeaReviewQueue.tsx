@@ -12,7 +12,13 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useContentIdeas } from "@/hooks/useContentIdeas";
-import { approveIdea, rejectIdea, type ContentIdea } from "@/lib/api/contentIdeas";
+import {
+  approveIdea,
+  rejectIdea,
+  ideaLength,
+  type ContentIdea,
+  type ContentLength,
+} from "@/lib/api/contentIdeas";
 import { sendNotification } from "@/lib/api/notifications";
 import {
   triggerContentRoutine,
@@ -20,6 +26,7 @@ import {
   MANUAL_ROUTINES,
   type RoutineSystem,
 } from "@/lib/api/contentRoutines";
+import LengthSwitch from "@/components/app/LengthSwitch";
 import { IdeaSwipeCard } from "./IdeaSwipeCard";
 
 const VISIBLE = 3; // cards rendered in the stack for depth
@@ -28,6 +35,7 @@ export default function IdeaReviewQueue() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: ideas, isLoading } = useContentIdeas("pending");
+  const [length, setLength] = useState<ContentLength>("corto");
   const [showRejected, setShowRejected] = useState(false);
   // Locally hidden as soon as a card flies off, so the queue advances instantly
   // while generation runs in the background. Cleared if the action errors.
@@ -45,24 +53,29 @@ export default function IdeaReviewQueue() {
   // user switches tabs (this component unmounts) — the promise resolves regardless.
   function runApprove(idea: ContentIdea) {
     approveIdea(idea)
-      .then(async (scriptId) => {
+      .then(async (result) => {
         qc.invalidateQueries({ queryKey: ["content-ideas"] });
         qc.invalidateQueries({ queryKey: ["scripts"] });
-        // Push (+ in-app) when the guion is ready; tapping it opens the script.
+        qc.invalidateQueries({ queryKey: ["youtube-projects"] });
+        const isYoutube = result.kind === "youtube";
+        const link = isYoutube
+          ? `/app/admin/studio/${result.id}`
+          : `/app/admin/guiones/${result.id}`;
+        // Push (+ in-app) when the asset is ready; tapping it opens the editor.
         await sendNotification({
           user_id: idea.owner_id,
-          kind: "script.ready",
-          title: "Tu guion está listo",
+          kind: isYoutube ? "youtube.structure_ready" : "script.ready",
+          title: isYoutube ? "Tu estructura está lista" : "Tu guion está listo",
           body: (idea.concept ?? "Idea aprobada").slice(0, 120),
-          link: `/app/admin/ideas/${scriptId}`,
+          link,
           send_push: true,
         }).catch(() => {});
-        toast.success("Guion generado", {
-          action: { label: "Abrir", onClick: () => navigate(`/app/admin/ideas/${scriptId}`) },
+        toast.success(isYoutube ? "Estructura generada" : "Guion generado", {
+          action: { label: "Abrir", onClick: () => navigate(link) },
         });
       })
       .catch((e: Error) => {
-        toast.error(e?.message ?? "No se pudo generar el guion");
+        toast.error(e?.message ?? "No se pudo procesar la idea");
         undismiss(idea.id); // bring the card back so it can be retried
       });
   }
@@ -84,50 +97,52 @@ export default function IdeaReviewQueue() {
     );
   }
 
-  const pending = (ideas ?? []).filter((i) => !dismissed.has(i.id));
-
-  if (pending.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <GenerateIdeasMenu />
-        </div>
-        <EmptyState />
-        <RejectedToggle showRejected={showRejected} setShowRejected={setShowRejected} />
-        {showRejected && <RejectedList />}
-      </div>
-    );
-  }
-
+  // Live (non-dismissed) pending ideas, then split by duration so the badges and
+  // the visible stack stay in sync as cards are swiped away.
+  const live = (ideas ?? []).filter((i) => !dismissed.has(i.id));
+  const counts: Record<ContentLength, number> = {
+    corto: live.filter((i) => ideaLength(i) === "corto").length,
+    largo: live.filter((i) => ideaLength(i) === "largo").length,
+  };
+  const pending = live.filter((i) => ideaLength(i) === length);
   const stack = pending.slice(0, VISIBLE);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-          {pending.length} {pending.length === 1 ? "idea pendiente" : "ideas pendientes"} · deslizá → aprobar, ← descartar
-        </p>
-        <GenerateIdeasMenu />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LengthSwitch value={length} onChange={setLength} counts={counts} />
+        <GenerateIdeasMenu length={length} />
       </div>
 
-      {/* Card stack — top card is interactive; the rest are visual depth.
-          Approve/reject fly the card off and run generation in the background. */}
-      <div className="relative mx-auto h-[520px] max-w-lg">
-        {stack
-          .map((idea, depth) => (
-            <IdeaSwipeCard
-              key={idea.id}
-              idea={idea}
-              depth={depth}
-              active={depth === 0}
-              onApprove={runApprove}
-              onReject={(i) => runReject(i.id)}
-              onExited={dismiss}
-            />
-          ))
-          // Render bottom-of-stack first so the top card paints last (and on top).
-          .reverse()}
-      </div>
+      {pending.length === 0 ? (
+        <EmptyState length={length} />
+      ) : (
+        <>
+          <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
+            {pending.length} {pending.length === 1 ? "idea pendiente" : "ideas pendientes"}
+            {" · deslizá → aprobar, ← descartar"}
+          </p>
+
+          {/* Card stack — top card is interactive; the rest are visual depth.
+              Approve/reject fly the card off and run generation in the background. */}
+          <div className="relative mx-auto h-[520px] max-w-lg">
+            {stack
+              .map((idea, depth) => (
+                <IdeaSwipeCard
+                  key={idea.id}
+                  idea={idea}
+                  depth={depth}
+                  active={depth === 0}
+                  onApprove={runApprove}
+                  onReject={(i) => runReject(i.id)}
+                  onExited={dismiss}
+                />
+              ))
+              // Render bottom-of-stack first so the top card paints last (and on top).
+              .reverse()}
+          </div>
+        </>
+      )}
 
       <RejectedToggle showRejected={showRejected} setShowRejected={setShowRejected} />
       {showRejected && <RejectedList />}
@@ -135,7 +150,7 @@ export default function IdeaReviewQueue() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ length }: { length: ContentLength }) {
   return (
     <div className="rounded-2xl border border-[var(--ll-border)] bg-[var(--ll-surface)] p-12 text-center">
       <div
@@ -145,7 +160,8 @@ function EmptyState() {
         <Inbox className="h-5 w-5" style={{ color: "var(--ll-accent)" }} />
       </div>
       <p className="text-sm" style={{ color: "var(--ll-text-muted)" }}>
-        No hay ideas para revisar. Las rutinas cargan nuevas ideas automáticamente, o generalas a demanda.
+        No hay ideas {length === "largo" ? "de contenido largo" : "de contenido corto"} para revisar.
+        Las rutinas cargan nuevas ideas automáticamente, o generalas a demanda.
       </p>
     </div>
   );
@@ -179,9 +195,9 @@ const ROUTINE_ICONS: Record<RoutineSystem, typeof Brain> = {
   winners: Trophy,
 };
 
-function GenerateIdeasMenu() {
+function GenerateIdeasMenu({ length }: { length: ContentLength }) {
   const mut = useMutation({
-    mutationFn: (system: RoutineSystem) => triggerContentRoutine(system),
+    mutationFn: (system: RoutineSystem) => triggerContentRoutine(system, length),
     onSuccess: () =>
       toast.success("Rutina disparada", {
         description: "Las ideas van a aparecer en la bandeja en unos minutos.",
@@ -194,7 +210,7 @@ function GenerateIdeasMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="brand" size="sm" disabled={mut.isPending}>
           {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          Generar ideas
+          Generar ideas {length === "largo" ? "largas" : "cortas"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="border-[var(--ll-border)] bg-[var(--ll-surface)]">

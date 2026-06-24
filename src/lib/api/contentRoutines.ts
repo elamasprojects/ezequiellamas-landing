@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { ContentLength } from "@/lib/api/contentIdeas";
 
 export type RoutineSystem = "knowledge" | "news" | "winners";
 
@@ -15,10 +16,13 @@ export const MANUAL_ROUTINES: RoutineSystem[] = ["knowledge", "winners"];
 // Fire-and-forget: a 200 only acks that the cloud routine started. The generated
 // ideas land in the bandeja a few minutes later (via ingest-content-idea), and
 // Realtime refreshes the queue.
-export async function triggerContentRoutine(system: RoutineSystem): Promise<void> {
+export async function triggerContentRoutine(
+  system: RoutineSystem,
+  content_length: ContentLength = "corto",
+): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
     "trigger-content-routine",
-    { body: { system } },
+    { body: { system, content_length } },
   );
   if (error) {
     // Supabase hides the JSON body on non-2xx; recover it from error.context.

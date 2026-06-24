@@ -1,10 +1,27 @@
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/lib/database.types";
 import { generateScript } from "@/lib/api/generation";
+import { generateStructure } from "@/lib/api/youtubeStudio";
 
 export type ContentIdea = Tables<"content_ideas">;
 export type ContentIdeaStatus = ContentIdea["status"];
 export type ContentIdeaSource = ContentIdea["source"];
+
+// Short (reel/short/TT) vs long (YouTube long-form). `content_length` is a free
+// text column server-side; the UI only ever writes/reads these two values.
+export type ContentLength = "corto" | "largo";
+
+// Narrow the DB's `string` column to the two values the UI handles, defaulting
+// any unexpected value to "corto".
+export function ideaLength(idea: Pick<ContentIdea, "content_length">): ContentLength {
+  return idea.content_length === "largo" ? "largo" : "corto";
+}
+
+// Approving a long idea builds a YouTube structure instead of a script, so the
+// caller needs to know which editor to open afterwards.
+export type ApproveResult =
+  | { kind: "script"; id: string }
+  | { kind: "youtube"; id: string };
 
 // Editable fields exposed in the swipe card.
 export interface ContentIdeaPatch {
@@ -43,11 +60,30 @@ function composeConcept(idea: ContentIdea): string {
   return parts.join("\n\n");
 }
 
-// Approve → generate the full script, then stamp the idea. Script create happens
-// FIRST so a failure leaves the idea pending (same ordering as approveProposalSchedule).
+// Approve → generate the asset, then stamp the idea. The asset is created FIRST
+// so a failure leaves the idea pending (same ordering as approveProposalSchedule).
 // The partial-unique index on generated_script_id is the server-side backstop
 // against a double-swipe creating two scripts from one idea.
-export async function approveIdea(idea: ContentIdea): Promise<string> {
+//
+// Branches on content_length:
+//  - "largo" → generate-youtube-structure, stamp generated_youtube_project_id
+//  - "corto" → generate-script (the historical flow), stamp generated_script_id
+export async function approveIdea(idea: ContentIdea): Promise<ApproveResult> {
+  if (ideaLength(idea) === "largo") {
+    const { project_id } = await generateStructure({
+      // composeConcept folds in angle/hook; fall back to the bare concept.
+      idea: composeConcept(idea) || (idea.concept ?? ""),
+      // TODO: surface a short/medium/long selector when long-form matures.
+      length_tier: "medium",
+    });
+    const { error } = await supabase
+      .from("content_ideas")
+      .update({ status: "approved", generated_youtube_project_id: project_id })
+      .eq("id", idea.id);
+    if (error) throw error;
+    return { kind: "youtube", id: project_id };
+  }
+
   const { script_id } = await generateScript({
     raw_concept: composeConcept(idea) || undefined,
     format_id: idea.suggested_format_id ?? undefined,
@@ -59,7 +95,7 @@ export async function approveIdea(idea: ContentIdea): Promise<string> {
     .update({ status: "approved", generated_script_id: script_id })
     .eq("id", idea.id);
   if (error) throw error;
-  return script_id;
+  return { kind: "script", id: script_id };
 }
 
 export async function rejectIdea(id: string): Promise<void> {
