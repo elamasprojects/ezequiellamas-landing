@@ -46,29 +46,30 @@ import { useSeries } from "@/hooks/useSeries";
 import {
   deleteScript,
   updateScript,
+  SCRIPT_STATUSES,
+  SCRIPT_STATUS_LABELS,
+  CONTENT_BUCKET_LABELS,
   type ScriptStatus,
   type ScriptUpdate,
 } from "@/lib/api/scripts";
 import { generateScript } from "@/lib/api/generation";
 
-const STATUSES: { value: ScriptStatus; label: string }[] = [
-  { value: "draft", label: "Draft" },
-  { value: "scheduled", label: "Agendado" },
-  { value: "recorded", label: "Grabado" },
-  { value: "posted", label: "Posteado" },
-  { value: "archived", label: "Archivado" },
-];
+const STATUSES: { value: ScriptStatus; label: string }[] = SCRIPT_STATUSES.map((s) => ({
+  value: s,
+  label: SCRIPT_STATUS_LABELS[s],
+}));
 
 const NO_FORMAT = "__none__";
 const NO_SHAPE = "__none__";
 const NO_SERIES = "__none__";
 
-const BUCKET_LABELS: Record<string, { label: string; className: string }> = {
-  negocios: { label: "Negocios", className: "bg-[var(--ll-accent)]/15 text-[var(--ll-accent)] border-[var(--ll-accent)]/30" },
-  sistemas: { label: "Sistemas", className: "bg-[var(--ll-blue)]/15 text-[var(--ll-blue)] border-[var(--ll-blue)]/30" },
-  ia_estrategica: { label: "IA estratégica", className: "bg-purple-500/15 text-purple-300 border-purple-500/30" },
-  finanzas: { label: "Finanzas", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
-  mentalidad: { label: "Mentalidad", className: "bg-[var(--ll-warm)]/15 text-[var(--ll-warm)] border-[var(--ll-warm)]/30" },
+// Badge styling per bucket (labels come from the shared CONTENT_BUCKET_LABELS).
+const BUCKET_BADGE_CLASS: Record<string, string> = {
+  negocios: "bg-[var(--ll-accent)]/15 text-[var(--ll-accent)] border-[var(--ll-accent)]/30",
+  sistemas: "bg-[var(--ll-blue)]/15 text-[var(--ll-blue)] border-[var(--ll-blue)]/30",
+  ia_estrategica: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  finanzas: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  mentalidad: "bg-[var(--ll-warm)]/15 text-[var(--ll-warm)] border-[var(--ll-warm)]/30",
 };
 
 const AVATAR_LABELS: Record<string, string> = {
@@ -263,7 +264,14 @@ export default function ScriptEditor() {
     return VISUAL_HOOK_LABELS[script.visual_hook_format] ?? `#${script.visual_hook_format}`;
   }, [script?.visual_hook_format]);
 
-  const bucketBadge = script?.content_bucket ? BUCKET_LABELS[script.content_bucket] : null;
+  const bucketBadge = script?.content_bucket
+    ? {
+        label: CONTENT_BUCKET_LABELS[script.content_bucket] ?? script.content_bucket,
+        className:
+          BUCKET_BADGE_CLASS[script.content_bucket] ??
+          "border-[var(--ll-border)] text-[var(--ll-text-muted)]",
+      }
+    : null;
 
   if (isLoading) {
     return <Skeleton className="h-96 w-full bg-[var(--ll-surface)]" />;

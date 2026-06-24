@@ -17,6 +17,26 @@ export const SCRIPT_STATUSES: ScriptStatus[] = [
   "archived",
 ];
 
+// Single source of truth for the Spanish status labels shown across the guiones
+// board (columns) and the script editor (status select).
+export const SCRIPT_STATUS_LABELS: Record<ScriptStatus, string> = {
+  draft: "Borrador",
+  scheduled: "Agendado",
+  recorded: "Grabado",
+  posted: "Posteado",
+  archived: "Archivado",
+};
+
+// Canonical labels for `scripts.content_bucket`, shared by the board chip and the
+// editor badge so a bucket rename happens in one place.
+export const CONTENT_BUCKET_LABELS: Record<string, string> = {
+  negocios: "Negocios",
+  sistemas: "Sistemas",
+  ia_estrategica: "IA",
+  finanzas: "Finanzas",
+  mentalidad: "Mentalidad",
+};
+
 export interface ScriptWithBrolls extends Script {
   broll_suggestions: BrollSuggestion[];
   formats: { id: string; name: string } | null;

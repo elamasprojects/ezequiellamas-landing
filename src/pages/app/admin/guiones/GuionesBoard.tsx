@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, Lightbulb, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import LengthSwitch from "@/components/app/LengthSwitch";
 import Kanban, { type KanbanColumn } from "@/components/app/Kanban";
 import { useScripts } from "@/hooks/useScripts";
+import { useKanbanMove } from "@/hooks/useKanbanMove";
 import { useYoutubeProjects } from "@/hooks/useYoutubeStudio";
 import {
   updateScriptStatus,
+  SCRIPT_STATUSES,
+  SCRIPT_STATUS_LABELS,
+  CONTENT_BUCKET_LABELS,
   type Script,
   type ScriptStatus,
 } from "@/lib/api/scripts";
@@ -21,14 +24,21 @@ import {
 } from "@/lib/api/scriptApprovals";
 import type { ContentLength } from "@/lib/api/contentIdeas";
 
-// ── Corto: editorial lifecycle of the `scripts` table ──
-const SCRIPT_COLUMNS: KanbanColumn[] = [
-  { id: "draft", label: "Borrador", accent: "var(--ll-text-dim)" },
-  { id: "scheduled", label: "Agendado", accent: "#60a5fa" },
-  { id: "recorded", label: "Grabado", accent: "#c084fc" },
-  { id: "posted", label: "Posteado", accent: "var(--ll-accent)" },
-  { id: "archived", label: "Archivado", accent: "#6b7280" },
-];
+// ── Corto: editorial lifecycle of the `scripts` table. Columns derive from the
+// shared SCRIPT_STATUSES/labels so the board, editor and API stay in sync; only
+// the per-column accent is board-specific.
+const SCRIPT_ACCENTS: Record<ScriptStatus, string> = {
+  draft: "var(--ll-text-dim)",
+  scheduled: "#60a5fa",
+  recorded: "#c084fc",
+  posted: "var(--ll-accent)",
+  archived: "#6b7280",
+};
+const SCRIPT_COLUMNS: KanbanColumn[] = SCRIPT_STATUSES.map((s) => ({
+  id: s,
+  label: SCRIPT_STATUS_LABELS[s],
+  accent: SCRIPT_ACCENTS[s],
+}));
 
 // ── Largo: own editorial lifecycle of YouTube projects, tracked in the
 // dedicated `content_status` column (separate from `status`, which is the
@@ -101,7 +111,6 @@ export default function GuionesBoard() {
 }
 
 function ShortBoard({ scripts }: { scripts: Script[] }) {
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: approvals } = useQuery({
     queryKey: ["script_approvals_admin"],
@@ -109,25 +118,17 @@ function ShortBoard({ scripts }: { scripts: Script[] }) {
     staleTime: 30_000,
   });
 
-  const move = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: ScriptStatus }) =>
-      updateScriptStatus(id, status),
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: SCRIPTS_KEY });
-      const prev = qc.getQueryData<Script[]>(SCRIPTS_KEY);
-      qc.setQueryData<Script[]>(SCRIPTS_KEY, (old) =>
-        (old ?? []).map((s) => (s.id === id ? { ...s, status } : s)),
-      );
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(SCRIPTS_KEY, ctx.prev);
-      toast.error("No se pudo mover el guion");
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["scripts"] }),
+  const move = useKanbanMove<Script>({
+    queryKey: SCRIPTS_KEY,
+    apply: (id, status) => updateScriptStatus(id, status as ScriptStatus),
+    patch: (s, status) => ({ ...s, status: status as ScriptStatus }),
+    errorMessage: "No se pudo mover el guion",
   });
 
-  const items = scripts.map((s) => ({ ...s, column: s.status }));
+  const items = useMemo(
+    () => scripts.map((s) => ({ ...s, column: s.status })),
+    [scripts],
+  );
 
   return (
     <Kanban
@@ -149,28 +150,19 @@ function ShortBoard({ scripts }: { scripts: Script[] }) {
 }
 
 function LongBoard({ projects }: { projects: YoutubeProject[] }) {
-  const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const move = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      updateYoutubeProject(id, { content_status: status }),
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: ["youtube-projects"] });
-      const prev = qc.getQueryData<YoutubeProject[]>(["youtube-projects"]);
-      qc.setQueryData<YoutubeProject[]>(["youtube-projects"], (old) =>
-        (old ?? []).map((p) => (p.id === id ? { ...p, content_status: status } : p)),
-      );
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["youtube-projects"], ctx.prev);
-      toast.error("No se pudo mover el proyecto");
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["youtube-projects"] }),
+  const move = useKanbanMove<YoutubeProject>({
+    queryKey: ["youtube-projects"],
+    apply: (id, status) => updateYoutubeProject(id, { content_status: status }),
+    patch: (p, status) => ({ ...p, content_status: status }),
+    errorMessage: "No se pudo mover el proyecto",
   });
 
-  const items = projects.map((p) => ({ ...p, column: ytColumnOf(p) }));
+  const items = useMemo(
+    () => projects.map((p) => ({ ...p, column: ytColumnOf(p) })),
+    [projects],
+  );
 
   return (
     <Kanban
@@ -187,14 +179,6 @@ function LongBoard({ projects }: { projects: YoutubeProject[] }) {
     />
   );
 }
-
-const BUCKET_CHIP_LABELS: Record<string, string> = {
-  negocios: "Negocios",
-  sistemas: "Sistemas",
-  ia_estrategica: "IA",
-  finanzas: "Finanzas",
-  mentalidad: "Mentalidad",
-};
 
 function CardShell({
   onOpen,
@@ -248,7 +232,7 @@ function ScriptCard({
             className="rounded-md border border-[var(--ll-border)] bg-[var(--ll-surface)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em]"
             style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--ll-accent)" }}
           >
-            {BUCKET_CHIP_LABELS[script.content_bucket] ?? script.content_bucket}
+            {CONTENT_BUCKET_LABELS[script.content_bucket] ?? script.content_bucket}
           </span>
         )}
         {approval && (
@@ -267,6 +251,17 @@ function ScriptCard({
           </span>
         )}
       </div>
+      {approval?.notes && (
+        <p
+          className="mt-1.5 line-clamp-2 text-[11px] italic"
+          style={{
+            color: approval.decision === "rejected" ? "rgb(248 113 113)" : "var(--ll-text-dim)",
+          }}
+          title={approval.notes}
+        >
+          {approval.notes}
+        </p>
+      )}
       {script.scheduled_at && (
         <div
           className="mt-2 flex items-center gap-1 text-[10px]"

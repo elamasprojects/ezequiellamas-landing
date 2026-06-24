@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -46,15 +46,39 @@ export default function Kanban<T extends KanbanItem>({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
+  // True from drag-start through the synthetic click that fires on pointer-up,
+  // so a card that was dragged (even back onto itself) doesn't also open.
+  const draggedRef = useRef(false);
 
-  const activeItem = items.find((i) => i.id === activeId) ?? null;
+  // Group once per items/columns change instead of filtering per column on
+  // every render (DndContext re-renders on each pointer move during a drag).
+  const grouped = useMemo(() => {
+    const map: Record<string, T[]> = {};
+    for (const col of columns) map[col.id] = [];
+    for (const it of items) (map[it.column] ??= []).push(it);
+    return map;
+  }, [columns, items]);
+  const activeItem = useMemo(
+    () => items.find((i) => i.id === activeId) ?? null,
+    [items, activeId],
+  );
+
+  function clearDraggedSoon() {
+    // Keep the flag set through the click that fires right after pointer-up,
+    // then release it on the next tick.
+    setTimeout(() => {
+      draggedRef.current = false;
+    }, 0);
+  }
 
   function handleStart(e: DragStartEvent) {
+    draggedRef.current = true;
     setActiveId(String(e.active.id));
   }
 
   function handleEnd(e: DragEndEvent) {
     setActiveId(null);
+    clearDraggedSoon();
     const { active, over } = e;
     if (!over) return;
     const item = items.find((i) => i.id === String(active.id));
@@ -69,17 +93,21 @@ export default function Kanban<T extends KanbanItem>({
       sensors={sensors}
       onDragStart={handleStart}
       onDragEnd={handleEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={() => {
+        setActiveId(null);
+        clearDraggedSoon();
+      }}
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {columns.map((col) => (
           <Column
             key={col.id}
             column={col}
-            items={items.filter((i) => i.column === col.id)}
+            items={grouped[col.id] ?? []}
             renderCard={renderCard}
             emptyLabel={emptyLabel}
             activeId={activeId}
+            draggedRef={draggedRef}
           />
         ))}
       </div>
@@ -98,12 +126,14 @@ function Column<T extends KanbanItem>({
   renderCard,
   emptyLabel,
   activeId,
+  draggedRef,
 }: {
   column: KanbanColumn;
   items: T[];
   renderCard: (item: T) => ReactNode;
   emptyLabel: string;
   activeId: string | null;
+  draggedRef: MutableRefObject<boolean>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
@@ -143,7 +173,7 @@ function Column<T extends KanbanItem>({
           </div>
         ) : (
           items.map((item) => (
-            <Card key={item.id} id={item.id} dimmed={activeId === item.id}>
+            <Card key={item.id} id={item.id} dimmed={activeId === item.id} draggedRef={draggedRef}>
               {renderCard(item)}
             </Card>
           ))
@@ -157,10 +187,12 @@ function Card({
   id,
   children,
   dimmed,
+  draggedRef,
 }: {
   id: string;
   children: ReactNode;
   dimmed: boolean;
+  draggedRef: MutableRefObject<boolean>;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   return (
@@ -168,6 +200,14 @@ function Card({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      // Swallow the click dnd-kit emits after a drag so the card isn't also
+      // opened. Capture phase runs before the inner card's own onClick.
+      onClickCapture={(e) => {
+        if (draggedRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       className="touch-none"
       style={{ opacity: isDragging || dimmed ? 0.4 : 1, cursor: "grab" }}
     >
